@@ -14,7 +14,6 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request).catch(() => {
-      // Se la rete fallisce, prova a cercare nella cache
       return caches.match(event.request);
     })
   );
