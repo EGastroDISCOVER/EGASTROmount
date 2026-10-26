@@ -1,0 +1,17 @@
+{
+  "name": "EG Astro Mount",
+  "short_name": "EG Mount",
+  "description": "Controllo Montatura Astronomica",
+  "start_url": "./mount.html",
+  "display": "standalone",
+  "background_color": "#05070a",
+  "theme_color": "#d4af37",
+  "icons": [
+    {
+      "src": "logo-mount.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
