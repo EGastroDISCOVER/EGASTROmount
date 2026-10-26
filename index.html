@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EGASTRO Mount</title>
 <link rel="icon" type="image/png" href="logo-mount.png">
-<link rel="manifest" href="manifest-mount.json">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#05070a">
 <link rel="apple-touch-icon" href="logo-mount.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -555,8 +555,7 @@ window.addEventListener('unload',saveFullState);
 window.addEventListener('pagehide',saveFullState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
 
-window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();
-if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
+window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
 </script>
 </body>
 </html>
