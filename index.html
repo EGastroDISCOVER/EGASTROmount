@@ -595,6 +595,91 @@ window.addEventListener('pagehide',saveFullState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
 
 window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
+
+window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
+
+/* ============================================================
+   INTEGRAZIONE CON APP MADRE — aggiunto in fondo
+   ============================================================ */
+(function() {
+  const SYNC_CHANNEL_NAME = 'egastro_mount_sync';
+  let mountChannel = null;
+
+  try {
+    if ('BroadcastChannel' in window) {
+      mountChannel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+      mountChannel.onmessage = (event) => {
+        const msg = event.data;
+        if (msg.type === 'goto_command' && msg.data.target) {
+          console.log('📥 Ricevuto GOTO:', msg.data.target);
+          MS.tRA = msg.data.target.ra * DEG_TO_RAD;
+          MS.tDEC = msg.data.target.dec * DEG_TO_RAD;
+          MS.slewMode = 'goto';
+          MS.slewStartDist = 1;
+          MS.customGotoRate = null;
+          showToast('🎯 GOTO ricevuto da EGastro DISCOVER');
+        }
+      };
+    }
+  } catch(e) { console.warn('BroadcastChannel non supportato', e); }
+
+  function loadSharedData() {
+    const params = new URLSearchParams(window.location.search);
+    const urlLat = parseFloat(params.get('lat'));
+    const urlLon = parseFloat(params.get('lon'));
+    const urlTargetName = params.get('targetName');
+    const urlTargetRa = parseFloat(params.get('targetRa'));
+    const urlTargetDec = parseFloat(params.get('targetDec'));
+
+    if (!isNaN(urlLat) && !isNaN(urlLon)) {
+      MS.gpsLat = urlLat;
+      MS.gpsLon = urlLon;
+      MS.gpsActive = true;
+      console.log('📍 Coordinate da URL:', urlLat, urlLon);
+    }
+    if (urlTargetName && !isNaN(urlTargetRa) && !isNaN(urlTargetDec)) {
+      console.log('🎯 Target da URL:', urlTargetName, urlTargetRa, urlTargetDec);
+      showToast(`🎯 Target: ${urlTargetName}`);
+    }
+
+    try {
+      const raw = localStorage.getItem('egastro_shared_data');
+      if (raw) {
+        const shared = JSON.parse(raw);
+        if (Date.now() - shared.timestamp < 5 * 60 * 1000) {
+          if (shared.lat && shared.lon) {
+            MS.gpsLat = shared.lat;
+            MS.gpsLon = shared.lon;
+            MS.gpsActive = true;
+          }
+          if (shared.target && shared.command === 'goto') {
+            showToast(`🎯 Target: ${shared.target.name}`);
+          }
+        }
+      }
+    } catch(e) { console.warn('Errore localStorage', e); }
+  }
+
+  function broadcastMountStatus() {
+    if (!mountChannel || !MS.connected) return;
+    try {
+      mountChannel.postMessage({
+        type: 'mount_status_update',
+        data: { alt: MS.dec, az: MS.ra, tracking: MS.tracking, connected: MS.connected }
+      });
+    } catch(e) {}
+  }
+
+  window.addEventListener('load', () => {
+    setTimeout(() => loadSharedData(), 500);
+  });
+
+  setInterval(() => {
+    if (MS.connected) broadcastMountStatus();
+  }, 2000);
+})();
+</script>
 </script>
 </body>
 </html>
