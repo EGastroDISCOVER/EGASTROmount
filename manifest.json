@@ -1,6 +1,6 @@
 {
-  "name": "EG Astro Mount",
-  "short_name": "EG Mount",
+  "name": "EGASTRO Mount",
+  "short_name": "EGASTRO Mount",
   "description": "Controllo Montatura Astronomica",
   "start_url": "./index.html",
   "display": "standalone",
