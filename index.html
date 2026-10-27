@@ -726,7 +726,7 @@ window.addEventListener('load', () => {
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 22px)); z-index: 999999; display: flex; align-items: stretch; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-right: none; border-radius: 12px 0 0 12px; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: -2px 0 10px rgba(0,0,0,0.5); }
+  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-right: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
   #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
   #app-switcher-toggle:hover { background: #d4af37; color: #000; }
   .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
@@ -752,12 +752,12 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v3.0
+//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v4.0
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
 
-  // 1. Menu
+  // 1. Menu e Navigazione
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -779,7 +779,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. GPS (Popup una tantum)
+  // 2. GPS (Popup a ogni sincronizzazione)
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -807,34 +807,51 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Comandi
+  // 4. Comandi (Se peer c'è, NON eseguire localmente)
+  function wrapSlave(fnName, msgType, dataFn) {
+    const orig = window[fnName]; if (typeof orig !== 'function') return;
+    window[fnName] = function () {
+      if (!SyncBus.isPeerAlive()) {
+        return orig.apply(this, arguments);
+      }
+      const data = dataFn ? dataFn.apply(this, arguments) : null;
+      if (data !== false) SyncBus.send(msgType, data);
+    };
+  }
+  wrapSlave('parkMount', 'cmd_park');
+  wrapSlave('unparkMount', 'cmd_unpark');
+  wrapSlave('goHome', 'cmd_home');
+  wrapSlave('stopMotion', 'cmd_stop');
+  wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
+  wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
+
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
-      const wasConnected = MS.connected;
-      _origToggle.apply(this, arguments);
-      if (!SyncBus.isPeerAlive()) return; // Se l'altro c'è, non inviare (lo farà l'altro)
-      SyncBus.send('cmd_connect', { on: !wasConnected });
+      if (SyncBus.isPeerAlive()) {
+        SyncBus.send('cmd_connect', { on: !MS.connected });
+      } else {
+        _origToggle.apply(this, arguments);
+      }
     };
   }
 
-  function runRemote(fnName, ...args) {
-    const _orig = window[fnName];
-    if (typeof _orig !== 'function') return;
-    // Se il peer è vivo, eseguo localmente perché il comando arriva da lui
-    _orig.apply(window, args);
-  }
-
+  // 5. Comandi Ricevuti dal Master (Esecuzione Locale Reale)
   SyncBus.on('sync_activate', d => {
     if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
   });
-  SyncBus.on('cmd_connect', d => { if (d && d.on !== MS.connected) { MS.simulated = d.on; window.toggleConnection(); } });
-  SyncBus.on('cmd_goto', d => d ? runRemote('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180) : null);
-  SyncBus.on('cmd_stop', () => runRemote('stopMotion'));
-  SyncBus.on('cmd_park', () => runRemote('parkMount'));
-  SyncBus.on('cmd_unpark', () => runRemote('unparkMount'));
-  SyncBus.on('cmd_home', () => runRemote('goHome'));
-  SyncBus.on('cmd_tracking', d => { if (d && d.on !== (MS.tracking !== 'off')) runRemote('toggleTrackingOn'); });
+  SyncBus.on('cmd_connect', d => {
+    if (d && d.on !== MS.connected) {
+      if (d.on) MS.simulated = true;
+      if (typeof _origToggle === 'function') _origToggle.call(window);
+    }
+  });
+  SyncBus.on('cmd_goto', d => { if (d && typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
+  SyncBus.on('cmd_stop', () => { if (typeof window.stopMotion === 'function') window.stopMotion(); });
+  SyncBus.on('cmd_park', () => { if (typeof window.parkMount === 'function') window.parkMount(); });
+  SyncBus.on('cmd_unpark', () => { if (typeof window.unparkMount === 'function') window.unparkMount(); });
+  SyncBus.on('cmd_home', () => { if (typeof window.goHome === 'function') window.goHome(); });
+  SyncBus.on('cmd_tracking', d => { if (d && d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') window.toggleTrackingOn(); });
   SyncBus.on('cmd_speed', d => {
     if (!d || !Number.isFinite(d.rate)) return;
     const targets = [0.005, 0.02, 0.06, 0.2];
@@ -846,21 +863,6 @@ window.addEventListener('load', () => {
   SyncBus.on('cmd_manual_start', d => { if (d && d.dir) { MS.activeDir = d.dir; MS.slewMode = 'manual'; } });
   SyncBus.on('cmd_manual_stop', () => { MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
 
-  // 5. Invio comandi se l'utente clicca sullo Slave
-  function wrapSlave(fnName, msgType, dataFn) {
-    const orig = window[fnName]; if (typeof orig !== 'function') return;
-    window[fnName] = function () {
-      if (!SyncBus.isPeerAlive()) {
-        return orig.apply(this, arguments);
-      }
-      const data = dataFn ? dataFn.apply(this, arguments) : null;
-      if (data !== false) SyncBus.send(msgType, data);
-    };
-  }
-  wrapSlave('parkMount', 'cmd_park'); wrapSlave('unparkMount', 'cmd_unpark'); wrapSlave('goHome', 'cmd_home'); wrapSlave('stopMotion', 'cmd_stop');
-  wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
-  wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
-
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
@@ -868,6 +870,11 @@ window.addEventListener('load', () => {
     if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
     ind.textContent = '🔗 ✓ SATELLITE'; ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
+
+  // Invia sync_request all'apertura per ricevere i GPS
+  window.addEventListener('load', () => {
+    setTimeout(() => SyncBus.send('sync_request'), 1000);
+  });
 })();
 </script>
 
