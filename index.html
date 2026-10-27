@@ -612,12 +612,18 @@ window.addEventListener('load',()=>{
 </script>
 <!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
-<!-- SYNC BUS -->
-<script src="sync-bus.js"></script>
 <script>
 (function () {
   if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
   if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
+
+  // All'avvio, forziamo il simulatore se non siamo connessi
+  setTimeout(() => {
+    if (!MS.connected && !MS.wifiEnabled && !MS.btEnabled) {
+      MS.simulated = true;
+      const simBtn = document.getElementById('simBtn'); if (simBtn) simBtn.classList.add('sim-active');
+    }
+  }, 1000);
 
   function buildState() {
     try {
@@ -653,6 +659,15 @@ window.addEventListener('load',()=>{
     const s = buildState(); if (s) SyncBus.send('mount_state', s);
   });
 
+  // --- RICEZIONE COMANDI DAL PIANETA ---
+  SyncBus.on('cmd_connect', d => {
+    if (!d) return;
+    if (d.on !== MS.connected) {
+      if (d.on) MS.simulated = true; // Forza il simulatore per il test
+      _run('toggleConnection');
+    }
+  });
+
   SyncBus.on('cmd_goto', d => {
     if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
     _ensureConnection(() => { _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
@@ -662,6 +677,27 @@ window.addEventListener('load',()=>{
   SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
   SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
   SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
+  
+  SyncBus.on('cmd_set_home', () => _ensureConnection(() => _run('setHome')));
+  SyncBus.on('cmd_set_park', () => _ensureConnection(() => _run('setPark')));
+
+  SyncBus.on('cmd_tracking', d => {
+    if (!d) return;
+    if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') {
+      _run('toggleTrackingOn');
+    }
+  });
+
+  SyncBus.on('cmd_speed', d => {
+    if (!d || !Number.isFinite(d.rate)) return;
+    const targets = [0.005, 0.02, 0.06, 0.2];
+    const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a);
+    MS.speedPerStep = best;
+    MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
+    const sel = document.getElementById('slew-speed');
+    if (sel) sel.value = String(best);
+    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+  });
 
   SyncBus.on('cmd_manual_start', d => {
     if (!d || !d.dir) return;
