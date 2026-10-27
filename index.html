@@ -868,5 +868,46 @@ window.addEventListener('load', () => {
     });
   }
 </script>
+  <!-- PATCH: Aggiornamento visivo tasto Connetti (Slave) -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    window.updateSlaveConnBtn = function(isConnected) {
+      const btn = document.getElementById('connect-btn');
+      if (!btn) return;
+
+      if (isConnected) {
+        btn.innerText = 'Scollega';
+        btn.className = 'btn danger'; // Usa la classe rossa che hai già nel CSS
+      } else {
+        btn.innerText = 'Connetti';
+        btn.className = 'btn primary'; // Usa la classe originale
+      }
+    };
+
+    setInterval(() => {
+      if (typeof MS !== 'undefined') {
+        window.updateSlaveConnBtn(MS.connected);
+      }
+    }, 500);
+  });
+</script>
+  <!-- PATCH: Blocca popup se in iframe -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Se l'app è dentro un iframe (quindi aperta dal Master), nascondi il popup
+    if (window.self !== window.top) {
+      // Aspettiamo che il popup sia stato creato e poi lo nascondiamo
+      setTimeout(() => {
+        const modal = document.getElementById('welcome-modal');
+        if (modal) modal.style.display = 'none';
+      }, 100);
+      
+      // Sovrascriviamo la funzione per sicurezza
+      window.showWelcomeModal = function() {
+        // Non fare nulla se siamo in un iframe
+      };
+    }
+  });
+</script>
 </body>
 </html>
