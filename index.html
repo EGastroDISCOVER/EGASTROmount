@@ -596,8 +596,47 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
 </script>
-</body>
-</html>
+<!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
+
+<!-- INIZIO INTEGRAZIONE -->
+<script>
+// 1. RICEZIONE DATI GPS DALL'APP MADRE
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get('lat'));
+    const lon = parseFloat(params.get('lon'));
+    
+    if (typeof MS !== 'undefined' && !isNaN(lat) && !isNaN(lon)) {
+      MS.gpsLat = lat;
+      MS.gpsLon = lon;
+      MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof showToast === 'function') showToast(`📍 GPS ricevuto: ${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+    }
+  }, 1000); 
+});
+
+// 2. PULSANTE TORNA A DISCOVER (In basso a sinistra)
+(function() {
+  function init() {
+    if (document.getElementById('btn-to-discover')) return;
+    var a = document.createElement('a');
+    a.id = 'btn-to-discover';
+    a.href = 'https://egastrodiscover.github.io/EGastroDISCOVER/';
+    a.title = "Torna a Discover";
+    a.style.cssText = 'position:fixed; bottom:20px; left:20px; width:48px; height:48px; background:#0a1220; border:2px solid #8bd3ff; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.8),0 0 10px rgba(139,211,255,0.4); z-index:999999; transition:all 0.3s ease; text-decoration:none;';
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#8bd3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path></svg>';
+    
+    a.onmouseenter = () => { a.style.transform = 'scale(1.1)'; a.style.background = '#8bd3ff'; };
+    a.onmouseleave = () => { a.style.transform = 'scale(1)'; a.style.background = '#0a1220'; };
+    
+    document.body.appendChild(a);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 </script>
 </body>
 </html>
