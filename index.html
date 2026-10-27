@@ -740,10 +740,10 @@ window.addEventListener('load', () => {
 <div id="app-switcher-container">
   <button id="app-switcher-toggle" title="Apri menu app" onclick="const m=document.getElementById('app-switcher-menu'); m.classList.toggle('open'); this.innerText=m.classList.contains('open')?'▶':'◀';">◀</button>
   <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="https://egastrodiscover.github.io/EGASTRO/" target="_blank" rel="noopener">
+    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
       <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
     </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="https://egastrodiscover.github.io/EGASTROmount/" target="_blank" rel="noopener">
+    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
       <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
     </a>
   </div>
@@ -752,14 +752,14 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SLAVE) — SyncBus Integration · v2.2
+//  EGASTRO Mount (SLAVE) — SyncBus Integration
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
 
   let _isRemote = false;
 
-  // Chiudi il menu se clicchi fuori
+  // 1. Gestione Menu e Icone
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     const menu = document.getElementById('app-switcher-menu');
@@ -770,7 +770,23 @@ window.addEventListener('load', () => {
     } 
   });
 
-  // 1. GPS e Popup
+  const btnTele = document.getElementById('btn-goto-telescope');
+  if (btnTele) {
+    btnTele.style.pointerEvents = 'none';
+    btnTele.style.opacity = '0.4';
+    btnTele.style.boxShadow = 'none';
+  }
+
+  const btnDome = document.getElementById('btn-goto-dome');
+  if (btnDome) {
+    btnDome.addEventListener('click', function(e) {
+      e.preventDefault();
+      SyncBus.send('sync_request');
+      window.open('https://egastrodiscover.github.io/EGASTRO/', 'EGASTRO_Sync_App');
+    });
+  }
+
+  // 2. GPS e Popup
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -783,7 +799,7 @@ window.addEventListener('load', () => {
     } catch (e) {}
   });
 
-  // 2. Stato
+  // 3. Stato
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
@@ -802,7 +818,7 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 3. Connessione specchiata
+  // 4. Connessione e Comandi
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
@@ -819,17 +835,15 @@ window.addEventListener('load', () => {
     _isRemote = false;
   });
 
-  // 4. Comandi dal Master
-  SyncBus.on('sync_activate', d => {
-    if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
-  });
-
   function runRemote(fnName, ...args) {
     _isRemote = true;
     try { if (typeof window[fnName] === 'function') window[fnName](...args); } catch (e) {}
     _isRemote = false;
   }
 
+  SyncBus.on('sync_activate', d => {
+    if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
+  });
   SyncBus.on('cmd_goto', d => d ? runRemote('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180) : null);
   SyncBus.on('cmd_stop',   () => runRemote('stopMotion'));
   SyncBus.on('cmd_park',   () => runRemote('parkMount'));
@@ -840,15 +854,13 @@ window.addEventListener('load', () => {
     if (!d || !Number.isFinite(d.rate)) return;
     const targets = [0.005, 0.02, 0.06, 0.2];
     const best = targets.reduce((a,b) => Math.abs(b-d.rate) < Math.abs(a-d.rate) ? b : a);
-    MS.speedPerStep = best; 
-    MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
+    MS.speedPerStep = best; MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
     const sel = document.getElementById('slew-speed'); if (sel) sel.value = String(best);
     if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
   });
   SyncBus.on('cmd_manual_start', d => { if (d && d.dir) { MS.activeDir = d.dir; MS.slewMode = 'manual'; } });
   SyncBus.on('cmd_manual_stop', () => { MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
 
-  // 5. Comandi verso il Master
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
@@ -857,16 +869,10 @@ window.addEventListener('load', () => {
       return r;
     };
   }
-
   wrapSlave('parkMount', 'cmd_park'); wrapSlave('unparkMount', 'cmd_unpark'); wrapSlave('goHome', 'cmd_home'); wrapSlave('stopMotion', 'cmd_stop');
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
 
-  const btnObservatory = document.getElementById('btn-goto-dome');
-  if (btnObservatory) {
-    btnObservatory.addEventListener('click', function() { SyncBus.send('sync_request'); });
-  }
-
-  // 6. Indicatore
+  // 5. Indicatore
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
