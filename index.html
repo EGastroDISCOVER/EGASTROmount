@@ -815,14 +815,15 @@ window.addEventListener('load', () => {
 </script>
  <script src="sync-bus.js"></script>
 <script>
+<script src="sync-bus.js"></script>
+<script>
 // ============================================================
-//  EGASTRO Mount (SLAVE) — SyncBus Integration · v1.4
+//  EGASTRO Mount (SLAVE) — SyncBus Integration · v1.5
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
   if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
 
-  // 1. INVIO STATO AL MASTER (in tempo reale)
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
@@ -846,8 +847,6 @@ window.addEventListener('load', () => {
     SyncBus.send('mount_state', s);
   }, 150);
 
-  // 2. RICEZIONE COMANDI DAL MASTER
-  // Funzione che si assicura che il simulatore sia attivo prima di eseguire
   const _ensureConnection = (callback) => {
     if (!MS.connected) {
       console.log('[Slave] Non connesso. Auto-attivo il Simulatore...');
@@ -855,7 +854,6 @@ window.addEventListener('load', () => {
       const simBtn = document.getElementById('simBtn');
       if (simBtn) simBtn.classList.add('sim-active');
       if (typeof toggleConnection === 'function') toggleConnection();
-      // Aspetta 300ms per far partire il timer della connessione simulata
       setTimeout(callback, 300);
     } else {
       callback();
@@ -867,14 +865,24 @@ window.addEventListener('load', () => {
     catch (e) { console.error('[Mount-Sync] ' + fnName + ':', e); }
   };
 
-  // Comandi
+  // Auto-connessione quando il Master invia il segnale
+  SyncBus.on('sync_activate', d => {
+    if (!d || d.role !== 'master') return;
+    console.log('[Slave] Master attivato. Auto-connessione...');
+    _ensureConnection(() => {});
+    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
+      MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+    }
+    const s = buildState(); if (s) SyncBus.send('mount_state', s);
+  });
+
+  // Comandi GOTO, Stop, Park, ecc.
   SyncBus.on('cmd_goto', d => {
     if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
     _ensureConnection(() => {
       console.log('[Slave] Eseguo GOTO:', d);
-      const raR  = d.ra  * Math.PI / 180;
-      const decR = d.dec * Math.PI / 180;
-      _run('_startGoto', raR, decR);
+      _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180);
     });
   });
 
@@ -882,54 +890,23 @@ window.addEventListener('load', () => {
   SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
   SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
   SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
-  SyncBus.on('cmd_set_home', () => _ensureConnection(() => _run('setHome')));
-  SyncBus.on('cmd_set_park', () => _ensureConnection(() => _run('setPark')));
 
-  SyncBus.on('cmd_tracking', d => {
-    if (!d) return;
+  // Comandi manuali (D-Pad)
+  SyncBus.on('cmd_manual_start', d => {
+    if (!d || !d.dir) return;
     _ensureConnection(() => {
-      const rate = (d.rate && d.rate !== 'off') ? d.rate : (d.on ? 'sidereal' : 'off');
-      if (rate === 'off') {
-        MS.tracking = 'off';
-        const sel = document.getElementById('tracking-mode'); if (sel) sel.value = 'off';
-        if (MS.slewMode === 'tracking') MS.slewMode = 'idle';
-      } else {
-        MS.tracking = rate;
-        const sel = document.getElementById('tracking-mode'); if (sel) sel.value = rate;
-        if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
-      }
-      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-      if (typeof saveFullState === 'function') saveFullState();
+      MS.activeDir = d.dir;
+      MS.slewMode = 'manual';
     });
   });
 
-  SyncBus.on('cmd_speed', d => {
-    if (!d || !Number.isFinite(d.rate)) return;
-    const targets = [0.005, 0.02, 0.06, 0.2];
-    const labels  = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' };
-    const best = targets.reduce((a,b) => Math.abs(b-d.rate) < Math.abs(a-d.rate) ? b : a);
-    MS.speedPerStep = best; MS.speedLabel = labels[best];
-    const sel = document.getElementById('slew-speed'); if (sel) sel.value = String(best);
-    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-    if (typeof saveFullState === 'function') saveFullState();
+  SyncBus.on('cmd_manual_stop', () => {
+    if (!MS.connected) return;
+    MS.activeDir = null;
+    if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
   });
 
-  SyncBus.on('cmd_sync', d => {
-    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
-    _ensureConnection(() => {
-      const raR  = d.ra  * Math.PI / 180;
-      const decR = d.dec * Math.PI / 180;
-      const mech = (typeof mechCoordsForAstro === 'function') ? mechCoordsForAstro(raR, decR, MS.dec, true) : null;
-      if (mech) { MS.ra = mech.raMech; MS.dec = mech.decMech; }
-      else      { MS.ra = raR;         MS.dec = decR;         }
-      MS.tRA = MS.ra; MS.tDEC = MS.dec;
-      const proto = Protocols[MS.wifiDriver] || (MS.btDriver && Protocols[MS.btDriver.replace('_bt','')]);
-      if (proto && proto.sync) proto.sync(d.ra / 15, d.dec);
-      if (typeof saveFullState === 'function') saveFullState();
-    });
-  });
-
-  // 3. INDICATORE
+  // Indicatore
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
@@ -938,6 +915,7 @@ window.addEventListener('load', () => {
     ind.textContent = '🔗 ✓ SCHIAVO'; 
     ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
+
 })();
 </script>
 
