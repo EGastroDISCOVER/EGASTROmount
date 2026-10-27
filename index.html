@@ -817,7 +817,7 @@ window.addEventListener('load', () => {
   <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount — SyncBus Integration  ·  v1.2 (Corretta)
+//  EGASTRO Mount (SLAVE) — SyncBus Integration · v1.3
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
@@ -827,7 +827,7 @@ window.addEventListener('load', () => {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
       return {
-        ra: astro.ra, dec: astro.dec,             // radianti, astronomiche
+        ra: astro.ra, dec: astro.dec,
         raMech: MS.ra, decMech: MS.dec,
         tracking: MS.tracking,
         slewMode: MS.slewMode,
@@ -839,9 +839,7 @@ window.addEventListener('load', () => {
         invertNS: MS.invertNS, invertEW: MS.invertEW,
         gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive
       };
-    } catch (e) { 
-      return null; 
-    }
+    } catch (e) { return null; }
   }
 
   let _last = '';
@@ -854,24 +852,31 @@ window.addEventListener('load', () => {
     SyncBus.send('mount_state', s);
   }, 150);
 
-  SyncBus.on('hello', () => { 
-    const s = buildState(); 
-    if (s) SyncBus.send('mount_state', s); 
+  SyncBus.on('hello', () => { const s = buildState(); if (s) SyncBus.send('mount_state', s); });
+
+  // ---------- AUTO-ATTIVAZIONE DA MENU ----------
+  SyncBus.on('sync_activate', d => {
+    if (!d || d.role !== 'master') return;
+    console.log('[Mount] Master attivato dal menu laterale. Preparo mount...');
+    
+    // Se non è connessa, attiva SIM e connettiti
+    if (!MS.connected) {
+      MS.simulated = true;
+      const simBtn = document.getElementById('simBtn');
+      if (simBtn) simBtn.classList.add('sim-active');
+      if (typeof toggleConnection === 'function') toggleConnection();
+    }
+    // Assorbi GPS in arrivo
+    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
+      MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+      if (typeof saveFullState === 'function') saveFullState();
+    }
+    // Rispondi subito con lo stato attuale
+    const s = buildState(); if (s) SyncBus.send('mount_state', s);
   });
 
-  // ---------- GPS in arrivo ----------
-  SyncBus.on('gps_update', d => {
-    if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
-    MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
-    if (Number.isFinite(d.alt))      MS.gpsAlt = d.alt;
-    if (Number.isFinite(d.accuracy)) MS.gpsAccuracy = d.accuracy;
-    try { 
-      if (typeof updateTelemetry === 'function') updateTelemetry(); 
-      if (typeof saveFullState === 'function') saveFullState(); 
-    } catch (e) {}
-  });
-
-  // ---------- helper: esegui ----------
+  // ---------- COMANDI DALLA MADRE ----------
   const _run = (fnName, ...args) => {
     try { if (typeof window[fnName] === 'function') window[fnName](...args); }
     catch (e) { console.error('[Mount-Sync] ' + fnName + ':', e); }
@@ -879,17 +884,18 @@ window.addEventListener('load', () => {
   
   const _requireConn = () => {
     if (!MS.connected) {
-      if (typeof showToast === 'function') showToast('Mount non connessa: attiva SIM o WiFi/BT', true);
+      // Se la madre ha provato a inviare un comando ma non siamo connessi, auto-connetti
+      MS.simulated = true;
+      if (typeof toggleConnection === 'function') toggleConnection();
       return false;
     }
     return true;
   };
 
-  // ---------- comandi ----------
   SyncBus.on('cmd_goto', d => {
     if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
     if (!_requireConn()) return;
-    // Converete gradi (Observatory) in radianti (Mount)
+    console.log('[Mount] Ricevuto GOTO da master:', d);
     const raR  = d.ra  * Math.PI / 180;
     const decR = d.dec * Math.PI / 180;
     _run('_startGoto', raR, decR);
@@ -948,19 +954,54 @@ window.addEventListener('load', () => {
     } catch (e) {}
   });
 
-  // ---------- indicatore ----------
+  // ---------- Indicatore ----------
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
-  ind.textContent = '🔗 init';
   document.body.appendChild(ind);
-  
   setInterval(() => {
     if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
-    if (MS.connected)           { ind.textContent = '🔗 ✓ peer+conn'; ind.style.color = '#4ade80'; }
-    else                        { ind.textContent = '🔗 ✓ peer';      ind.style.color = '#8bd3ff'; }
+    ind.textContent = '🔗 ✓ SCHIAVO (peer)'; 
+    ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
 
-  console.log('[Mount-Sync v1.2] attivo · transport:', SyncBus.transport);
+  console.log('[Mount-Sync v1.3 SLAVE] attivo');
+})();
+</script>
+
+<!-- Sostituisci la parte finale del menu laterale (quella dentro l'IIFE) con questa: -->
+<script>
+(function() {
+  const toggleBtn = document.getElementById('app-switcher-toggle');
+  const menu = document.getElementById('app-switcher-menu');
+  
+  if(toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      menu.classList.toggle('open');
+      toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀';
+    });
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('app-switcher-container').contains(e.target)) {
+      menu.classList.remove('open');
+      if(toggleBtn) toggleBtn.innerText = '◀';
+    }
+  });
+
+  // Click sull'icona dell'Observatory (Madre)
+  const btnObservatory = document.getElementById('btn-goto-dome');
+  if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
+    btnObservatory.addEventListener('click', function(e) {
+      // Avvisa l'Observatory di diventare MASTER e invia i dati attuali
+      SyncBus.send('sync_activate', { 
+        role: 'slave', 
+        connected: MS.connected, 
+        gpsLat: MS.gpsLat, 
+        gpsLon: MS.gpsLon 
+      });
+      // Lascia che il link navighi normalmente verso l'app madre
+    });
+  }
 })();
 </script>
 </body>
