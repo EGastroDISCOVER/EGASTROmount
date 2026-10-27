@@ -673,19 +673,8 @@ window.addEventListener('load',()=>{
     MS.activeDir = null;
     if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
   });
-
-  const ind = document.createElement('div');
-  ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
-  document.body.appendChild(ind);
-  setInterval(() => {
-    if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
-    ind.textContent = '🔗 ✓ SCHIAVO'; ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
-  }, 1000);
 })();
 </script>
-
-</script>
-<!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
 <!-- INIZIO INTEGRAZIONE GPS -->
 <script>
@@ -704,324 +693,9 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- FINESTRA PER L'APP MASTER -->
-<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
-  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
-</div>
-
-<!-- MENU A SCOMPARSA -->
-<style>
-  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
-  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
-  #app-switcher-toggle:hover { background: #d4af37; color: #000; }
-  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
-  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
-  .app-btn-telescope:hover { background: #d4af37; color: #000; transform: scale(1.1); }
-  .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
-  .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
-  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
-</style>
-
-<div id="app-switcher-container">
-  <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-  <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
-</div>
-
 <!-- ============================================================ -->
-<!--  SYNC BUS UNICO + NAVIGAZIONE + IFRAME + SERVICE WORKER       -->
-<!--  FIX v1.1 — bidirezionale, chiusura iframe, sync_activate     -->
+<!-- BLOCCO DEFINITIVO — SWITCHER, MAPPA POLARE, BADGE SYNC        -->
 <!-- ============================================================ -->
-<script>
-// ============================================================
-//  EGASTRO Mount (SATELLITE) — Sync + Navigazione
-// ============================================================
-(function () {
-  if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
-  if (typeof MS === 'undefined')       { console.warn('[Mount-Sync] MS non trovato');   return; }
-  let _isRemote = false;
-  let _syncActivated = false;
-
-  // --- Menu laterale ---
-  document.addEventListener('click', function(e) {
-    const container = document.getElementById('app-switcher-container');
-    if (container && !container.contains(e.target)) {
-      container.classList.remove('open');
-      const btn = document.getElementById('app-switcher-toggle');
-      if (btn) btn.innerText = '▶';
-    }
-  });
-
-  // Icona Telescopio (già in Satellite) → disabilitata
-  const btnTele = document.getElementById('btn-goto-telescope');
-  if (btnTele) { btnTele.style.pointerEvents = 'none'; btnTele.style.opacity = '0.4'; }
-
-  // --- Icona Dome 🏠 → torna al Master ---
-  const btnDome = document.getElementById('btn-goto-dome');
-  if (btnDome) {
-    btnDome.addEventListener('click', function(e) {
-      e.preventDefault();
-      if (window.parent !== window) {
-        window.parent.postMessage('egastro-close-frame', '*');
-        return;
-      }
-      document.getElementById('app-frame').src = 'https://egastrodiscover.github.io/EGASTRO/';
-      document.getElementById('app-frame-container').style.display = 'block';
-    });
-  }
-
-  // --- Ascolta chiusura iframe dal Master ---
-  window.addEventListener('message', function(e) {
-    if (e.data === 'egastro-close-frame' || e.data === 'show-mount') {
-      const c = document.getElementById('app-frame-container');
-      if (c) c.style.display = 'none';
-    }
-  });
-
-  // --- sync_activate dal Master ---
-  SyncBus.on('sync_activate', d => {
-    if (!d || d.role !== 'master') return;
-
-    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
-      MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
-    }
-    if (Number.isFinite(d.targetRa) && Number.isFinite(d.targetDec)) {
-      window._pendingTarget = { name: d.targetName || 'Target', raDeg: d.targetRa, decDeg: d.targetDec };
-    }
-    if (!_syncActivated) {
-      _syncActivated = true;
-      if (!MS.connected) {
-        MS.simulated = true;
-        const simBtn = document.getElementById('simBtn');
-        if (simBtn) simBtn.classList.add('sim-active');
-        try { if (typeof toggleConnection === 'function') toggleConnection(); } catch(e) {}
-      }
-    }
-    try {
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-      if (typeof saveFullState === 'function') saveFullState();
-      if (typeof showToast === 'function' && Number.isFinite(d.gpsLat))
-        showToast(`📍 GPS sincronizzato: ${d.gpsLat.toFixed(2)}, ${d.gpsLon.toFixed(2)}`);
-    } catch(e) {}
-    const s = buildState(); if (s) SyncBus.send('mount_state', s);
-  });
-
-  // --- GPS via SyncBus ---
-  SyncBus.on('gps_update', d => {
-    if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
-    MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
-    try {
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-      if (typeof saveFullState === 'function') saveFullState();
-    } catch(e) {}
-  });
-
-  // --- Stato inviato al Master ---
-  function buildState() {
-    try {
-      const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      return {
-        ra: astro.ra, dec: astro.dec,
-        tracking: MS.tracking, slewMode: MS.slewMode,
-        isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated,
-        rate: MS.speedPerStep,
-        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive
-      };
-    } catch (e) { return null; }
-  }
-  let _last = '';
-  setInterval(() => {
-    const s = buildState(); if (!s) return;
-    const j = JSON.stringify(s); if (j === _last) return;
-    _last = j; SyncBus.send('mount_state', s);
-  }, 150);
-
-  // --- Wrapper: comandi locali → invio al Master ---
-  function wrapSlave(fnName, msgType, dataFn) {
-    const orig = window[fnName]; if (typeof orig !== 'function') return;
-    window[fnName] = function () {
-      const result = orig.apply(this, arguments);
-      if (!_isRemote) {
-        const data = dataFn ? dataFn.apply(this, arguments) : null;
-        if (data !== false) SyncBus.send(msgType, data);
-      }
-      return result;
-    };
-  }
-  wrapSlave('toggleConnection', 'cmd_connect', () => ({ on: !MS.connected }));
-  wrapSlave('parkMount', 'cmd_park');
-  wrapSlave('unparkMount', 'cmd_unpark');
-  wrapSlave('goHome', 'cmd_home');
-  wrapSlave('stopMotion', 'cmd_stop');
-  wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
-  wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
-
-  // --- Ricezione comandi dal Master ---
-  SyncBus.on('cmd_connect', d => {
-    if (!d) return;
-    _isRemote = true;
-    if (d.on !== MS.connected) {
-      if (d.on) MS.simulated = true;
-      try { if (typeof toggleConnection === 'function') toggleConnection(); } catch(e) {}
-    }
-    _isRemote = false;
-  });
-  SyncBus.on('cmd_goto', d => {
-    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
-    _isRemote = true;
-    try {
-      if (!MS.connected) {
-        MS.simulated = true;
-        if (typeof toggleConnection === 'function') toggleConnection();
-        setTimeout(() => { try { window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); } catch(e){} }, 300);
-      } else {
-        window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180);
-      }
-    } catch(e) {}
-    _isRemote = false;
-  });
-  SyncBus.on('cmd_stop',   () => { _isRemote = true; try{ window.stopMotion();   }catch(e){} _isRemote = false; });
-  SyncBus.on('cmd_park',   () => { _isRemote = true; try{ window.parkMount();    }catch(e){} _isRemote = false; });
-  SyncBus.on('cmd_unpark', () => { _isRemote = true; try{ window.unparkMount();  }catch(e){} _isRemote = false; });
-  SyncBus.on('cmd_home',   () => { _isRemote = true; try{ window.goHome();       }catch(e){} _isRemote = false; });
-  SyncBus.on('cmd_tracking', d => {
-    if (!d) return;
-    _isRemote = true;
-    if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function')
-      try { window.toggleTrackingOn(); } catch(e) {}
-    _isRemote = false;
-  });
-  SyncBus.on('cmd_speed', d => {
-    if (!d || !Number.isFinite(d.rate)) return;
-    _isRemote = true;
-    const targets = [0.005, 0.02, 0.06, 0.2];
-    const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a);
-    MS.speedPerStep = best;
-    MS.speedLabel = { 0.005: '1x', 0.02: '8x', 0.06: '32x', 0.2: '128x' }[best];
-    const sel = document.getElementById('slew-speed');
-    if (sel) sel.value = String(best);
-    try { if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); } catch(e) {}
-    _isRemote = false;
-  });
-
-  // --- Indicatore Sync ---
-  const ind = document.createElement('div');
-  ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
-  document.body.appendChild(ind);
-  setInterval(() => {
-    if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
-    ind.textContent = '🔗 ✓ SYNC';
-    ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
-  }, 1000);
-
-  // --- Fallback: legge GPS/target dall'URL ---
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      const lat = parseFloat(params.get('lat'));
-      const lon = parseFloat(params.get('lon'));
-      const tRa = parseFloat(params.get('targetRa'));
-      const tDec = parseFloat(params.get('targetDec'));
-      const tName = params.get('targetName');
-      if (typeof MS !== 'undefined') {
-        if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true;
-        }
-        if (Number.isFinite(tRa) && Number.isFinite(tDec)) {
-          window._pendingTarget = { name: tName || 'Target', raDeg: tRa, decDeg: tDec };
-        }
-        try { if (typeof updateTelemetry === 'function') updateTelemetry(); } catch(e) {}
-        try { if (typeof updateLinkButtons === 'function') updateLinkButtons(); } catch(e) {}
-      }
-    }, 800);
-  });
-})();
-</script>
-
-<!-- FINESTRA IFRAME PER L'APP MASTER -->
-<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
-  <iframe id="app-frame" style="width:100%; height:100%; border:none;" title="EGastro Master"></iframe>
-</div>
-
-<!-- MENU A SCOMPARSA -->
-<style>
-  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
-  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
-  #app-switcher-toggle:hover { background: #d4af37; color: #000; }
-  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
-  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
-  .app-btn-telescope:hover { background: #d4af37; color: #000; transform: scale(1.1); }
-  .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
-  .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
-  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
-</style>
-
-<div id="app-switcher-container">
-  <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);" title="Torna al Master">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);" title="Telescopio (già attivo)">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-  <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
-</div>
-
-<!-- SERVICE WORKER -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').then(reg => {
-        setInterval(() => { reg.update(); }, 60 * 60 * 1000);
-      }).catch(err => console.warn('SW fallito:', err));
-    });
-  }
-</script>
-
-<!-- PATCH: tasto Connetti (Satellite) -->
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    window.updateSlaveConnBtn = function(isConnected) {
-      const btn = document.getElementById('connect-btn');
-      if (!btn) return;
-      if (isConnected) { btn.innerText = 'Scollega'; btn.className = 'btn danger'; }
-      else { btn.innerText = 'Connetti'; btn.className = 'btn primary'; }
-    };
-    setInterval(() => {
-      if (typeof MS !== 'undefined') window.updateSlaveConnBtn(MS.connected);
-    }, 500);
-  });
-</script>
-
-<!-- PATCH: blocca popup se in iframe -->
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    if (window.self !== window.top) {
-      setTimeout(() => {
-        const modal = document.getElementById('welcome-modal');
-        if (modal) modal.style.display = 'none';
-      }, 100);
-      window.showWelcomeModal = function() {};
-    }
-  });
-</script>
-<script>
-/* ========== UNIVERSAL SWITCHER FIX + POLAR MAP ZOOM ========== */
-(function(){
-'use strict';
-
-<!-- PATCH DEFINITIVA: SWITCHER, MAPPA POLARE E BADGE -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -1049,18 +723,36 @@ window.addEventListener('load', () => {
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. FIX BADGE DUPLICATI
-  // Rimuove eventuali badge SYNC vecchi che si sovrappongono in basso a destra
+  // === 1. RIMOZIONE ELEMENTI DUPLICATI ===
+  // Rimuove eventuali mappe polari vecchie rimaste nel DOM
+  const oldMap = document.getElementById('skyPolarContainer');
+  if (oldMap) oldMap.remove();
+  // Rimuove eventuali bottoni mappa vecchi
+  const oldBtn = document.getElementById('skyPolarBtn');
+  if (oldBtn) oldBtn.remove();
+  // Rimuove il badge SYNC originale creato da sync-bus.js
   document.querySelectorAll('div').forEach(el => {
-    if (el.innerText && el.innerText.includes('🔗')) el.remove();
+    if (el.innerText && el.innerText.includes('🔗') && el.style.position === 'fixed' && el.style.bottom === '8px') {
+      el.remove();
+    }
   });
-  // Crea il badge pulito
+
+  // === 2. CREA IL BADGE SYNC PULITO ===
   const badge = document.createElement('div');
   badge.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#4ade80;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   badge.textContent = '🔗 ✓ SYNC';
   document.body.appendChild(badge);
+  setInterval(() => {
+    if (typeof SyncBus !== 'undefined' && SyncBus.isPeerAlive) {
+      badge.textContent = '🔗 ✓ SYNC';
+      badge.style.color = '#4ade80';
+    } else {
+      badge.textContent = '🔗 ○ solo';
+      badge.style.color = '#666';
+    }
+  }, 1000);
 
-  // 2. SWITCHER MENU (LOGICA INVERSA: TELESCOPIO SPENTO, CUPOLA ACCESA)
+  // === 3. SWITCHER MENU ===
   const sc = document.getElementById('app-switcher-container');
   const tg = document.getElementById('app-switcher-toggle');
   tg.onclick = function(e) {
@@ -1079,26 +771,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
   };
 
-  // 3. MAPPA POLARE ORIGINALE CON VIA LATTEA E COSTELLAZIONI
+  // === 4. MAPPA POLARE CON VIA LATTEA, COSTELLAZIONI E ZOOM ===
   const D2R = Math.PI/180, R2D = 180/Math.PI;
   const isMobile = window.innerWidth < 600;
-  const SIZE = isMobile ? 220 : 340; // Dimensione ottimizzata
+  const SIZE = isMobile ? 220 : 340;
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  
+
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
-  // Aggiunta trasparenza (opacity 0.75) e touch-action:none per gestire il pinch-to-zoom
+  // Trasparenza extra: opacity 0.75 + sfondo semi-trasparente
   container.style.cssText = `position:fixed;top:${isMobile ? '150px' : '240px'};right:15px;width:${SIZE}px;height:${SIZE}px;z-index:9000;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
   
   const cv = document.createElement('canvas');
-  cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.75;'; // Trasparenza extra sul canvas
+  cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.78;';
   cv.width = SIZE*DPR; cv.height = SIZE*DPR;
   container.appendChild(cv);
   document.body.appendChild(container);
   const ctx = cv.getContext('2d');
   ctx.scale(DPR, DPR);
 
-  // Controlli Zoom (+ e -) per PC
+  // Zoom buttons
   let zoom = 1;
   const zoomBox = document.createElement('div');
   zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
@@ -1110,9 +802,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   container.appendChild(zoomBox);
 
-  // Bottone Toggle
+  // Toggle button (l'icona in alto a destra)
   const btn = document.createElement('div');
   btn.className = 'circle-btn';
+  btn.id = 'skyPolarBtn';
   btn.title = 'Mappa Polare';
   btn.style.cssText = 'border-color:rgba(139,211,255,.65);color:#8bd3ff;';
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
@@ -1122,7 +815,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
-  // --- DATI MAPPA (STELLE, COSTELLAZIONI, VIA LATTEA) ---
+  // Dati
   const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
 
   const CONST = [
@@ -1229,7 +922,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     ctx.restore();
     
-    // Cardinali
     [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => {
       ctx.fillStyle='#d4af37'; ctx.font='bold 11px Orbitron'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(d.l, SIZE/2 + (SIZE/2-12)*Math.sin(d.a*D2R), SIZE/2 - (SIZE/2-12)*Math.cos(d.a*D2R));
@@ -1238,7 +930,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
 
-  // --- GESTIONE TOUCH (PINCH-TO-ZOOM A 2 DITA E PAN A 1 DITO) ---
+  // === 5. GESTIONE TOUCH (PINCH E DRAG) ===
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0;
   let pinchStartDist = 0, pinchStartZoom = 1;
 
@@ -1279,7 +971,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.touches.length === 0) { drag = false; container.style.cursor = 'grab'; }
   });
 
-  // Fallback Drag per Mouse (PC)
+  // Drag per mouse (PC)
   container.addEventListener('mousedown', e => {
     if(e.target.tagName === 'BUTTON') return;
     drag = true; sx = e.clientX; sy = e.clientY; 
