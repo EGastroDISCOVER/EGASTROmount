@@ -733,41 +733,22 @@ window.addEventListener('load', () => {
 (function() {
   const toggleBtn = document.getElementById('app-switcher-toggle');
   const menu = document.getElementById('app-switcher-menu');
-  if(toggleBtn) {
-    toggleBtn.addEventListener('click', function(e) { e.preventDefault(); menu.classList.toggle('open'); toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; });
-  }
-  document.addEventListener('click', function(e) { if (!document.getElementById('app-switcher-container').contains(e.target)) { menu.classList.remove('open'); if(toggleBtn) toggleBtn.innerText = '◀'; } });
   
-  const btnObservatory = document.getElementById('btn-goto-dome');
-  if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
-    btnObservatory.addEventListener('click', function(e) {
-      // Avvisa il Master che lo Slave è pronto
-      SyncBus.send('sync_activate', { role: 'slave', connected: MS.connected, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon });
+  if(toggleBtn && menu) {
+    toggleBtn.addEventListener('click', function(e) { 
+      e.preventDefault(); 
+      menu.classList.toggle('open'); 
+      toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; 
     });
   }
-})();
-</script>
+  
+  document.addEventListener('click', function(e) { 
+    if (menu && !document.getElementById('app-switcher-container').contains(e.target)) { 
+      menu.classList.remove('open'); 
+      if(toggleBtn) toggleBtn.innerText = '◀'; 
+    } 
+  });
 
-<div id="app-switcher-container">
-  <button id="app-switcher-toggle" title="Apri menu app">◀</button>
-  <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="https://egastrodiscover.github.io/EGASTRO/">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="https://egastrodiscover.github.io/EGASTROmount/">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-</div>
-
-<script>
-(function() {
-  const toggleBtn = document.getElementById('app-switcher-toggle');
-  const menu = document.getElementById('app-switcher-menu');
-  if(toggleBtn) {
-    toggleBtn.addEventListener('click', function() { menu.classList.toggle('open'); toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; });
-  }
-  document.addEventListener('click', function(e) { if (!document.getElementById('app-switcher-container').contains(e.target)) { menu.classList.remove('open'); if(toggleBtn) toggleBtn.innerText = '◀'; } });
   const btnObservatory = document.getElementById('btn-goto-dome');
   if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     btnObservatory.addEventListener('click', function(e) {
