@@ -843,21 +843,30 @@ window.addEventListener('load', () => {
 })();
 </script>
 
-<!-- Auto-aggiornamento Service Worker -->
+<!-- Auto-aggiornamento e Registrazione Service Worker -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./service-worker.js').then(reg => {
+        // Controlla aggiornamenti ogni ora
         setInterval(() => { reg.update(); }, 60 * 60 * 1000);
+        
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { newWorker.postMessage({ type: 'SKIP_WAITING' }); }
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
           });
         });
       }).catch(err => console.warn('SW fallito:', err));
+
       let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; refreshing = true; window.location.reload(); });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload(); // Ricarica per applicare la nuova versione
+      });
     });
   }
 </script>
