@@ -724,21 +724,20 @@ window.addEventListener('load', () => {
 
 <!-- MENU A SCOMPARSA -->
 <style>
-  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 999999; display: flex; align-items: center; font-family: 'Orbitron', 'Inter', sans-serif; }
-  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 30px; height: 60px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); pointer-events: auto !important; }
-  #app-switcher-toggle:hover { background: #d4af37; color: #000; width: 35px; }
-  #app-switcher-menu { position: absolute; left: -100px; background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 16px 16px 0; padding: 15px 10px; display: flex; flex-direction: column; gap: 15px; backdrop-filter: blur(15px); transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 5px 0 20px rgba(0,0,0,0.7); }
-  #app-switcher-menu.open { left: 30px !important; border-left: 1px solid rgba(212, 175, 55, 0.4); }
-  .app-switch-btn { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
+  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 22px)); z-index: 999999; display: flex; align-items: stretch; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
+  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-right: none; border-radius: 12px 0 0 12px; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: -2px 0 10px rgba(0,0,0,0.5); }
+  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
+  #app-switcher-toggle:hover { background: #d4af37; color: #000; }
+  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
   .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
   .app-btn-telescope:hover { background: #d4af37; color: #000; transform: scale(1.1); }
   .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
   .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
-  .app-switch-btn svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
 </style>
 
 <div id="app-switcher-container">
-  <button id="app-switcher-toggle" title="Apri menu app" onclick="const m=document.getElementById('app-switcher-menu'); m.classList.toggle('open'); this.innerText=m.classList.contains('open')?'▶':'◀';">◀</button>
   <div id="app-switcher-menu">
     <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
       <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
@@ -747,26 +746,24 @@ window.addEventListener('load', () => {
       <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
     </a>
   </div>
+  <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
 </div>
 
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v2.3
+//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v3.0
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
 
-  let _isRemote = false;
-
-  // 1. Menu e Icone
+  // 1. Menu
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
-    const menu = document.getElementById('app-switcher-menu');
-    if (container && menu && !container.contains(e.target)) { 
-      menu.classList.remove('open'); 
+    if (container && !container.contains(e.target)) { 
+      container.classList.remove('open'); 
       const btn = document.getElementById('app-switcher-toggle');
-      if(btn) btn.innerText = '◀'; 
+      if(btn) btn.innerText = '▶'; 
     } 
   });
 
@@ -782,7 +779,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. GPS e Popup
+  // 2. GPS (Popup una tantum)
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -810,32 +807,28 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Connessione e Comandi Bidirezionali
+  // 4. Comandi
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
       const wasConnected = MS.connected;
       _origToggle.apply(this, arguments);
-      if (!_isRemote) SyncBus.send('cmd_connect', { on: !wasConnected });
+      if (!SyncBus.isPeerAlive()) return; // Se l'altro c'è, non inviare (lo farà l'altro)
+      SyncBus.send('cmd_connect', { on: !wasConnected });
     };
   }
-  SyncBus.on('cmd_connect', d => {
-    if (!d) return;
-    _isRemote = true;
-    if (d.on && !MS.connected) { MS.simulated = true; window.toggleConnection(); }
-    if (!d.on && MS.connected) window.toggleConnection();
-    _isRemote = false;
-  });
 
   function runRemote(fnName, ...args) {
-    _isRemote = true;
-    try { if (typeof window[fnName] === 'function') window[fnName](...args); } catch (e) {}
-    _isRemote = false;
+    const _orig = window[fnName];
+    if (typeof _orig !== 'function') return;
+    // Se il peer è vivo, eseguo localmente perché il comando arriva da lui
+    _orig.apply(window, args);
   }
 
   SyncBus.on('sync_activate', d => {
     if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
   });
+  SyncBus.on('cmd_connect', d => { if (d && d.on !== MS.connected) { MS.simulated = d.on; window.toggleConnection(); } });
   SyncBus.on('cmd_goto', d => d ? runRemote('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180) : null);
   SyncBus.on('cmd_stop', () => runRemote('stopMotion'));
   SyncBus.on('cmd_park', () => runRemote('parkMount'));
@@ -853,18 +846,21 @@ window.addEventListener('load', () => {
   SyncBus.on('cmd_manual_start', d => { if (d && d.dir) { MS.activeDir = d.dir; MS.slewMode = 'manual'; } });
   SyncBus.on('cmd_manual_stop', () => { MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
 
+  // 5. Invio comandi se l'utente clicca sullo Slave
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
-      const r = orig.apply(this, arguments);
-      if (!_isRemote) { try { const data = dataFn ? dataFn.apply(this, arguments) : null; if (data !== false) SyncBus.send(msgType, data); } catch (e) {} }
-      return r;
+      if (!SyncBus.isPeerAlive()) {
+        return orig.apply(this, arguments);
+      }
+      const data = dataFn ? dataFn.apply(this, arguments) : null;
+      if (data !== false) SyncBus.send(msgType, data);
     };
   }
   wrapSlave('parkMount', 'cmd_park'); wrapSlave('unparkMount', 'cmd_unpark'); wrapSlave('goHome', 'cmd_home'); wrapSlave('stopMotion', 'cmd_stop');
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
+  wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Indicatore
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
