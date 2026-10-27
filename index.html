@@ -663,9 +663,6 @@ window.addEventListener('load', () => {
 
 <script src="sync-bus.js"></script>
 <script>
-// ============================================================
-//  EGASTRO Mount (SATELLITE) — v1.5
-// ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
   let _isRemote = false;
@@ -685,12 +682,8 @@ window.addEventListener('load', () => {
   if (btnDome) {
     btnDome.addEventListener('click', function(e) {
       e.preventDefault();
-      if (window.parent !== window) {
-        window.parent.postMessage('show-master', '*');
-      } else {
-        document.getElementById('app-frame').src = 'https://egastrodiscover.github.io/EGASTRO/';
-        document.getElementById('app-frame-container').style.display = 'block';
-      }
+      if (window.parent !== window) window.parent.postMessage('show-master', '*');
+      else { document.getElementById('app-frame').src = 'https://egastrodiscover.github.io/EGASTRO/'; document.getElementById('app-frame-container').style.display = 'block'; }
     });
   }
 
@@ -712,8 +705,7 @@ window.addEventListener('load', () => {
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      // Rimosso 'connected' per evitare disconnessioni al cambio scheda
-      return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
+      return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
     } catch (e) { return null; }
   }
   let _last = '';
@@ -724,12 +716,13 @@ window.addEventListener('load', () => {
   }, 150);
 
   const _origToggle = window.toggleConnection; 
-  
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
       const wasConnected = MS.connected;
       const result = _origToggle.apply(this, arguments);
-      if (!_isRemote && SyncBus.isPeerAlive()) SyncBus.send('cmd_connect', { on: !wasConnected }); 
+      if (!_isRemote) {
+        SyncBus.send('cmd_connect', { on: !wasConnected });
+      }
       return result;
     };
   }
@@ -738,7 +731,7 @@ window.addEventListener('load', () => {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
       const result = orig.apply(this, arguments);
-      if (!_isRemote && SyncBus.isPeerAlive()) {
+      if (!_isRemote) {
         const data = dataFn ? dataFn.apply(this, arguments) : null;
         if (data !== false) SyncBus.send(msgType, data);
       }
@@ -757,15 +750,8 @@ window.addEventListener('load', () => {
     if (d) { 
       _isRemote = true; 
       if (d.on !== MS.connected) { 
-        if (d.on) { 
-          MS.simulated = true; 
-          document.getElementById('simBtn')?.classList.add('sim-active'); 
-        } 
-        if (typeof _origToggle === 'function') {
-          _origToggle.call(window);
-        } else {
-          window.toggleConnection();
-        }
+        if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); } 
+        if (typeof _origToggle === 'function') _origToggle.call(window); else window.toggleConnection();
       } 
       _isRemote = false; 
     } 
@@ -793,20 +779,15 @@ window.addEventListener('load', () => {
       const s = buildState(); if (s) SyncBus.send('mount_state', s);
     }
   });
-
 })();
 </script>
 
-<!-- SERVICE WORKER -->
 <script>
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('SW fallito:', err));
-    });
+    window.addEventListener('load', () => { navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('SW fallito:', err)); });
   }
 </script>
 
-<!-- PATCH UI -->
 <script>
   if (window.self !== window.top) {
     setTimeout(() => {
@@ -820,17 +801,10 @@ window.addEventListener('load', () => {
     window.updateSlaveConnBtn = function(isConnected) {
       const btn = document.getElementById('connect-btn');
       if (!btn) return;
-      if (isConnected) {
-        btn.innerText = 'Scollega';
-        btn.className = 'btn danger';
-      } else {
-        btn.innerText = 'Connetti';
-        btn.className = 'btn primary';
-      }
+      if (isConnected) { btn.innerText = 'Scollega'; btn.className = 'btn danger'; }
+      else { btn.innerText = 'Connetti'; btn.className = 'btn primary'; }
     };
-    setInterval(() => {
-      if (typeof MS !== 'undefined') window.updateSlaveConnBtn(MS.connected);
-    }, 500);
+    setInterval(() => { if (typeof MS !== 'undefined') window.updateSlaveConnBtn(MS.connected); }, 500);
   });
 </script>
 </body>
