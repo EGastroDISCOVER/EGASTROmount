@@ -752,10 +752,10 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v6.0
+//  EGastro DISCOVER (PIANETA) — SyncBus Integration · v6.0
 // ============================================================
 (function () {
-  if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
+  if (typeof SyncBus === 'undefined' || typeof scopeState === 'undefined') return;
 
   // 1. Menu e Navigazione
   document.addEventListener('click', function(e) { 
@@ -765,95 +765,102 @@ window.addEventListener('load', () => {
       const btn = document.getElementById('app-switcher-toggle'); if(btn) btn.innerText = '▶'; 
     } 
   });
-  const btnTele = document.getElementById('btn-goto-telescope');
-  if (btnTele) { btnTele.style.pointerEvents = 'none'; btnTele.style.opacity = '0.4'; btnTele.style.boxShadow = 'none'; }
   const btnDome = document.getElementById('btn-goto-dome');
-  if (btnDome) {
-    btnDome.addEventListener('click', function(e) {
+  if (btnDome) { btnDome.style.pointerEvents = 'none'; btnDome.style.opacity = '0.4'; btnDome.style.boxShadow = 'none'; }
+  const btnTele = document.getElementById('btn-goto-telescope');
+  if (btnTele) {
+    btnTele.addEventListener('click', function(e) {
       e.preventDefault();
-      SyncBus.send('sync_request');
-      window.open('https://egastrodiscover.github.io/EGASTRO/', 'EGASTRO_App');
+      SyncBus.send('sync_activate', { role: 'master', gpsLat: state.lat, gpsLon: state.lon, target: state.target || null });
+      window.open('https://egastrodiscover.github.io/EGASTROmount/', 'EGASTRO_App');
     });
   }
 
-  // 2. GPS (Popup una tantum)
-  SyncBus.on('gps_update', d => {
-    if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
-    MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
-    if (Number.isFinite(d.alt)) MS.gpsAlt = d.alt;
-    if (Number.isFinite(d.accuracy)) MS.gpsAccuracy = d.accuracy;
-    try { 
-      if (typeof updateTelemetry === 'function') updateTelemetry(); 
-      if (typeof saveFullState === 'function') saveFullState(); 
-      if (typeof showToast === 'function') showToast(`📍 GPS sincronizzato: ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}`);
-    } catch (e) {}
+  // 2. Stato Ricevuto (Specchio fluido)
+  SyncBus.on('mount_state', d => {
+    if (!d) return;
+    scopeState.connected = !!d.connected;
+    scopeState.tracking = d.tracking && d.tracking !== 'off';
+    scopeState.isParked = !!d.isParked;
+    if (Number.isFinite(d.rate)) {
+      const map = { 0.005:1, 0.02:20, 0.06:50, 0.2:100 };
+      scopeState.rate = map[d.rate] || 20;
+      const rd = document.getElementById('scopeRateDisplay'); if (rd) rd.innerText = scopeState.rate + 'X';
+    }
+    if (Number.isFinite(d.ra) && Number.isFinite(d.dec)) {
+      const p = getAltAz(d.ra * 180 / Math.PI, d.dec * 180 / Math.PI, state.currentTime);
+      if (Number.isFinite(p.alt) && Number.isFinite(p.az)) { scopeState.mountAlt = p.alt; scopeState.mountAz = p.az; }
+    }
+    if (typeof scopeUpdateUI === 'function') scopeUpdateUI();
+    if (scopeCanvasEl && document.getElementById('tab-scope').classList.contains('active')) {
+      if (typeof scopeDraw === 'function') scopeDraw();
+    }
+    const badge = document.getElementById('scopeConnBadge');
+    if (badge) { badge.innerText = scopeState.connected ? 'CONNESSO (satellite)' : 'DISCONNESSO'; badge.classList.toggle('on', scopeState.connected); }
+    const tb = document.getElementById('scopeTrackBtn');
+    if (tb) { tb.innerText = scopeState.tracking ? 'Track OFF' : 'Track ON'; tb.className = 'triton-btn' + (scopeState.tracking ? ' active' : ''); }
+    const parkOv = document.getElementById('parkOverlay');
+    if (parkOv) parkOv.classList.toggle('open', scopeState.isParked);
   });
 
-  // 3. Stato
-  function buildState() {
-    try {
-      const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
-    } catch (e) { return null; }
+  // 3. GPS (Solo su richiesta o all'apertura)
+  function broadcastGPS() {
+    if (Number.isFinite(state.lat) && Number.isFinite(state.lon) && SyncBus.isPeerAlive()) {
+      SyncBus.send('gps_update', { lat: state.lat, lon: state.lon, accuracy: state.gpsAccuracy });
+    }
   }
-  let _last = '';
-  setInterval(() => {
-    const s = buildState(); if (!s) return;
-    const j = JSON.stringify(s); if (j === _last) return;
-    _last = j; SyncBus.send('mount_state', s);
-  }, 150);
+  const _origApply = window.applyCoordinates;
+  if (typeof _origApply === 'function') {
+    window.applyCoordinates = function () {
+      const r = _origApply.apply(this, arguments);
+      setTimeout(broadcastGPS, 30);
+      return r;
+    };
+  }
+  const _sendSyncActivate = () => {
+    broadcastGPS();
+    SyncBus.send('sync_activate', { role: 'master', gpsLat: state.lat, gpsLon: state.lon, target: state.target || null });
+  };
+  SyncBus.on('sync_request', _sendSyncActivate);
 
   // 4. Comandi (Se peer c'è, NON eseguire localmente)
-  const _origToggle = window.toggleConnection;
-  if (typeof _origToggle === 'function') {
-    window.toggleConnection = function() {
-      if (SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: !MS.connected });
-      } else {
-        _origToggle.apply(this, arguments);
-      }
-    };
-  }
-  function wrapSlave(fnName, msgType, dataFn) {
+  function wrapM(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
-      if (!SyncBus.isPeerAlive()) {
-        return orig.apply(this, arguments);
+      if (SyncBus.isPeerAlive()) {
+        const data = dataFn ? dataFn.apply(this, arguments) : null;
+        if (data !== false) SyncBus.send(msgType, data);
+      } else {
+        try { orig.apply(this, arguments); } catch (e) {}
       }
-      const data = dataFn ? dataFn.apply(this, arguments) : null;
-      if (data !== false) SyncBus.send(msgType, data);
     };
   }
-  wrapSlave('parkMount', 'cmd_park'); wrapSlave('unparkMount', 'cmd_unpark'); wrapSlave('goHome', 'cmd_home'); wrapSlave('stopMotion', 'cmd_stop');
-  wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
-  wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
+  wrapM('scopeToggleConnect', 'cmd_connect', () => ({ on: !scopeState.connected }));
+  wrapM('scopeSlewToTarget', 'cmd_goto', () => scopeState.target ? { ra: scopeState.target.ra, dec: scopeState.target.dec } : false);
+  wrapM('scopeStopSlewing', 'cmd_stop');
+  wrapM('scopeEmergencyStop', 'cmd_stop');
+  wrapM('scopePark', 'cmd_park');
+  wrapM('scopeUnpark', 'cmd_unpark');
+  wrapM('scopeHome', 'cmd_home');
+  wrapM('scopeToggleTracking', 'cmd_tracking', () => ({ on: scopeState.tracking }));
+  wrapM('scopeChangeRate', 'cmd_speed', () => { const map = { 1:0.005, 5:0.005, 10:0.02, 20:0.02, 50:0.06, 100:0.2 }; return { rate: map[scopeState.rate] || 0.02 }; });
+  wrapM('scopeManualMove', 'cmd_manual_start', dir => { SyncBus.send('cmd_manual_stop'); return { dir }; });
+  wrapM('startEdgeMove', 'cmd_manual_start', dir => ({ dir }));
+  wrapM('stopEdgeMove', 'cmd_manual_stop');
 
-  // 5. Esecuzione locale reale (quando il comando arriva dal Master)
-  SyncBus.on('sync_activate', d => {
-    if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
+  // 5. Comandi Ricevuti
+  SyncBus.on('cmd_connect', d => {
+    if (d) { scopeState.connected = d.on; const badge = document.getElementById('scopeConnBadge'); if(badge){ badge.innerText = d.on ? 'CONNESSO (satellite)' : 'DISCONNESSO'; badge.classList.toggle('on', d.on);} }
   });
-  SyncBus.on('cmd_connect', d => { if (d && d.on !== MS.connected) { if (d.on) MS.simulated = true; if (typeof _origToggle === 'function') _origToggle.call(window); } });
-  SyncBus.on('cmd_goto', d => { if (d && typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
-  SyncBus.on('cmd_stop', () => { if (typeof window.stopMotion === 'function') window.stopMotion(); });
-  SyncBus.on('cmd_park', () => { if (typeof window.parkMount === 'function') window.parkMount(); });
-  SyncBus.on('cmd_unpark', () => { if (typeof window.unparkMount === 'function') window.unparkMount(); });
-  SyncBus.on('cmd_home', () => { if (typeof window.goHome === 'function') window.goHome(); });
-  SyncBus.on('cmd_tracking', d => { if (d && d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') window.toggleTrackingOn(); });
-  SyncBus.on('cmd_speed', d => {
-    if (!d || !Number.isFinite(d.rate)) return;
-    const targets = [0.005, 0.02, 0.06, 0.2];
-    const best = targets.reduce((a,b) => Math.abs(b-d.rate) < Math.abs(a-d.rate) ? b : a);
-    MS.speedPerStep = best; MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
-    const sel = document.getElementById('slew-speed'); if (sel) sel.value = String(best);
-    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-  });
+  SyncBus.on('cmd_tracking', d => { if (d) { scopeState.tracking = d.on; const tb = document.getElementById('scopeTrackBtn'); if (tb) { tb.innerText = d.on ? 'Track OFF' : 'Track ON'; tb.className = 'triton-btn' + (d.on ? ' active' : ''); } } });
+  SyncBus.on('cmd_speed', d => { if (d && Number.isFinite(d.rate)) { const map = { 0.005:1, 0.02:20, 0.06:50, 0.2:100 }; scopeState.rate = map[d.rate] || 20; const rd = document.getElementById('scopeRateDisplay'); if (rd) rd.innerText = scopeState.rate + 'X'; } });
 
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
   setInterval(() => {
     if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
-    ind.textContent = '🔗 ✓ SATELLITE'; ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
+    ind.textContent = '🔗 ✓ PIANETA'; ind.style.color = scopeState.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
 })();
 </script>
