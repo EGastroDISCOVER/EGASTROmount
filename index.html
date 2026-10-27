@@ -645,9 +645,7 @@ window.addEventListener('load',()=>{
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // ============================================================
   // 1. GESTIONE POPUP E IFRAME
-  // ============================================================
   if (window.self !== window.top) {
     setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
     window.showWelcomeModal = function() {};
@@ -659,21 +657,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ============================================================
-  // 2. SWITCHER MENU
-  // ============================================================
+  // 2. MENU SWITCHER
   const sc = document.getElementById('app-switcher-container');
   const tg = document.getElementById('app-switcher-toggle');
   if (sc && tg) {
     tg.removeAttribute('onclick');
-    tg.onclick = function(e) {
-      e.preventDefault(); e.stopPropagation();
-      const open = sc.classList.toggle('open');
-      this.innerText = open ? '◀' : '▶';
-    };
-    document.addEventListener('click', e => {
-      if (!sc.contains(e.target)) { sc.classList.remove('open'); tg.innerText = '▶'; }
-    });
+    tg.onclick = function(e) { e.preventDefault(); e.stopPropagation(); const open = sc.classList.toggle('open'); this.innerText = open ? '◀' : '▶'; };
+    document.addEventListener('click', e => { if (!sc.contains(e.target)) { sc.classList.remove('open'); tg.innerText = '▶'; } });
   }
   const btnDome = document.getElementById('btn-goto-dome');
   if (btnDome) {
@@ -686,9 +676,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // ============================================================
-  // 3. MAPPA POLARE CON VIA LATTEA E COSTELLAZIONI
-  // ============================================================
+  // 3. MAPPA POLARE
   const D2R = Math.PI/180, R2D = 180/Math.PI;
   const isMobile = window.innerWidth < 600;
   const SIZE = isMobile ? 220 : 340;
@@ -728,22 +716,10 @@ document.addEventListener("DOMContentLoaded", () => {
   btn.onclick = toggle;
 
   const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
-  const CONST = [
-    {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
-    {s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},
-    {s:[{ra:2.29,dec:59.15},{ra:10.13,dec:56.54},{ra:14.18,dec:60.72},{ra:21.45,dec:60.24},{ra:28.60,dec:63.67}],l:[[0,1,2,3,4]]},
-    {s:[{ra:88.79,dec:7.41},{ra:81.28,dec:6.35},{ra:85.19,dec:-1.94},{ra:84.05,dec:-1.20},{ra:83.00,dec:-0.30},{ra:86.94,dec:-9.67},{ra:78.63,dec:-8.20}],l:[[1,0],[0,4],[4,2],[2,3],[3,5],[5,6],[2,5]]},
-    {s:[{ra:279.23,dec:38.78},{ra:282.52,dec:33.36},{ra:284.74,dec:32.69},{ra:283.63,dec:36.90},{ra:281.19,dec:37.61}],l:[[0,1,2,3,4,0]]},
-    {s:[{ra:310.36,dec:45.28},{ra:305.56,dec:40.26},{ra:311.55,dec:33.97},{ra:296.24,dec:45.13},{ra:292.68,dec:27.96}],l:[[3,0,1,2]]},
-    {s:[{ra:297.70,dec:8.87},{ra:296.56,dec:10.61},{ra:298.83,dec:6.41},{ra:291.37,dec:3.11}],l:[[0,1,2,3]]},
-    {s:[{ra:346.19,dec:15.21},{ra:345.94,dec:28.08},{ra:2.10,dec:29.09},{ra:3.31,dec:15.18},{ra:326.05,dec:9.88}],l:[[0,1,2,3,0]]},
-    {s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},
-    {s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}
-  ];
+  const CONST = [{s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},{s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},{s:[{ra:2.29,dec:59.15},{ra:10.13,dec:56.54},{ra:14.18,dec:60.72},{ra:21.45,dec:60.24},{ra:28.60,dec:63.67}],l:[[0,1,2,3,4]]},{s:[{ra:88.79,dec:7.41},{ra:81.28,dec:6.35},{ra:85.19,dec:-1.94},{ra:84.05,dec:-1.20},{ra:83.00,dec:-0.30},{ra:86.94,dec:-9.67},{ra:78.63,dec:-8.20}],l:[[1,0],[0,4],[4,2],[2,3],[3,5],[5,6],[2,5]]},{s:[{ra:279.23,dec:38.78},{ra:282.52,dec:33.36},{ra:284.74,dec:32.69},{ra:283.63,dec:36.90},{ra:281.19,dec:37.61}],l:[[0,1,2,3,4,0]]},{s:[{ra:310.36,dec:45.28},{ra:305.56,dec:40.26},{ra:311.55,dec:33.97},{ra:296.24,dec:45.13},{ra:292.68,dec:27.96}],l:[[3,0,1,2]]},{s:[{ra:297.70,dec:8.87},{ra:296.56,dec:10.61},{ra:298.83,dec:6.41},{ra:291.37,dec:3.11}],l:[[0,1,2,3]]},{s:[{ra:346.19,dec:15.21},{ra:345.94,dec:28.08},{ra:2.10,dec:29.09},{ra:3.31,dec:15.18},{ra:326.05,dec:9.88}],l:[[0,1,2,3,0]]},{s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},{s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}];
   const MW = [];
   function galToEq(l,b){ const lR=l*D2R,bR=b*D2R; const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR); const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg; const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg; const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg; let ra=Math.atan2(ye,xe)*R2D; ra=((ra%360)+360)%360; return{ra,dec:Math.asin(Math.max(-1,Math.min(1,ze)))*R2D}; }
   for(let l=0;l<360;l+=2) for(let b=-9;b<=9;b+=2){ const dens=Math.exp(-(b*b)/(2*4.5*4.5)); if(Math.random()>dens*0.85+0.15)continue; const eq=galToEq(l+(Math.random()-0.5)*3,b+(Math.random()-0.5)*1.8); MW.push({ra:eq.ra,dec:eq.dec,size:1.8+Math.random()*2.8,alpha:0.035+dens*0.10}); }
-
   function polar(alt, az) { const r = (SIZE/2-2) * zoom * (90-alt)/90; const azR = az * D2R; return { x: SIZE/2 + r*Math.sin(azR), y: SIZE/2 - r*Math.cos(azR), r }; }
   
   function draw() {
@@ -774,12 +750,8 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('mousemove', e => { if(!drag) return; container.style.left = (sl + e.clientX - sx) + 'px'; container.style.top = (st + e.clientY - sy) + 'px'; container.style.right = 'auto'; });
   window.addEventListener('mouseup', () => { drag = false; });
 
-  // ============================================================
-  // 4. SYNC BUS E GESTIONE CONNESSIONE (UNIFICATO E PULITO)
-  // ============================================================
+  // 4. SYNC BUS
   if (typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
-    
-    // Forza GPS da URL all'avvio
     setTimeout(() => {
       const p = new URLSearchParams(window.location.search);
       const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon'));
@@ -794,7 +766,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let _last = '';
     setInterval(() => { const s = buildState(); if (!s) return; const j = JSON.stringify(s); if (j === _last) return; _last = j; SyncBus.send('mount_state', s); }, 150);
 
-    // Funzione per forzare la connessione se arriva un comando
     const _ensureConnection = (cb) => {
       if (!MS.connected) {
         MS.simulated = true; MS.wifiEnabled = false; MS.btEnabled = false;
@@ -805,17 +776,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const _run = (f, ...a) => { try { if (typeof window[f] === 'function') window[f](...a); } catch(e){} };
 
-    // RICEZIONE COMANDI DAL PIANETA
-    SyncBus.on('cmd_connect', d => {
-      if (!d) return;
-      if (d.on && !MS.connected) {
-        MS.simulated = true; MS.wifiEnabled = false; MS.btEnabled = false;
-        const sb = document.getElementById('simBtn'); if(sb && !sb.classList.contains('sim-active')) sb.classList.add('sim-active');
-        if (typeof toggleConnection === 'function') toggleConnection();
-      } else if (!d.on && MS.connected) {
-        if (typeof disconnectMount === 'function') disconnectMount(false);
-      }
-    });
+    SyncBus.on('sync_activate', d => { if (d && d.role === 'master') _ensureConnection(() => { const s = buildState(); if(s) SyncBus.send('mount_state', s); }); });
+    SyncBus.on('cmd_connect', d => { if (!d) return; if (d.on && !MS.connected) { _ensureConnection(()=>{}); } else if (!d.on && MS.connected) { if (typeof disconnectMount === 'function') disconnectMount(false); } });
     SyncBus.on('cmd_goto', d => { if (d && Number.isFinite(d.ra)) _ensureConnection(() => _run('_startGoto', d.ra * Math.PI/180, d.dec * Math.PI/180)); });
     SyncBus.on('cmd_stop',   () => _ensureConnection(() => _run('stopMotion')));
     SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
