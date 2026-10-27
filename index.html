@@ -617,25 +617,214 @@ window.addEventListener('load', () => {
     }
   }, 1000); 
 });
-
-// 2. PULSANTE TORNA A DISCOVER (In basso a sinistra)
-(function() {
-  function init() {
-    if (document.getElementById('btn-to-discover')) return;
-    var a = document.createElement('a');
-    a.id = 'btn-to-discover';
-    a.href = 'https://egastrodiscover.github.io/EGastro/';
-    a.title = "Torna a Discover";
-    a.style.cssText = 'position:fixed; bottom:20px; left:20px; width:48px; height:48px; background:#0a1220; border:2px solid #8bd3ff; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.8),0 0 10px rgba(139,211,255,0.4); z-index:999999; transition:all 0.3s ease; text-decoration:none;';
-    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#8bd3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path></svg>';
-    
-    a.onmouseenter = () => { a.style.transform = 'scale(1.1)'; a.style.background = '#8bd3ff'; };
-    a.onmouseleave = () => { a.style.transform = 'scale(1)'; a.style.background = '#0a1220'; };
-    
-    document.body.appendChild(a);
+</script>
+  <!-- ========================================== -->
+<!-- MENU A SCOMPARSA UNIFICATO (Telescopio/Cupola) -->
+<!-- ========================================== -->
+<style>
+  #app-switcher-container {
+    position: fixed;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    font-family: 'Orbitron', 'Inter', sans-serif;
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+
+  /* Linguetta di apertura */
+  #app-switcher-toggle {
+    background: rgba(10, 18, 32, 0.85);
+    border: 1px solid #d4af37;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    color: #d4af37;
+    width: 24px;
+    height: 60px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+  }
+  
+  #app-switcher-toggle:hover {
+    background: #d4af37;
+    color: #000;
+    width: 30px;
+  }
+
+  /* Il menu vero e proprio */
+  #app-switcher-menu {
+    position: absolute;
+    left: -80px; /* Nascosto di default */
+    background: rgba(10, 18, 32, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-left: none;
+    border-radius: 0 16px 16px 0;
+    padding: 15px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    backdrop-filter: blur(15px);
+    transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Animazione elastica */
+    box-shadow: 5px 0 20px rgba(0,0,0,0.7);
+  }
+
+  /* Classe per aprire il menu */
+  #app-switcher-menu.open {
+    left: 24px; /* Si sposta a destra della linguetta */
+  }
+
+  /* Stile dei pulsanti circolari */
+  .app-switch-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  /* Pulsante Telescopio (Giallo) */
+  .app-btn-telescope {
+    border: 2px solid #d4af37;
+    background: #0a1220;
+    color: #d4af37;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  }
+  .app-btn-telescope:hover {
+    background: #d4af37;
+    color: #000;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+  }
+
+  /* Pulsante Osservatorio (Azzurro) */
+  .app-btn-dome {
+    border: 2px solid #8bd3ff;
+    background: #0a1220;
+    color: #8bd3ff;
+    box-shadow: 0 0 10px rgba(139, 211, 255, 0.3);
+  }
+  .app-btn-dome:hover {
+    background: #8bd3ff;
+    color: #000;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(139, 211, 255, 0.6);
+  }
+
+  .app-switch-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Tooltip personalizzati (opzionali) */
+  .app-switch-btn::after {
+    content: attr(data-title);
+    position: absolute;
+    left: 120%;
+    background: #0a1220;
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    border: 1px solid #333;
+  }
+  .app-switch-btn:hover::after {
+    opacity: 1;
+  }
+</style>
+
+<div id="app-switcher-container">
+  <button id="app-switcher-toggle" title="Apri menu app">◀</button>
+  <div id="app-switcher-menu">
+    <!-- Pulsante per la Cupola (App Madre) -->
+    <a class="app-switch-btn app-btn-dome" data-title="EGastro DISCOVER" href="https://egastrodiscover.github.io/EGastroDISCOVER/">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 21h18"/>
+        <path d="M4 21v-8"/>
+        <path d="M20 21v-8"/>
+        <path d="M4 13a8 8 0 0 1 16 0"/>
+        <path d="M12 5v8"/>
+        <path d="M12 10l-3-2"/>
+      </svg>
+    </a>
+    
+    <!-- Pulsante per il Telescopio (App Satellite) -->
+    <a id="btn-goto-telescope" class="app-switch-btn app-btn-telescope" data-title="EGASTRO Mount" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24">
+        <path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path>
+        <path d="M7 16l-2 6"></path>
+        <path d="M3 22h8"></path>
+        <path d="M10 6l10-3 2 4-10 3-2-4z"></path>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<script>
+(function() {
+  // 1. Gestione apertura/chiusura menu
+  const toggleBtn = document.getElementById('app-switcher-toggle');
+  const menu = document.getElementById('app-switcher-menu');
+  
+  toggleBtn.addEventListener('click', function() {
+    menu.classList.toggle('open');
+    if (menu.classList.contains('open')) {
+      toggleBtn.innerText = '▶'; // Freccia a destra quando è aperto
+    } else {
+      toggleBtn.innerText = '◀'; // Freccia a sinistra quando è chiuso
+    }
+  });
+
+  // Chiudi il menu se clicchi fuori
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('app-switcher-container').contains(e.target)) {
+      menu.classList.remove('open');
+      toggleBtn.innerText = '◀';
+    }
+  });
+
+  // 2. Logica intelligente per il pulsante Telescopio
+  const btnTelescope = document.getElementById('btn-goto-telescope');
+  
+  // Controlla se siamo nell'app madre (se esiste la variabile globale 'state')
+  const isMotherApp = (typeof state !== 'undefined' && state.lat !== undefined);
+
+  if (isMotherApp) {
+    // Siamo nell'App Madre: il pulsante deve passare i dati GPS
+    btnTelescope.addEventListener('click', function() {
+      let url = 'https://egastrodiscover.github.io/EGASTROmount/?';
+      url += `lat=${state.lat}&lon=${state.lon}`;
+      
+      // Se c'è un target selezionato, passalo
+      if (state.target && state.target.ra) {
+        url += `&targetName=${encodeURIComponent(state.target.n)}&targetRa=${state.target.ra}&targetDec=${state.target.dec}`;
+      }
+      window.open(url, 'EGASTROmountWindow');
+    });
+  } else {
+    // Siamo nell'App Telescopio: il pulsante deve solo aprire l'app madre
+    btnTelescope.href = 'https://egastrodiscover.github.io/EGastroDISCOVER/';
+  }
 })();
 </script>
 </body>
