@@ -813,8 +813,7 @@ window.addEventListener('load', () => {
   }
 })();
 </script>
- <script src="sync-bus.js"></script>
-<script>
+<script src="sync-bus.js"></script>
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
@@ -849,7 +848,6 @@ window.addEventListener('load', () => {
 
   const _ensureConnection = (callback) => {
     if (!MS.connected) {
-      console.log('[Slave] Non connesso. Auto-attivo il Simulatore...');
       MS.simulated = true;
       const simBtn = document.getElementById('simBtn');
       if (simBtn) simBtn.classList.add('sim-active');
@@ -865,10 +863,8 @@ window.addEventListener('load', () => {
     catch (e) { console.error('[Mount-Sync] ' + fnName + ':', e); }
   };
 
-  // Auto-connessione quando il Master invia il segnale
   SyncBus.on('sync_activate', d => {
     if (!d || d.role !== 'master') return;
-    console.log('[Slave] Master attivato. Auto-connessione...');
     _ensureConnection(() => {});
     if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
       MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
@@ -877,11 +873,9 @@ window.addEventListener('load', () => {
     const s = buildState(); if (s) SyncBus.send('mount_state', s);
   });
 
-  // Comandi GOTO, Stop, Park, ecc.
   SyncBus.on('cmd_goto', d => {
     if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
     _ensureConnection(() => {
-      console.log('[Slave] Eseguo GOTO:', d);
       _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180);
     });
   });
@@ -891,7 +885,6 @@ window.addEventListener('load', () => {
   SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
   SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
 
-  // Comandi manuali (D-Pad)
   SyncBus.on('cmd_manual_start', d => {
     if (!d || !d.dir) return;
     _ensureConnection(() => {
@@ -906,7 +899,6 @@ window.addEventListener('load', () => {
     if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
   });
 
-  // Indicatore
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   document.body.appendChild(ind);
@@ -915,47 +907,10 @@ window.addEventListener('load', () => {
     ind.textContent = '🔗 ✓ SCHIAVO'; 
     ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
-
 })();
 </script>
 
-<!-- Sostituisci la parte finale del menu laterale (quella dentro l'IIFE) con questa: -->
-<script>
-(function() {
-  const toggleBtn = document.getElementById('app-switcher-toggle');
-  const menu = document.getElementById('app-switcher-menu');
-  
-  if(toggleBtn) {
-    toggleBtn.addEventListener('click', function() {
-      menu.classList.toggle('open');
-      toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀';
-    });
-  }
-
-  document.addEventListener('click', function(e) {
-    if (!document.getElementById('app-switcher-container').contains(e.target)) {
-      menu.classList.remove('open');
-      if(toggleBtn) toggleBtn.innerText = '◀';
-    }
-  });
-
-  // Click sull'icona dell'Observatory (Madre)
-  const btnObservatory = document.getElementById('btn-goto-dome');
-  if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
-    btnObservatory.addEventListener('click', function(e) {
-      // Avvisa l'Observatory di diventare MASTER e invia i dati attuali
-      SyncBus.send('sync_activate', { 
-        role: 'slave', 
-        connected: MS.connected, 
-        gpsLat: MS.gpsLat, 
-        gpsLon: MS.gpsLon 
-      });
-      // Lascia che il link navighi normalmente verso l'app madre
-    });
-  }
-})();
-</script>
-  <!-- MENU A SCOMPARSA UNIFICATO -->
+<!-- MENU A SCOMPARSA UNIFICATO -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 999999; display: flex; align-items: center; font-family: 'Orbitron', 'Inter', sans-serif; }
   #app-switcher-toggle { background: rgba(10, 18, 32, 0.85); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 60px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
@@ -983,14 +938,31 @@ window.addEventListener('load', () => {
 </div>
 
 <script>
+(function() {
   const toggleBtn = document.getElementById('app-switcher-toggle');
   const menu = document.getElementById('app-switcher-menu');
   if(toggleBtn) {
-    toggleBtn.addEventListener('click', function() { menu.classList.toggle('open'); toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; });
+    toggleBtn.addEventListener('click', function() {
+      menu.classList.toggle('open');
+      toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀';
+    });
   }
-  document.addEventListener('click', function(e) { if (!document.getElementById('app-switcher-container').contains(e.target)) { menu.classList.remove('open'); if(toggleBtn) toggleBtn.innerText = '◀'; } });
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('app-switcher-container').contains(e.target)) {
+      menu.classList.remove('open');
+      if(toggleBtn) toggleBtn.innerText = '◀';
+    }
+  });
+  const btnObservatory = document.getElementById('btn-goto-dome');
+  if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
+    btnObservatory.addEventListener('click', function(e) {
+      SyncBus.send('sync_activate', { role: 'slave', connected: MS.connected, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon });
+    });
+  }
+})();
 </script>
-  <!-- Auto-aggiornamento Service Worker -->
+
+<!-- Auto-aggiornamento Service Worker -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -1005,7 +977,6 @@ window.addEventListener('load', () => {
           });
         });
       }).catch(err => console.warn('SW fallito:', err));
-
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
