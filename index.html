@@ -611,7 +611,7 @@ window.addEventListener('load',()=>{
 </script>
 <!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
-<!-- INIZIO INTEGRAZIONE GPS -->
+<!-- INIZIO INTEGRAZIONE GPS (SATELLITE) -->
 <script>
 window.addEventListener('load', () => {
   setTimeout(() => {
@@ -633,7 +633,7 @@ window.addEventListener('load', () => {
   <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
-<!-- MENU A SCOMPARSA (STATICO E DEFINITIVO) -->
+<!-- MENU A SCOMPARSA (IDENTICO AL MASTER) -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -649,26 +649,25 @@ window.addEventListener('load', () => {
 
 <div id="app-switcher-container">
   <div id="app-switcher-menu">
-    <!-- Icona Master (Attiva) -->
+    <!-- Nel satellite, l'icona della cupola è ATTIVA (torna al master) -->
     <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
       <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
     </a>
-    <!-- Icona Satellite (Disattivata) -->
+    <!-- L'icona del telescopio è DISATTIVATA (siamo già qui) -->
     <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);" style="pointer-events: none; opacity: 0.4;">
       <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
     </a>
   </div>
-  <!-- Bottone che apre/chiude il menu tramite onclick (infallibile) -->
   <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
 </div>
 
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  SINCRONIZZAZIONE (SATELLITE)
+//  LOGICA SATELLITE (Chiusura finestra + Sincronizzazione)
 // ============================================================
 (function() {
-  // 1. Chiudi menu se clicchi fuori
+  // 1. Gestione chiusura menu
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -678,14 +677,16 @@ window.addEventListener('load', () => {
     } 
   });
 
-  // 2. Click sull'icona per tornare al Master
+  // 2. Click sull'icona della Cupola (Torna al Master)
   const btnDome = document.getElementById('btn-goto-dome');
   if (btnDome) {
     btnDome.addEventListener('click', function(e) {
       e.preventDefault();
       if (window.parent !== window) {
+        // Se siamo dentro l'iframe, lo chiudiamo
         window.parent.postMessage('show-master', '*');
       } else {
+        // Se siamo standalone, apriamo il Master
         document.getElementById('app-frame').src = 'https://egastrodiscover.github.io/EGASTRO/';
         document.getElementById('app-frame-container').style.display = 'block';
       }
