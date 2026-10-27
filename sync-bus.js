@@ -1,15 +1,32 @@
 (function (global) {
   'use strict';
-  const VERSION = 1;
+  const VERSION = 2;
   const CHANNEL_NAME = 'egastro_sync_v' + VERSION;
   const LS_KEY = 'egastro_sync_v' + VERSION;
   const PING_INTERVAL = 2500;
   const PEER_TIMEOUT = 30000;
   const SEND_THROTTLE = 20;
 
-  const path = (location.pathname || '').toLowerCase();
-  const title = (document.title || '').toLowerCase();
-  const APP_ID = (path.indexOf('mount') >= 0 || title.indexOf('mount') >= 0) ? 'mount' : 'observatory';
+  /* ---------- IDENTIFICAZIONE ROBUSTA APP ---------- */
+  function detectAppId() {
+    const meta = document.querySelector('meta[name="app-id"]');
+    if (meta && meta.content) {
+      const v = String(meta.content).trim().toLowerCase();
+      if (v === 'mount' || v === 'observatory') return v;
+    }
+    if (document.getElementById('dpad-grid') ||
+        document.getElementById('slew-speed') ||
+        document.getElementById('top-telemetry-overlay') ||
+        document.querySelector('.dashboard .d-pad')) return 'mount';
+    if (document.getElementById('tab-scope') ||
+        document.getElementById('tab-sky') ||
+        document.getElementById('scopeCanvas')) return 'observatory';
+    const p = (location.pathname || '').toLowerCase();
+    const t = (document.title || '').toLowerCase();
+    if (p.indexOf('mount') >= 0 || t.indexOf('mount') >= 0) return 'mount';
+    return 'observatory';
+  }
+  const APP_ID = detectAppId();
 
   let bc = null;
   try { bc = new BroadcastChannel(CHANNEL_NAME); } catch (e) { bc = null; }
@@ -25,7 +42,6 @@
     if (!msg || !msg.type || !msg.from) return;
     if (msg.from === APP_ID) return;
     peer.alive = true; peer.id = msg.from; peer.lastSeen = Date.now();
-
     if (msg.type === 'ping') { send('pong'); return; }
     if (msg.type === 'pong') return;
     if (msg.type === 'hello') {
@@ -33,7 +49,6 @@
       if (now - peer.helloBackAt > 400) { peer.helloBackAt = now; setTimeout(() => send('hello'), 40); }
       return;
     }
-
     const hs = listeners.get(msg.type);
     if (hs) hs.forEach(fn => { try { fn(msg.data, msg); } catch (e) { console.error('[SyncBus] ' + msg.type + ':', e); } });
     const any = listeners.get('*');
@@ -66,7 +81,17 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { peer.helloBackAt = 0; send('hello'); } });
   global.addEventListener('focus', () => send('hello'));
 
-  global.SyncBus = { appId: APP_ID, version: VERSION, transport: bc ? 'broadcast' : 'localStorage', send, on, start, stop, isPeerAlive: () => peer.alive, getPeerId: () => peer.id };
+  global.SyncBus = {
+    appId: APP_ID, version: VERSION,
+    transport: bc ? 'broadcast' : 'localStorage',
+    send, on, start, stop,
+    isPeerAlive: () => peer.alive,
+    getPeerId: () => peer.id,
+    getAppId: () => APP_ID
+  };
 
-  if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(start, 150); } else { global.addEventListener('load', () => setTimeout(start, 150)); }
+  console.log('[SyncBus v' + VERSION + '] APP_ID =', APP_ID, '· transport =', bc ? 'BroadcastChannel' : 'localStorage');
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(start, 150); }
+  else { global.addEventListener('load', () => setTimeout(start, 150)); }
 })(window);
