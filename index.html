@@ -737,9 +737,11 @@ window.addEventListener('load', () => {
     toggleBtn.addEventListener('click', function(e) { e.preventDefault(); menu.classList.toggle('open'); toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; });
   }
   document.addEventListener('click', function(e) { if (!document.getElementById('app-switcher-container').contains(e.target)) { menu.classList.remove('open'); if(toggleBtn) toggleBtn.innerText = '◀'; } });
+  
   const btnObservatory = document.getElementById('btn-goto-dome');
   if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     btnObservatory.addEventListener('click', function(e) {
+      // Avvisa il Master che lo Slave è pronto
       SyncBus.send('sync_activate', { role: 'slave', connected: MS.connected, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon });
     });
   }
