@@ -699,7 +699,7 @@ window.addEventListener('load', () => {
 </div>
 
 <!-- ============================================================ -->
-<!-- BLOCCO DEFINITIVO — SWITCHER, MAPPA POLARE, BADGE SYNC        -->
+<!-- BLOCCO DEFINITIVO SATELLITE — SWITCHER, MAPPA, CHIUSURA IFRAME -->
 <!-- ============================================================ -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -708,7 +708,9 @@ window.addEventListener('load', () => {
   #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
   #app-switcher-toggle:hover { background: #d4af37; color: #000; }
   .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
-  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); pointer-events: none; opacity: 0.35; }
+  
+  /* Satellite: Telescopio SPENTO, Cupola ACCESA */
+  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; pointer-events: none; opacity: 0.35; }
   .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
   .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
   .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
@@ -720,15 +722,36 @@ window.addEventListener('load', () => {
       <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
     </a>
     <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
+      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
     </a>
   </div>
   <button id="app-switcher-toggle" title="Apri menu app">▶</button>
 </div>
 
+<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
+  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // === 1. RIMOZIONE ELEMENTI DUPLICATI ===
+  // 1. NASCONDI POPUP WELCOME SE IN IFRAME
+  if (window.self !== window.top) {
+    setTimeout(() => {
+      const modal = document.getElementById('welcome-modal');
+      if (modal) modal.style.display = 'none';
+    }, 100);
+    window.showWelcomeModal = function() {};
+  }
+
+  // 2. CHIUSURA IFRAME QUANDO IL PIANETA INVIA IL MESSAGGIO
+  window.addEventListener('message', e => {
+    if (e.data === 'egastro-close-frame' || e.data === 'show-master') {
+      const fc = document.getElementById('app-frame-container');
+      if (fc) fc.style.display = 'none';
+    }
+  });
+
+  // 3. RIMOZIONE ELEMENTI DUPLICATI E BADGE SYNC
   const oldMap = document.getElementById('skyPolarContainer');
   if (oldMap) oldMap.remove();
   const oldBtn = document.getElementById('skyPolarBtn');
@@ -740,7 +763,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // === 2. BADGE SYNC ===
   const badge = document.createElement('div');
   badge.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#4ade80;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   badge.textContent = '🔗 ✓ SYNC';
@@ -755,7 +777,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
-  // === 3. SWITCHER MENU ===
+  // 4. SWITCHER MENU
   const sc = document.getElementById('app-switcher-container');
   const tg = document.getElementById('app-switcher-toggle');
   tg.onclick = function(e) {
@@ -775,7 +797,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
   };
 
-  // === 4. MAPPA POLARE (SOLO VISUALIZZAZIONE, NESSUN INVIO COMANDI) ===
+  // 5. MAPPA POLARE (VISUALIZZAZIONE)
   const D2R = Math.PI/180, R2D = 180/Math.PI;
   const isMobile = window.innerWidth < 600;
   const SIZE = isMobile ? 220 : 340;
@@ -807,7 +829,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.createElement('div');
   btn.className = 'circle-btn';
   btn.id = 'skyPolarBtn';
-  btn.title = 'Mappa Polare (Visualizzazione)';
+  btn.title = 'Mappa Polare';
   btn.style.cssText = 'border-color:rgba(139,211,255,.65);color:#8bd3ff;';
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
   document.querySelector('.top-right-buttons').appendChild(btn);
@@ -816,7 +838,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
-  // Dati per il rendering
   const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
   const CONST = [
     {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
@@ -919,7 +940,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
 
-  // === 5. GESTIONE TOUCH (SOLO VISUALIZZAZIONE E ZOOM) ===
+  // Touch & Drag
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0;
   let pinchStartDist = 0, pinchStartZoom = 1;
 
