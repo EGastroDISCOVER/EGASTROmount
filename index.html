@@ -664,13 +664,13 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — Sincronizzazione
+//  EGASTRO Mount (SATELLITE) — v8.0 (Finale)
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
   let _isRemote = false;
 
-  // 1. Menu e Navigazione
+  // 1. Navigazione Menu
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -695,7 +695,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. GPS
+  // 2. Ricezione GPS
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -706,7 +706,7 @@ window.addEventListener('load', () => {
     } catch (e) {}
   });
 
-  // 3. Stato
+  // 3. Invio Stato al Master
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
@@ -720,29 +720,27 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Wrapper locale
+  // 4. Wrapping Comandi
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
-      if (_isRemote) return _origToggle.apply(this, arguments);
-      if (SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: !MS.connected });
-      } else {
-        return _origToggle.apply(this, arguments);
+      const result = _origToggle.apply(this, arguments);
+      if (!_isRemote && SyncBus.isPeerAlive()) {
+        SyncBus.send('cmd_connect', { on: MS.connected });
       }
+      return result;
     };
   }
 
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
-      if (_isRemote) return orig.apply(this, arguments);
-      if (SyncBus.isPeerAlive()) {
+      const result = orig.apply(this, arguments);
+      if (!_isRemote && SyncBus.isPeerAlive()) {
         const data = dataFn ? dataFn.apply(this, arguments) : null;
         if (data !== false) SyncBus.send(msgType, data);
-      } else {
-        return orig.apply(this, arguments);
       }
+      return result;
     };
   }
   
@@ -753,8 +751,8 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Ricezione comandi
-  SyncBus.on('cmd_connect', d => { if (d) { _isRemote = true; if (d.on !== MS.connected) { if (d.on) MS.simulated = true; window.toggleConnection(); } _isRemote = false; } });
+  // 5. Ricezione Comandi dal Master
+  SyncBus.on('cmd_connect', d => { if (d) { _isRemote = true; if (d.on !== MS.connected) { if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); } window.toggleConnection(); } _isRemote = false; } });
   SyncBus.on('cmd_goto', d => { if (d) { _isRemote = true; if (typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); _isRemote = false; } });
   SyncBus.on('cmd_stop', () => { _isRemote = true; if (typeof window.stopMotion === 'function') window.stopMotion(); _isRemote = false; });
   SyncBus.on('cmd_park', () => { _isRemote = true; if (typeof window.parkMount === 'function') window.parkMount(); _isRemote = false; });
@@ -784,7 +782,7 @@ window.addEventListener('load', () => {
   }
 </script>
 
-<!-- PATCH: Blocca popup in iframe -->
+<!-- PATCH: Blocco popup in iframe e Bottone Connetti -->
 <script>
   if (window.self !== window.top) {
     setTimeout(() => {
@@ -793,10 +791,7 @@ window.addEventListener('load', () => {
     }, 100);
     window.showWelcomeModal = function() {};
   }
-</script>
 
-<!-- PATCH: Aggiornamento visivo tasto Connetti (Slave) -->
-<script>
   document.addEventListener("DOMContentLoaded", () => {
     window.updateSlaveConnBtn = function(isConnected) {
       const btn = document.getElementById('connect-btn');
@@ -815,5 +810,4 @@ window.addEventListener('load', () => {
   });
 </script>
 </body>
-</html>
 </html>
