@@ -1,25 +1,21 @@
 // ============================================================
-//  sync-bus.js — EGastro Unified Sync Bus
-//  Comunicazione cross-window tra EGastro DISCOVER e EGASTRO Mount
-//  Transport: BroadcastChannel (primario) + localStorage (fallback)
-//  API:  SyncBus.send(tipo, dati)   /   SyncBus.on(tipo, handler)
+//  sync-bus.js — EGastro Unified Sync Bus  ·  v1.1
+//  Fix: heartbeat robusto + visibilitychange + riannodamento
 // ============================================================
 (function (global) {
   'use strict';
 
-  const VERSION        = 1;
-  const CHANNEL_NAME   = 'egastro_sync_v' + VERSION;
-  const LS_KEY         = 'egastro_sync_v' + VERSION;
-  const PING_INTERVAL  = 3000;
-  const PEER_TIMEOUT   = 9000;
-  const SEND_THROTTLE  = 20;
+  const VERSION       = 1;
+  const CHANNEL_NAME  = 'egastro_sync_v' + VERSION;
+  const LS_KEY        = 'egastro_sync_v' + VERSION;
+  const PING_INTERVAL = 2500;
+  const PEER_TIMEOUT  = 30000;   // ← alzato: sopravvive al background throttle
+  const SEND_THROTTLE = 20;
 
-  // Riconosce in automatico quale app sta girando
   const path  = (location.pathname || '').toLowerCase();
   const title = (document.title || '').toLowerCase();
   const APP_ID = (path.indexOf('mount') >= 0 || title.indexOf('mount') >= 0)
-    ? 'mount'
-    : 'observatory';
+    ? 'mount' : 'observatory';
 
   let bc = null;
   try { bc = new BroadcastChannel(CHANNEL_NAME); } catch (e) { bc = null; }
@@ -28,24 +24,17 @@
   const peer = { alive: false, id: null, lastSeen: 0, helloBackAt: 0 };
 
   function _makeMsg(type, data) {
-    return {
-      v: VERSION, type,
-      data: data || null,
-      from: APP_ID,
-      ts: Date.now(),
-      id: Math.random().toString(36).slice(2)
-    };
+    return { v: VERSION, type, data: data || null, from: APP_ID,
+             ts: Date.now(), id: Math.random().toString(36).slice(2) };
   }
 
   function _dispatch(msg) {
     if (!msg || !msg.type || !msg.from) return;
-    if (msg.from === APP_ID) return; // ignore echo
-    peer.alive = true;
-    peer.id = msg.from;
-    peer.lastSeen = Date.now();
+    if (msg.from === APP_ID) return;
+    peer.alive = true; peer.id = msg.from; peer.lastSeen = Date.now();
 
-    if (msg.type === 'ping')  { send('pong'); return; }
-    if (msg.type === 'pong')  { return; }
+    if (msg.type === 'ping') { send('pong'); return; }
+    if (msg.type === 'pong') return;
     if (msg.type === 'hello') {
       const now = Date.now();
       if (now - peer.helloBackAt > 400) {
@@ -56,11 +45,8 @@
     }
 
     const hs = listeners.get(msg.type);
-    if (hs) hs.forEach(fn => {
-      try { fn(msg.data, msg); } catch (e) {
-        console.error('[SyncBus] listener "' + msg.type + '":', e);
-      }
-    });
+    if (hs) hs.forEach(fn => { try { fn(msg.data, msg); }
+      catch (e) { console.error('[SyncBus] ' + msg.type + ':', e); } });
     const any = listeners.get('*');
     if (any) any.forEach(fn => { try { fn(msg.data, msg); } catch (e) {} });
   }
@@ -74,13 +60,10 @@
     }
     _last = now;
     const msg = _makeMsg(type, data);
-    if (bc) {
-      try { bc.postMessage(msg); } catch (e) {}
-    } else {
-      try {
-        msg.nonce = Math.random();
-        localStorage.setItem(LS_KEY, JSON.stringify(msg));
-      } catch (e) {}
+    if (bc) { try { bc.postMessage(msg); } catch (e) {} }
+    else {
+      try { msg.nonce = Math.random(); localStorage.setItem(LS_KEY, JSON.stringify(msg)); }
+      catch (e) {}
     }
   }
 
@@ -88,10 +71,8 @@
     if (!listeners.has(type)) listeners.set(type, []);
     listeners.get(type).push(fn);
     return function off() {
-      const arr = listeners.get(type);
-      if (!arr) return;
-      const i = arr.indexOf(fn);
-      if (i >= 0) arr.splice(i, 1);
+      const arr = listeners.get(type); if (!arr) return;
+      const i = arr.indexOf(fn); if (i >= 0) arr.splice(i, 1);
     };
   }
 
@@ -118,9 +99,18 @@
     if (bc) { try { bc.close(); } catch (e) {} }
   }
 
+  // Quando la tab torna visibile, riannoda subito (salta il throttle)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      peer.helloBackAt = 0;      // forza un nuovo scambio
+      send('hello');
+    }
+  });
+  // Anche al focus, per essere sicuri
+  global.addEventListener('focus', () => send('hello'));
+
   global.SyncBus = {
-    appId: APP_ID,
-    version: VERSION,
+    appId: APP_ID, version: VERSION,
     transport: bc ? 'broadcast' : 'localStorage',
     send, on, start, stop,
     isPeerAlive: () => peer.alive,
