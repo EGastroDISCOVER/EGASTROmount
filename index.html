@@ -693,6 +693,11 @@ window.addEventListener('load', () => {
 });
 </script>
 
+<!-- FINESTRA PER L'APP MASTER (RIPRISTINATA) -->
+<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
+  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
+</div>
+
 <!-- ============================================================ -->
 <!-- BLOCCO DEFINITIVO — SWITCHER, MAPPA POLARE, BADGE SYNC        -->
 <!-- ============================================================ -->
@@ -724,20 +729,18 @@ window.addEventListener('load', () => {
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   // === 1. RIMOZIONE ELEMENTI DUPLICATI ===
-  // Rimuove eventuali mappe polari vecchie rimaste nel DOM
   const oldMap = document.getElementById('skyPolarContainer');
   if (oldMap) oldMap.remove();
-  // Rimuove eventuali bottoni mappa vecchi
   const oldBtn = document.getElementById('skyPolarBtn');
   if (oldBtn) oldBtn.remove();
-  // Rimuove il badge SYNC originale creato da sync-bus.js
+  
   document.querySelectorAll('div').forEach(el => {
     if (el.innerText && el.innerText.includes('🔗') && el.style.position === 'fixed' && el.style.bottom === '8px') {
       el.remove();
     }
   });
 
-  // === 2. CREA IL BADGE SYNC PULITO ===
+  // === 2. BADGE SYNC ===
   const badge = document.createElement('div');
   badge.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#4ade80;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
   badge.textContent = '🔗 ✓ SYNC';
@@ -763,6 +766,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener('click', e => {
     if (!sc.contains(e.target)) { sc.classList.remove('open'); tg.innerText = '▶'; }
   });
+  
   document.getElementById('btn-goto-dome').onclick = function(e) {
     e.preventDefault();
     if (window.parent !== window) { window.parent.postMessage('show-master', '*'); return; }
@@ -771,7 +775,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
   };
 
-  // === 4. MAPPA POLARE CON VIA LATTEA, COSTELLAZIONI E ZOOM ===
+  // === 4. MAPPA POLARE (SOLO VISUALIZZAZIONE, NESSUN INVIO COMANDI) ===
   const D2R = Math.PI/180, R2D = 180/Math.PI;
   const isMobile = window.innerWidth < 600;
   const SIZE = isMobile ? 220 : 340;
@@ -779,7 +783,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
-  // Trasparenza extra: opacity 0.75 + sfondo semi-trasparente
   container.style.cssText = `position:fixed;top:${isMobile ? '150px' : '240px'};right:15px;width:${SIZE}px;height:${SIZE}px;z-index:9000;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
   
   const cv = document.createElement('canvas');
@@ -790,7 +793,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const ctx = cv.getContext('2d');
   ctx.scale(DPR, DPR);
 
-  // Zoom buttons
   let zoom = 1;
   const zoomBox = document.createElement('div');
   zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
@@ -802,11 +804,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   container.appendChild(zoomBox);
 
-  // Toggle button (l'icona in alto a destra)
   const btn = document.createElement('div');
   btn.className = 'circle-btn';
   btn.id = 'skyPolarBtn';
-  btn.title = 'Mappa Polare';
+  btn.title = 'Mappa Polare (Visualizzazione)';
   btn.style.cssText = 'border-color:rgba(139,211,255,.65);color:#8bd3ff;';
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
   document.querySelector('.top-right-buttons').appendChild(btn);
@@ -815,9 +816,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
-  // Dati
+  // Dati per il rendering
   const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
-
   const CONST = [
     {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
     {s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},
@@ -830,21 +830,15 @@ document.addEventListener("DOMContentLoaded", () => {
     {s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},
     {s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}
   ];
-
-  // Via Lattea
   const MW = [];
   function galToEq(l,b){
-    const lR=l*D2R,bR=b*D2R;
-    const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR);
-    const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg;
-    const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg;
-    const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg;
+    const lR=l*D2R,bR=b*D2R; const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR);
+    const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg; const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg; const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg;
     let ra=Math.atan2(ye,xe)*R2D; ra=((ra%360)+360)%360;
     return{ra,dec:Math.asin(Math.max(-1,Math.min(1,ze)))*R2D};
   }
   for(let l=0;l<360;l+=2) for(let b=-9;b<=9;b+=2){
-    const dens=Math.exp(-(b*b)/(2*4.5*4.5));
-    if(Math.random()>dens*0.85+0.15)continue;
+    const dens=Math.exp(-(b*b)/(2*4.5*4.5)); if(Math.random()>dens*0.85+0.15)continue;
     const eq=galToEq(l+(Math.random()-0.5)*3,b+(Math.random()-0.5)*1.8);
     MW.push({ra:eq.ra,dec:eq.dec,size:1.8+Math.random()*2.8,alpha:0.035+dens*0.10});
   }
@@ -868,7 +862,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillStyle = bg; ctx.fillRect(0,0,SIZE,SIZE);
 
     if (typeof Astro !== 'undefined') {
-      // Via Lattea
       MW.forEach(p => {
         const a = Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date);
         if(a.alt < 0) return;
@@ -877,12 +870,10 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = `rgba(190,180,215,${p.alpha})`; ctx.fill();
       });
 
-      // Griglia
       ctx.strokeStyle = 'rgba(139,180,255,0.17)'; ctx.lineWidth = 0.7;
       [30,60].forEach(alt => { const r = (SIZE/2-2)*zoom*(90-alt)/90; if(r<=SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,r,0,Math.PI*2); ctx.stroke(); } });
       for(let az=0; az<360; az+=30){ const a = az*D2R; ctx.beginPath(); ctx.moveTo(SIZE/2,SIZE/2); ctx.lineTo(SIZE/2+SIZE*Math.sin(a), SIZE/2-SIZE*Math.cos(a)); ctx.stroke(); }
 
-      // Costellazioni
       ctx.strokeStyle='rgba(150,180,255,0.24)'; ctx.lineWidth=0.7;
       CONST.forEach(c => {
         c.l.forEach(line => {
@@ -899,7 +890,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
 
-      // Stelle
       STARS.forEach(s => {
         const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date);
         if(a.alt < 0) return;
@@ -909,7 +899,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill();
       });
 
-      // Mirino Telescopio
       const tp = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
       if (tp.alt >= 0) {
         const pt = polar(tp.alt, tp.az);
@@ -930,7 +919,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
 
-  // === 5. GESTIONE TOUCH (PINCH E DRAG) ===
+  // === 5. GESTIONE TOUCH (SOLO VISUALIZZAZIONE E ZOOM) ===
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0;
   let pinchStartDist = 0, pinchStartZoom = 1;
 
@@ -947,7 +936,6 @@ document.addEventListener("DOMContentLoaded", () => {
       drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; 
       const r = container.getBoundingClientRect(); 
       sl = r.left; st = r.top; 
-      container.style.cursor = 'grabbing';
     }
   }, { passive: false });
 
@@ -968,16 +956,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   container.addEventListener('touchend', e => {
     if (e.touches.length < 2) pinchStartDist = 0;
-    if (e.touches.length === 0) { drag = false; container.style.cursor = 'grab'; }
+    if (e.touches.length === 0) drag = false;
   });
 
-  // Drag per mouse (PC)
   container.addEventListener('mousedown', e => {
     if(e.target.tagName === 'BUTTON') return;
     drag = true; sx = e.clientX; sy = e.clientY; 
     const r = container.getBoundingClientRect(); 
     sl = r.left; st = r.top; 
-    container.style.cursor = 'grabbing';
   });
   window.addEventListener('mousemove', e => {
     if(!drag) return; 
@@ -985,8 +971,8 @@ document.addEventListener("DOMContentLoaded", () => {
     container.style.top = (st + e.clientY - sy) + 'px'; 
     container.style.right = 'auto';
   });
-  window.addEventListener('mouseup', () => { drag = false; container.style.cursor = 'grab'; });
+  window.addEventListener('mouseup', () => { drag = false; });
 });
 </script>
-</body  >
+</body>
 </html>
