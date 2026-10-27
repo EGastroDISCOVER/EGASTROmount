@@ -1016,5 +1016,243 @@ window.addEventListener('load', () => {
     }
   });
 </script>
+  <!-- ============ SKY OVERLAY MAP (auto-contenuto) ============ -->
+<script>
+(function(){
+'use strict';
+
+/* ---------- 1. INIEZIONE DOM ---------- */
+const canvas = document.createElement('canvas');
+canvas.id = 'sky-overlay-map';
+canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:0;transition:opacity .4s ease;';
+document.getElementById('canvas-container').appendChild(canvas);
+
+const btn = document.createElement('div');
+btn.id = 'skyOverlayBtn';
+btn.className = 'circle-btn';
+btn.title = 'Mappa Cielo Trasparente';
+btn.style.cssText = 'border-color:rgba(139,211,255,0.65);color:#8bd3ff;';
+btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>';
+document.querySelector('.top-right-buttons').appendChild(btn);
+
+/* ---------- 2. CATALOGO ---------- */
+const STARS = [
+  {n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Bellatrix",ra:81.28,dec:6.35,mag:1.64},{n:"Mintaka",ra:83.00,dec:-0.30,mag:2.23},{n:"Alnilam",ra:84.05,dec:-1.20,mag:1.69},{n:"Alnitak",ra:85.19,dec:-1.94,mag:1.77},{n:"Saiph",ra:86.94,dec:-9.67,mag:2.07},{n:"Caph",ra:2.29,dec:59.15,mag:2.28},{n:"Schedar",ra:10.13,dec:56.54,mag:2.24},{n:"Gamma Cas",ra:14.18,dec:60.72,mag:2.47},{n:"Ruchbah",ra:21.45,dec:60.24,mag:2.68},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Sadr",ra:305.56,dec:40.26,mag:2.23},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Castore",ra:113.65,dec:31.89,mag:1.58},{n:"Pollux",ra:116.33,dec:28.03,mag:1.14},{n:"Regolo",ra:152.09,dec:11.97,mag:1.35},{n:"Spica",ra:201.30,dec:-11.16,mag:0.97},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96},{n:"Alpheratz",ra:2.10,dec:29.09,mag:2.06},{n:"Mirach",ra:17.43,dec:35.62,mag:2.07},{n:"Almach",ra:30.97,dec:42.33,mag:2.10},{n:"Mirfak",ra:51.08,dec:49.86,mag:1.79},{n:"Algol",ra:47.04,dec:40.96,mag:2.09},{n:"Hamal",ra:31.79,dec:23.46,mag:2.00},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Procyon",ra:114.83,dec:5.22,mag:0.34},{n:"Achernar",ra:24.43,dec:-57.24,mag:0.46},{n:"Fomalhaut",ra:344.41,dec:-29.62,mag:1.17},{n:"Acrux",ra:186.65,dec:-63.10,mag:0.77},{n:"Mimosa",ra:191.93,dec:-59.69,mag:1.25},{n:"Hadar",ra:210.96,dec:-60.37,mag:0.61},{n:"Rigil Kent",ra:219.90,dec:-60.83,mag:-0.27},{n:"Canopo",ra:95.99,dec:-52.70,mag:-0.74},{n:"Miaplacidus",ra:138.30,dec:-69.72,mag:1.67},{n:"Avior",ra:125.63,dec:-59.51,mag:1.86},{n:"Gacrux",ra:187.79,dec:-57.11,mag:1.59},{n:"Shaula",ra:263.40,dec:-37.10,mag:1.62},{n:"Sargas",ra:264.33,dec:-42.99,mag:1.84},{n:"Wezen",ra:107.10,dec:-26.39,mag:1.83},{n:"Adhara",ra:104.66,dec:-28.97,mag:1.50},{n:"Mirzam",ra:95.67,dec:-17.96,mag:1.98},{n:"Diphda",ra:10.90,dec:-17.99,mag:2.02},{n:"Enif",ra:326.05,dec:9.88,mag:2.39},{n:"Markab",ra:346.19,dec:15.21,mag:2.48},{n:"Scheat",ra:345.94,dec:28.08,mag:2.42},{n:"Algenib",ra:3.31,dec:15.18,mag:2.83},{n:"Menkar",ra:45.57,dec:4.09,mag:2.54},{n:"Unukalhai",ra:236.07,dec:6.43,mag:2.63},{n:"Sabik",ra:257.59,dec:-15.72,mag:2.43},{n:"Rasalhague",ra:263.73,dec:12.56,mag:2.08},{n:"Rasalgethi",ra:258.66,dec:14.39,mag:3.48},{n:"Kornephoros",ra:247.55,dec:21.49,mag:2.78},{n:"Alphard",ra:141.90,dec:-8.66,mag:2.00},{n:"Zubenelgenubi",ra:222.72,dec:-16.04,mag:2.75},{n:"Zubeneschamali",ra:229.25,dec:-9.38,mag:2.61},{n:"Nunki",ra:283.82,dec:-26.30,mag:2.05},{n:"Kaus Australis",ra:276.04,dec:-34.38,mag:1.85},{n:"Nashira",ra:325.02,dec:-16.66,mag:3.69},{n:"Deneb Algedi",ra:326.76,dec:-16.13,mag:2.87},{n:"Sadalsuud",ra:322.89,dec:-5.57,mag:2.87},{n:"Sadalmelik",ra:331.45,dec:-0.32,mag:2.95},{n:"Menkalinan",ra:89.88,dec:44.95,mag:1.90},{n:"Mahasim",ra:90.98,dec:35.09,mag:2.62},{n:"Alhena",ra:99.43,dec:16.40,mag:1.93},{n:"Wasat",ra:110.03,dec:21.98,mag:3.53},{n:"Mebsuta",ra:101.00,dec:25.13,mag:3.06},{n:"Tejat",ra:97.20,dec:22.51,mag:2.87},{n:"Propus",ra:95.74,dec:22.51,mag:3.28}
+];
+const MESSIER = {
+  M1:{n:"M1",ra:83.63,dec:22.01,type:"Nebulosa",mag:8.4},M2:{n:"M2",ra:323.36,dec:-0.82,type:"Ammasso",mag:6.5},M3:{n:"M3",ra:205.55,dec:28.38,type:"Ammasso",mag:6.2},M4:{n:"M4",ra:245.90,dec:-26.53,type:"Ammasso",mag:5.9},M5:{n:"M5",ra:229.64,dec:2.08,type:"Ammasso",mag:5.6},M6:{n:"M6",ra:265.07,dec:-32.22,type:"Ammasso",mag:4.2},M7:{n:"M7",ra:268.46,dec:-34.79,type:"Ammasso",mag:3.3},M8:{n:"M8",ra:270.90,dec:-24.38,type:"Nebulosa",mag:6.0},M11:{n:"M11",ra:282.77,dec:-6.27,type:"Ammasso",mag:6.3},M13:{n:"M13",ra:250.42,dec:36.46,type:"Ammasso",mag:5.8},M15:{n:"M15",ra:322.49,dec:12.17,type:"Ammasso",mag:6.2},M16:{n:"M16",ra:274.70,dec:-13.78,type:"Nebulosa",mag:6.0},M17:{n:"M17",ra:275.20,dec:-16.17,type:"Nebulosa",mag:6.0},M20:{n:"M20",ra:270.67,dec:-23.03,type:"Nebulosa",mag:6.3},M22:{n:"M22",ra:279.10,dec:-23.90,type:"Ammasso",mag:5.1},M27:{n:"M27",ra:299.90,dec:22.72,type:"Nebulosa",mag:7.4},M31:{n:"M31",ra:10.68,dec:41.26,type:"Galassia",mag:3.4},M32:{n:"M32",ra:10.67,dec:40.87,type:"Galassia",mag:8.1},M33:{n:"M33",ra:23.46,dec:30.66,type:"Galassia",mag:5.7},M35:{n:"M35",ra:92.27,dec:24.33,type:"Ammasso",mag:5.3},M42:{n:"M42",ra:83.82,dec:-5.39,type:"Nebulosa",mag:4.0},M44:{n:"M44",ra:130.10,dec:19.98,type:"Ammasso",mag:3.7},M45:{n:"M45",ra:56.75,dec:24.11,type:"Ammasso",mag:1.6},M51:{n:"M51",ra:202.47,dec:47.19,type:"Galassia",mag:8.4},M57:{n:"M57",ra:283.39,dec:33.02,type:"Nebulosa",mag:8.8},M63:{n:"M63",ra:198.84,dec:42.03,type:"Galassia",mag:8.6},M64:{n:"M64",ra:194.18,dec:21.68,type:"Galassia",mag:8.5},M65:{n:"M65",ra:169.73,dec:13.09,type:"Galassia",mag:9.3},M66:{n:"M66",ra:170.06,dec:12.99,type:"Galassia",mag:8.9},M78:{n:"M78",ra:86.69,dec:0.08,type:"Nebulosa",mag:8.3},M81:{n:"M81",ra:148.80,dec:69.06,type:"Galassia",mag:6.9},M82:{n:"M82",ra:148.97,dec:69.68,type:"Galassia",mag:8.4},M83:{n:"M83",ra:204.25,dec:-29.87,type:"Galassia",mag:7.5},M87:{n:"M87",ra:187.71,dec:12.39,type:"Galassia",mag:8.6},M92:{n:"M92",ra:259.28,dec:43.14,type:"Ammasso",mag:6.4},M97:{n:"M97",ra:168.70,dec:55.02,type:"Nebulosa",mag:9.9},M101:{n:"M101",ra:210.80,dec:54.35,type:"Galassia",mag:7.9},M104:{n:"M104",ra:189.99,dec:-11.62,type:"Galassia",mag:8.0},M106:{n:"M106",ra:184.74,dec:47.30,type:"Galassia",mag:8.4}
+};
+const NEB_EXTRA = [
+  {ra:311.5,dec:30.7},{ra:314.7,dec:44.3},{ra:60.8,dec:36.4},{ra:97.9,dec:5.0},{ra:38.3,dec:61.3},{ra:337.4,dec:-20.8},{ra:100.24,dec:9.89},{ra:328.33,dec:47.27},{ra:350.20,dec:61.20},{ra:13.30,dec:56.62}
+];
+const CONST = [
+  {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
+  {s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},
+  {s:[{ra:2.29,dec:59.15},{ra:10.13,dec:56.54},{ra:14.18,dec:60.72},{ra:21.45,dec:60.24},{ra:28.60,dec:63.67}],l:[[0,1,2,3,4]]},
+  {s:[{ra:88.79,dec:7.41},{ra:81.28,dec:6.35},{ra:85.19,dec:-1.94},{ra:84.05,dec:-1.20},{ra:83.00,dec:-0.30},{ra:86.94,dec:-9.67},{ra:78.63,dec:-8.20}],l:[[1,0],[0,4],[4,2],[2,3],[3,5],[5,6],[2,5]]},
+  {s:[{ra:279.23,dec:38.78},{ra:282.52,dec:33.36},{ra:284.74,dec:32.69},{ra:283.63,dec:36.90},{ra:281.19,dec:37.61}],l:[[0,1,2,3,4,0]]},
+  {s:[{ra:310.36,dec:45.28},{ra:305.56,dec:40.26},{ra:311.55,dec:33.97},{ra:296.24,dec:45.13},{ra:292.68,dec:27.96}],l:[[3,0,1,2]]},
+  {s:[{ra:297.70,dec:8.87},{ra:296.56,dec:10.61},{ra:298.83,dec:6.41},{ra:291.37,dec:3.11}],l:[[0,1,2,3]]},
+  {s:[{ra:346.19,dec:15.21},{ra:345.94,dec:28.08},{ra:2.10,dec:29.09},{ra:3.31,dec:15.18},{ra:326.05,dec:9.88}],l:[[0,1,2,3,0]]},
+  {s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},
+  {s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}
+];
+
+/* ---------- 3. MATEMATICA 2D ↔ 3D ---------- */
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+function project(alt,az,camAlt,camAz,fov,W,H){
+  const altR=alt*D2R,azR=az*D2R;
+  const obj={x:Math.cos(altR)*Math.sin(azR),y:Math.cos(altR)*Math.cos(azR),z:Math.sin(altR)};
+  const cA=camAlt*D2R,cZ=camAz*D2R;
+  const fwd={x:Math.cos(cA)*Math.sin(cZ),y:Math.cos(cA)*Math.cos(cZ),z:Math.sin(cA)};
+  const right={x:Math.cos(cZ),y:-Math.sin(cZ),z:0};
+  const up={x:right.y*fwd.z-right.z*fwd.y,y:right.z*fwd.x-right.x*fwd.z,z:right.x*fwd.y-right.y*fwd.x};
+  const zV=obj.x*fwd.x+obj.y*fwd.y+obj.z*fwd.z;
+  if(zV<0.05)return{x:0,y:0,visible:false};
+  const xV=obj.x*right.x+obj.y*right.y+obj.z*right.z;
+  const yV=obj.x*up.x+obj.y*up.y+obj.z*up.z;
+  const focal=(Math.min(W,H)/2)/Math.tan(fov*D2R/2);
+  return{x:W/2+(xV*focal)/(1+zV),y:H/2-(yV*focal)/(1+zV),visible:true};
+}
+// Inversa 2D→3D (alt/az): utile per future interazioni click
+function unproject(sx,sy,camAlt,camAz,fov,W,H){
+  const focal=(Math.min(W,H)/2)/Math.tan(fov*D2R/2);
+  const kx=(sx-W/2)/focal,ky=(H/2-sy)/focal;
+  const K=kx*kx+ky*ky,zV=(1-K)/(1+K);
+  const xV=kx*(1+zV),yV=ky*(1+zV);
+  const cA=camAlt*D2R,cZ=camAz*D2R;
+  const fwd={x:Math.cos(cA)*Math.sin(cZ),y:Math.cos(cA)*Math.cos(cZ),z:Math.sin(cA)};
+  const right={x:Math.cos(cZ),y:-Math.sin(cZ),z:0};
+  const up={x:right.y*fwd.z-right.z*fwd.y,y:right.z*fwd.x-right.x*fwd.z,z:right.x*fwd.y-right.y*fwd.x};
+  const o={x:xV*right.x+yV*up.x+zV*fwd.x,y:xV*right.y+yV*up.y+zV*fwd.y,z:xV*right.z+yV*up.z+zV*fwd.z};
+  let az=Math.atan2(o.x,o.y)*R2D;az=((az%360)+360)%360;
+  return{alt:Math.asin(Math.max(-1,Math.min(1,o.z)))*R2D,az};
+}
+
+/* ---------- 4. STATO E RENDER ---------- */
+let visible=false,rafId=null,lastTime=0,ctx=null;
+const FOV=70,DRAW_MS=80;
+
+function resize(){
+  const c=document.getElementById('canvas-container');
+  if(!c||!canvas)return;
+  canvas.width=c.clientWidth;canvas.height=c.clientHeight;
+}
+function draw(){
+  if(!visible||!canvas){rafId=null;return;}
+  const now=performance.now();
+  if(now-lastTime<DRAW_MS){rafId=requestAnimationFrame(draw);return;}
+  lastTime=now;
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  let astro={ra:0,dec:0};
+  try{astro=getAstroCoords();}catch(e){}
+  const lat=Number.isFinite(MS.gpsLat)?MS.gpsLat:41.9028;
+  const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:12.4964;
+  const date=new Date();
+  const tPos=Astro.altAz(astro.ra,astro.dec,lat,lon,date);
+  const cA=tPos.alt,cZ=tPos.az;
+
+  // Sfondo
+  const bg=ctx.createRadialGradient(W/2,H/2,10,W/2,H/2,Math.max(W,H)*0.7);
+  bg.addColorStop(0,'rgba(10,20,45,0.35)');
+  bg.addColorStop(0.7,'rgba(5,10,25,0.18)');
+  bg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Orizzonte
+  ctx.strokeStyle='rgba(139,211,255,0.35)';ctx.lineWidth=1.5;ctx.beginPath();
+  let st=false;
+  for(let az=0;az<=360;az+=2){
+    const pt=project(0,az,cA,cZ,FOV,W,H);
+    if(!pt.visible){st=false;continue;}
+    if(!st){ctx.moveTo(pt.x,pt.y);st=true;}else ctx.lineTo(pt.x,pt.y);
+  }
+  ctx.stroke();
+
+  // Costellazioni
+  ctx.strokeStyle='rgba(150,180,255,0.28)';ctx.lineWidth=1.1;
+  CONST.forEach(c=>{
+    c.l.forEach(line=>{
+      let s=false;ctx.beginPath();
+      line.forEach(i=>{
+        const star=c.s[i];if(!star)return;
+        const p=Astro.altAz(star.ra*D2R,star.dec*D2R,lat,lon,date);
+        if(p.alt<-2){s=false;return;}
+        const pt=project(p.alt,p.az,cA,cZ,FOV,W,H);
+        if(!pt.visible){s=false;return;}
+        if(!s){ctx.moveTo(pt.x,pt.y);s=true;}else ctx.lineTo(pt.x,pt.y);
+      });
+      ctx.stroke();
+    });
+  });
+
+  // Stelle
+  STARS.forEach(s=>{
+    const p=Astro.altAz(s.ra*D2R,s.dec*D2R,lat,lon,date);
+    if(p.alt<-2)return;
+    const pt=project(p.alt,p.az,cA,cZ,FOV,W,H);
+    if(!pt.visible)return;
+    const size=Math.max(1,3.5-s.mag*0.8);
+    if(s.mag<1.5){
+      const g=ctx.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,size*3.2);
+      g.addColorStop(0,'rgba(255,255,255,0.85)');g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(pt.x,pt.y,size*3.2,0,Math.PI*2);ctx.fill();
+    }
+    ctx.beginPath();ctx.arc(pt.x,pt.y,size,0,Math.PI*2);
+    ctx.fillStyle=s.mag<1?'#ffffff':(s.mag<2?'#e0e8ff':'#aabbcc');ctx.fill();
+    if(s.mag<1.8){
+      ctx.save();ctx.fillStyle='rgba(200,220,255,0.68)';ctx.font='10px Inter,sans-serif';
+      ctx.textAlign='left';ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=3;
+      ctx.fillText(s.n,pt.x+8,pt.y+3);ctx.restore();
+    }
+  });
+
+  // Messier
+  Object.values(MESSIER).forEach(m=>{
+    const p=Astro.altAz(m.ra*D2R,m.dec*D2R,lat,lon,date);
+    if(p.alt<-2)return;
+    const pt=project(p.alt,p.az,cA,cZ,FOV,W,H);
+    if(!pt.visible)return;
+    ctx.beginPath();
+    if(m.type==='Galassia')ctx.ellipse(pt.x,pt.y,5,3,0,0,Math.PI*2);
+    else if(m.type==='Nebulosa')ctx.rect(pt.x-4,pt.y-4,8,8);
+    else ctx.arc(pt.x,pt.y,4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(139,211,255,0.92)';ctx.lineWidth=1.3;ctx.stroke();
+    if(m.mag<7){
+      ctx.save();ctx.fillStyle='rgba(139,211,255,0.75)';ctx.font='9px Inter,sans-serif';
+      ctx.textAlign='left';ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=3;
+      ctx.fillText(m.n,pt.x+7,pt.y-4);ctx.restore();
+    }
+  });
+
+  // Nebulose extra
+  NEB_EXTRA.forEach(n=>{
+    const p=Astro.altAz(n.ra*D2R,n.dec*D2R,lat,lon,date);
+    if(p.alt<-2)return;
+    const pt=project(p.alt,p.az,cA,cZ,FOV,W,H);
+    if(!pt.visible)return;
+    ctx.beginPath();ctx.arc(pt.x,pt.y,4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(168,139,250,0.9)';ctx.lineWidth=1.3;ctx.stroke();
+  });
+
+  // Reticolo centrale telescopio
+  const cx=W/2,cy=H/2,t=performance.now()/1000;
+  const pulse=1+Math.sin(t*3)*0.08;
+  ctx.save();
+  ctx.strokeStyle='#ff4466';ctx.shadowColor='#ff4466';ctx.shadowBlur=14;ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.arc(cx,cy,22*pulse,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx-32,cy);ctx.lineTo(cx-12,cy);
+  ctx.moveTo(cx+12,cy);ctx.lineTo(cx+32,cy);
+  ctx.moveTo(cx,cy-32);ctx.lineTo(cx,cy-12);
+  ctx.moveTo(cx,cy+12);ctx.lineTo(cx,cy+32);
+  ctx.stroke();
+  ctx.fillStyle='#ff4466';ctx.beginPath();ctx.arc(cx,cy,2.5,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // Telemetria
+  ctx.save();
+  ctx.fillStyle='rgba(212,175,55,0.92)';ctx.font='bold 11px Orbitron,sans-serif';
+  ctx.textAlign='left';ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=4;
+  const raH=astro.ra*R2D/15,decD=astro.dec*R2D;
+  ctx.fillText('TELESCOPIO',20,40);
+  ctx.fillStyle='rgba(139,211,255,0.88)';ctx.font='10px Inter,sans-serif';
+  ctx.fillText(`RA ${String(Math.floor(raH)).padStart(2,'0')}h ${String(Math.floor((raH%1)*60)).padStart(2,'0')}m  ·  DEC ${decD>=0?'+':''}${decD.toFixed(1)}°`,20,55);
+  ctx.fillText(`ALT ${tPos.alt.toFixed(1)}°  ·  AZ ${tPos.az.toFixed(1)}°`,20,68);
+  ctx.restore();
+
+  // Punti cardinali
+  [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d=>{
+    const pt=project(0,d.a,cA,cZ,FOV,W,H);
+    if(!pt.visible)return;
+    ctx.save();ctx.fillStyle='rgba(212,175,55,0.88)';ctx.font='bold 14px Orbitron,sans-serif';
+    ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,0.95)';ctx.shadowBlur=4;
+    ctx.fillText(d.l,pt.x,pt.y-8);ctx.restore();
+  });
+
+  rafId=requestAnimationFrame(draw);
+}
+
+function toggle(){
+  visible=!visible;
+  canvas.style.opacity=visible?'0.82':'0';
+  btn.classList.toggle('gps-active',visible);
+  if(visible&&!rafId){lastTime=0;draw();}
+}
+
+/* ---------- 5. AVVIO ---------- */
+function init(){
+  ctx=canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize',resize);
+  btn.addEventListener('click',toggle);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,800));
+else setTimeout(init,800);
+
+})();
+</script>
 </body>
 </html>
