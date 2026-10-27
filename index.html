@@ -664,7 +664,7 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — v11.0 (Finale)
+//  EGASTRO Mount (SATELLITE) — v12.0 (Definitivo)
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
@@ -695,12 +695,12 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. GPS (Mostra popup SOLO se le coordinate cambiano)
+  // 2. GPS (Pop-up solo se le coordinate cambiano)
   let _lastGpsKey = null;
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     const key = d.lat.toFixed(2) + ',' + d.lon.toFixed(2);
-    if (_lastGpsKey === key) return; // Se sono le stesse coordinate, non fare nulla
+    if (_lastGpsKey === key) return; 
     _lastGpsKey = key;
     
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -718,7 +718,6 @@ window.addEventListener('load', () => {
       return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
     } catch (e) { return null; }
   }
-  
   let _last = '';
   setInterval(() => {
     const s = buildState(); if (!s) return;
@@ -733,9 +732,7 @@ window.addEventListener('load', () => {
     window.toggleConnection = function() {
       const wasConnected = MS.connected;
       const result = _origToggle.apply(this, arguments);
-      if (!_isRemote && SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: !wasConnected }); 
-      }
+      if (!_isRemote && SyncBus.isPeerAlive()) SyncBus.send('cmd_connect', { on: !wasConnected }); 
       return result;
     };
   }
@@ -759,7 +756,7 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Ricezione Comandi
+  // 5. Ricezione Comandi dal Master
   SyncBus.on('cmd_connect', d => { 
     if (d) { 
       _isRemote = true; 
