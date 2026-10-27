@@ -594,18 +594,30 @@ window.addEventListener('unload',saveFullState);
 window.addEventListener('pagehide',saveFullState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
 
-window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();
+window.addEventListener('load',()=>{
+  migrateStorage();
+  loadAllPositions();
+  init3D();
+  recalibrateLayout();
+  setTimeout(recalibrateLayout,150);
+  setTimeout(recalibrateLayout,500);
+  updateTrackingBtn();
+  updateInvertButtons();
+  updateGPSDisplay();
+  updateLinkButtons();
+  updateToggleBtnPosition();
+  showWelcomeModal();
+});
+</script>
 <!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
-<!-- INIZIO INTEGRAZIONE -->
+<!-- INIZIO INTEGRAZIONE GPS -->
 <script>
-// 1. RICEZIONE DATI GPS DALL'APP MADRE
 window.addEventListener('load', () => {
   setTimeout(() => {
     const params = new URLSearchParams(window.location.search);
     const lat = parseFloat(params.get('lat'));
     const lon = parseFloat(params.get('lon'));
-    
     if (typeof MS !== 'undefined' && !isNaN(lat) && !isNaN(lon)) {
       MS.gpsLat = lat;
       MS.gpsLon = lon;
@@ -617,208 +629,10 @@ window.addEventListener('load', () => {
   }, 1000); 
 });
 </script>
- <!-- ========================================== -->
-<!-- MENU A SCOMPARSA UNIFICATO (Cupola/Telescopio) -->
-<!-- ========================================== -->
-<style>
-  #app-switcher-container {
-    position: fixed;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-    z-index: 999999;
-    display: flex;
-    align-items: center;
-    font-family: 'Orbitron', 'Inter', sans-serif;
-  }
 
-  #app-switcher-toggle {
-    background: rgba(10, 18, 32, 0.85);
-    border: 1px solid #d4af37;
-    border-left: none;
-    border-radius: 0 8px 8px 0;
-    color: #d4af37;
-    width: 24px;
-    height: 60px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
-  }
-  
-  #app-switcher-toggle:hover {
-    background: #d4af37;
-    color: #000;
-    width: 30px;
-  }
-
-  #app-switcher-menu {
-    position: absolute;
-    left: -80px;
-    background: rgba(10, 18, 32, 0.85);
-    border: 1px solid rgba(212, 175, 55, 0.4);
-    border-left: none;
-    border-radius: 0 16px 16px 0;
-    padding: 15px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    backdrop-filter: blur(15px);
-    transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 5px 0 20px rgba(0,0,0,0.7);
-  }
-
-  #app-switcher-menu.open {
-    left: 24px;
-  }
-
-  .app-switch-btn {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-  }
-
-  .app-btn-telescope {
-    border: 2px solid #d4af37;
-    background: #0a1220;
-    color: #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
-  }
-  .app-btn-telescope:hover {
-    background: #d4af37;
-    color: #000;
-    transform: scale(1.1);
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-  }
-
-  .app-btn-dome {
-    border: 2px solid #8bd3ff;
-    background: #0a1220;
-    color: #8bd3ff;
-    box-shadow: 0 0 10px rgba(139, 211, 255, 0.3);
-  }
-  .app-btn-dome:hover {
-    background: #8bd3ff;
-    color: #000;
-    transform: scale(1.1);
-    box-shadow: 0 0 20px rgba(139, 211, 255, 0.6);
-  }
-
-  .app-switch-btn svg {
-    width: 24px;
-    height: 24px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .app-switch-btn::after {
-    content: attr(data-title);
-    position: absolute;
-    left: 120%;
-    background: #0a1220;
-    color: #fff;
-    padding: 4px 8px;
-    font-size: 10px;
-    border-radius: 4px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-    border: 1px solid #333;
-  }
-  .app-switch-btn:hover::after {
-    opacity: 1;
-  }
-</style>
-
-<div id="app-switcher-container">
-  <button id="app-switcher-toggle" title="Apri menu app">◀</button>
-  <div id="app-switcher-menu">
-    
-    <!-- PULSANTE CUPOLA (App Madre) -->
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" data-title="EGastro DISCOVER" href="https://egastrodiscover.github.io/EGASTRO/">
-      <svg viewBox="0 0 24 24">
-        <path d="M3 21h18"/>
-        <path d="M4 21v-8"/>
-        <path d="M20 21v-8"/>
-        <path d="M4 13a8 8 0 0 1 16 0"/>
-        <path d="M12 5v8"/>
-        <path d="M12 10l-3-2"/>
-      </svg>
-    </a>
-    
-    <!-- PULSANTE TELESCOPIO (App Satellite) -->
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" data-title="EGASTRO Mount" href="https://egastrodiscover.github.io/EGASTROmount/">
-      <svg viewBox="0 0 24 24">
-        <path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path>
-        <path d="M7 16l-2 6"></path>
-        <path d="M3 22h8"></path>
-        <path d="M10 6l10-3 2 4-10 3-2-4z"></path>
-      </svg>
-    </a>
-  </div>
-</div>
-
-<script>
-(function() {
-  // 1. Gestione apertura/chiusura menu
-  const toggleBtn = document.getElementById('app-switcher-toggle');
-  const menu = document.getElementById('app-switcher-menu');
-  
-  toggleBtn.addEventListener('click', function() {
-    menu.classList.toggle('open');
-    toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀';
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!document.getElementById('app-switcher-container').contains(e.target)) {
-      menu.classList.remove('open');
-      toggleBtn.innerText = '◀';
-    }
-  });
-
-  // 2. Logica per inviare i dati se siamo nell'app Madre
-  const btnTelescope = document.getElementById('btn-goto-telescope');
-  
-  // Controlla se siamo nell'app madre (cerca la variabile 'state')
-  const isMotherApp = (typeof state !== 'undefined' && state.lat !== undefined);
-
-  if (isMotherApp) {
-    // Se siamo nell'app madre, intercettiamo il click e passiamo i dati GPS
-    btnTelescope.addEventListener('click', function(e) {
-      e.preventDefault();
-      let url = 'https://egastrodiscover.github.io/EGASTROmount/?';
-      url += `lat=${state.lat}&lon=${state.lon}`;
-      
-      // Passa anche il target se presente
-      if (state.target && state.target.ra) {
-        url += `&targetName=${encodeURIComponent(state.target.n)}&targetRa=${state.target.ra}&targetDec=${state.target.dec}`;
-      }
-      window.open(url, 'EGASTROmountWindow');
-    });
-  }
-})();
-</script>
-<script src="sync-bus.js"></script>
+<!-- SYNC BUS -->
 <script src="sync-bus.js"></script>
 <script>
-// ============================================================
-//  EGASTRO Mount (SLAVE) — SyncBus Integration · v1.5
-// ============================================================
 (function () {
   if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
   if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
@@ -826,58 +640,40 @@ window.addEventListener('load', () => {
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      return {
-        ra: astro.ra, dec: astro.dec,
-        raMech: MS.ra, decMech: MS.dec,
-        tracking: MS.tracking, slewMode: MS.slewMode,
-        isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated,
-        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive
-      };
+      return { ra: astro.ra, dec: astro.dec, raMech: MS.ra, decMech: MS.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
     } catch (e) { return null; }
   }
 
   let _last = '';
   setInterval(() => {
-    const s = buildState(); 
-    if (!s) return;
-    const j = JSON.stringify(s);
-    if (j === _last) return;
-    _last = j;
-    SyncBus.send('mount_state', s);
+    const s = buildState(); if (!s) return;
+    const j = JSON.stringify(s); if (j === _last) return;
+    _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
   const _ensureConnection = (callback) => {
     if (!MS.connected) {
       MS.simulated = true;
-      const simBtn = document.getElementById('simBtn');
-      if (simBtn) simBtn.classList.add('sim-active');
+      const simBtn = document.getElementById('simBtn'); if (simBtn) simBtn.classList.add('sim-active');
       if (typeof toggleConnection === 'function') toggleConnection();
       setTimeout(callback, 300);
-    } else {
-      callback();
-    }
+    } else { callback(); }
   };
 
   const _run = (fnName, ...args) => {
-    try { if (typeof window[fnName] === 'function') window[fnName](...args); }
-    catch (e) { console.error('[Mount-Sync] ' + fnName + ':', e); }
+    try { if (typeof window[fnName] === 'function') window[fnName](...args); } catch (e) {}
   };
 
   SyncBus.on('sync_activate', d => {
     if (!d || d.role !== 'master') return;
     _ensureConnection(() => {});
-    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
-      MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-    }
+    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
     const s = buildState(); if (s) SyncBus.send('mount_state', s);
   });
 
   SyncBus.on('cmd_goto', d => {
     if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
-    _ensureConnection(() => {
-      _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180);
-    });
+    _ensureConnection(() => { _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
   });
 
   SyncBus.on('cmd_stop',   () => _ensureConnection(() => _run('stopMotion')));
@@ -887,10 +683,7 @@ window.addEventListener('load', () => {
 
   SyncBus.on('cmd_manual_start', d => {
     if (!d || !d.dir) return;
-    _ensureConnection(() => {
-      MS.activeDir = d.dir;
-      MS.slewMode = 'manual';
-    });
+    _ensureConnection(() => { MS.activeDir = d.dir; MS.slewMode = 'manual'; });
   });
 
   SyncBus.on('cmd_manual_stop', () => {
@@ -904,13 +697,12 @@ window.addEventListener('load', () => {
   document.body.appendChild(ind);
   setInterval(() => {
     if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
-    ind.textContent = '🔗 ✓ SCHIAVO'; 
-    ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
+    ind.textContent = '🔗 ✓ SCHIAVO'; ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
 })();
 </script>
 
-<!-- MENU A SCOMPARSA UNIFICATO -->
+<!-- MENU A SCOMPARSA -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 999999; display: flex; align-items: center; font-family: 'Orbitron', 'Inter', sans-serif; }
   #app-switcher-toggle { background: rgba(10, 18, 32, 0.85); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 60px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
@@ -942,17 +734,9 @@ window.addEventListener('load', () => {
   const toggleBtn = document.getElementById('app-switcher-toggle');
   const menu = document.getElementById('app-switcher-menu');
   if(toggleBtn) {
-    toggleBtn.addEventListener('click', function() {
-      menu.classList.toggle('open');
-      toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀';
-    });
+    toggleBtn.addEventListener('click', function() { menu.classList.toggle('open'); toggleBtn.innerText = menu.classList.contains('open') ? '▶' : '◀'; });
   }
-  document.addEventListener('click', function(e) {
-    if (!document.getElementById('app-switcher-container').contains(e.target)) {
-      menu.classList.remove('open');
-      if(toggleBtn) toggleBtn.innerText = '◀';
-    }
-  });
+  document.addEventListener('click', function(e) { if (!document.getElementById('app-switcher-container').contains(e.target)) { menu.classList.remove('open'); if(toggleBtn) toggleBtn.innerText = '◀'; } });
   const btnObservatory = document.getElementById('btn-goto-dome');
   if (btnObservatory && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     btnObservatory.addEventListener('click', function(e) {
@@ -971,18 +755,12 @@ window.addEventListener('load', () => {
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
-            }
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { newWorker.postMessage({ type: 'SKIP_WAITING' }); }
           });
         });
       }).catch(err => console.warn('SW fallito:', err));
       let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload(); 
-      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; refreshing = true; window.location.reload(); });
     });
   }
 </script>
