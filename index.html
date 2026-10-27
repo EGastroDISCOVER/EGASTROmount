@@ -680,6 +680,52 @@ window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D()
   }, 2000);
 })();
 </script>
-<script src="ricevi-dati.js"></script>
+<!-- RICEZIONE DATI GPS -->
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    const lat = parseFloat(params.get('lat'));
+    const lon = parseFloat(params.get('lon'));
+    const targetName = params.get('targetName');
+    const targetRa = parseFloat(params.get('targetRa'));
+    const targetDec = parseFloat(params.get('targetDec'));
+
+    if (typeof MS === 'undefined') return;
+
+    // 1. Applica GPS
+    if (!isNaN(lat) && !isNaN(lon)) {
+      MS.gpsLat = lat;
+      MS.gpsLon = lon;
+      MS.gpsActive = true;
+      
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof updateGPSDisplay === 'function') updateGPSDisplay();
+      if (typeof saveFullState === 'function') saveFullState();
+      
+      if (typeof showToast === 'function') {
+        showToast(`📍 GPS ricevuto: ${lat.toFixed(2)}, ${lon.toFixed(2)}`);
+      }
+    }
+
+    // 2. Applica Target
+    if (targetName && !isNaN(targetRa) && !isNaN(targetDec)) {
+      MS.tRA = targetRa * DEG_TO_RAD;
+      MS.tDEC = targetDec * DEG_TO_RAD;
+      MS.slewMode = 'goto';
+      MS.slewStartDist = 1;
+      
+      if (typeof saveFullState === 'function') saveFullState();
+      if (typeof showToast === 'function') {
+        showToast(`🎯 Target ricevuto: ${targetName}`);
+      }
+    }
+  }, 1000); 
+});
+</script>
+</body>
+</html>
 </body>
 </html>
