@@ -1,17 +1,13 @@
-// ============================================================
-//  sync-bus.js — EGastro Unified Sync Bus  ·  v1.1
-// ============================================================
 (function (global) {
   'use strict';
-
-  const VERSION       = 1;
-  const CHANNEL_NAME  = 'egastro_sync_v' + VERSION;
-  const LS_KEY        = 'egastro_sync_v' + VERSION;
+  const VERSION = 1;
+  const CHANNEL_NAME = 'egastro_sync_v' + VERSION;
+  const LS_KEY = 'egastro_sync_v' + VERSION;
   const PING_INTERVAL = 2500;
-  const PEER_TIMEOUT  = 30000;
+  const PEER_TIMEOUT = 30000;
   const SEND_THROTTLE = 20;
 
-  const path  = (location.pathname || '').toLowerCase();
+  const path = (location.pathname || '').toLowerCase();
   const title = (document.title || '').toLowerCase();
   const APP_ID = (path.indexOf('mount') >= 0 || title.indexOf('mount') >= 0) ? 'mount' : 'observatory';
 
