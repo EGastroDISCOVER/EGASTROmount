@@ -722,12 +722,12 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<!-- MENU A SCOMPARSA -->
+<!-- MENU A SCOMPARSA UNIFICATO -->
 <style>
-  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 22px)); z-index: 999999; display: flex; align-items: stretch; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-right: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
-  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
+  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
   #app-switcher-toggle:hover { background: #d4af37; color: #000; }
   .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
   .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
@@ -752,18 +752,17 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v4.0
+//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v5.0
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
+  let _isRemote = false;
 
-  // 1. Menu e Navigazione
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
       container.classList.remove('open'); 
-      const btn = document.getElementById('app-switcher-toggle');
-      if(btn) btn.innerText = '▶'; 
+      const btn = document.getElementById('app-switcher-toggle'); if(btn) btn.innerText = '▶'; 
     } 
   });
 
@@ -779,7 +778,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. GPS (Popup a ogni sincronizzazione)
+  // Ricezione GPS (Mostra popup una volta)
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -788,11 +787,10 @@ window.addEventListener('load', () => {
     try { 
       if (typeof updateTelemetry === 'function') updateTelemetry(); 
       if (typeof saveFullState === 'function') saveFullState(); 
-      if (typeof showToast === 'function') showToast(`📍 GPS sincronizzato: ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}`);
+      if (typeof showToast === 'function') showToast(`📍 GPS ricevuto dal Pianeta: ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}`);
     } catch (e) {}
   });
 
-  // 3. Stato
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
@@ -807,7 +805,18 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Comandi (Se peer c'è, NON eseguire localmente)
+  // Esecuzione locale dei comandi
+  const _origToggle = window.toggleConnection;
+  if (typeof _origToggle === 'function') {
+    window.toggleConnection = function() {
+      if (SyncBus.isPeerAlive() && !_isRemote) {
+        SyncBus.send('cmd_connect', { on: !MS.connected });
+      } else {
+        _origToggle.apply(this, arguments);
+      }
+    };
+  }
+
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
@@ -825,25 +834,18 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  const _origToggle = window.toggleConnection;
-  if (typeof _origToggle === 'function') {
-    window.toggleConnection = function() {
-      if (SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: !MS.connected });
-      } else {
-        _origToggle.apply(this, arguments);
-      }
-    };
-  }
-
-  // 5. Comandi Ricevuti dal Master (Esecuzione Locale Reale)
+  // Ricezione comandi dal Master
   SyncBus.on('sync_activate', d => {
     if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
   });
   SyncBus.on('cmd_connect', d => {
-    if (d && d.on !== MS.connected) {
-      if (d.on) MS.simulated = true;
-      if (typeof _origToggle === 'function') _origToggle.call(window);
+    if (d) {
+      _isRemote = true;
+      if (d.on !== MS.connected) {
+        if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); }
+        if (typeof _origToggle === 'function') _origToggle.call(window);
+      }
+      _isRemote = false;
     }
   });
   SyncBus.on('cmd_goto', d => { if (d && typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
@@ -860,8 +862,6 @@ window.addEventListener('load', () => {
     const sel = document.getElementById('slew-speed'); if (sel) sel.value = String(best);
     if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
   });
-  SyncBus.on('cmd_manual_start', d => { if (d && d.dir) { MS.activeDir = d.dir; MS.slewMode = 'manual'; } });
-  SyncBus.on('cmd_manual_stop', () => { MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
 
   const ind = document.createElement('div');
   ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
@@ -870,11 +870,6 @@ window.addEventListener('load', () => {
     if (!SyncBus.isPeerAlive()) { ind.textContent = '🔗 ○ solo'; ind.style.color = '#666'; return; }
     ind.textContent = '🔗 ✓ SATELLITE'; ind.style.color = MS.connected ? '#4ade80' : '#8bd3ff';
   }, 1000);
-
-  // Invia sync_request all'apertura per ricevere i GPS
-  window.addEventListener('load', () => {
-    setTimeout(() => SyncBus.send('sync_request'), 1000);
-  });
 })();
 </script>
 
