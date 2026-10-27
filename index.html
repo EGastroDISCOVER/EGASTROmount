@@ -1021,122 +1021,7 @@ window.addEventListener('load', () => {
 (function(){
 'use strict';
 
-/* ============================================================
-   PART 1: SWITCHER MENU FIX (works on both planet & satellite)
-   ============================================================ */
-(function fixSwitcher(){
-  const switcher = document.getElementById('app-switcher-container');
-  const toggleBtn = document.getElementById('app-switcher-toggle');
-  const domeBtn = document.getElementById('btn-goto-dome');
-  const teleBtn = document.getElementById('btn-goto-telescope');
-  if (!switcher || !toggleBtn) return;
-
-  // Remove existing listeners by cloning (idempotent)
-  const newToggle = toggleBtn.cloneNode(true);
-  toggleBtn.parentNode.replaceChild(newToggle, toggleBtn);
-  
-  // Set up toggle
-  newToggle.onclick = function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const isOpen = switcher.classList.toggle('open');
-    this.textContent = isOpen ? '◀' : '▶';
-  };
-  
-  // Close on outside click
-  document.addEventListener('click', function(e) {
-    if (!switcher.contains(e.target)) {
-      switcher.classList.remove('open');
-      newToggle.textContent = '▶';
-    }
-  });
-
-  // Detect which app we're in
-  const isSatellite = !!document.querySelector('.dashboard') && typeof MS !== 'undefined';
-  const isPlanet = !!document.querySelector('#tab-scope');
-
-  // Helper to attach click handler (removes old ones)
-  function rebind(el, handler) {
-    const clone = el.cloneNode(true);
-    el.parentNode.replaceChild(clone, el);
-    clone.onclick = handler;
-    return clone;
-  }
-
-  if (isSatellite) {
-    // Satellite: telescope disabled, dome opens master
-    if (teleBtn) {
-      teleBtn.style.pointerEvents = 'none';
-      teleBtn.style.opacity = '0.4';
-    }
-    if (domeBtn) {
-      domeBtn.style.pointerEvents = 'auto';
-      domeBtn.style.opacity = '1';
-      rebind(domeBtn, function(e) {
-        e.preventDefault();
-        if (window.parent !== window) {
-          window.parent.postMessage('show-master', '*');
-        } else {
-          const fc = document.getElementById('app-frame-container');
-          const fr = document.getElementById('app-frame');
-          if (fc && fr) {
-            fr.src = 'https://egastrodiscover.github.io/EGASTRO/';
-            fc.style.display = 'block';
-          }
-        }
-      });
-    }
-  } else if (isPlanet) {
-    // Planet: dome disabled, telescope opens satellite
-    if (domeBtn) {
-      domeBtn.style.pointerEvents = 'none';
-      domeBtn.style.opacity = '0.4';
-    }
-    if (teleBtn) {
-      teleBtn.style.pointerEvents = 'auto';
-      teleBtn.style.opacity = '1';
-      rebind(teleBtn, function(e) {
-        e.preventDefault();
-        // Try to send GPS via SyncBus if available
-        if (typeof SyncBus !== 'undefined' && SyncBus.send && typeof state !== 'undefined') {
-          try {
-            SyncBus.send('gps_update', { lat: state.lat, lon: state.lon, accuracy: state.gpsAccuracy });
-          } catch(err) {}
-        }
-        const fc = document.getElementById('app-frame-container');
-        const fr = document.getElementById('app-frame');
-        if (fc && fr) {
-          fr.src = 'https://egastrodiscover.github.io/EGASTROmount/';
-          fc.style.display = 'block';
-        }
-      });
-    }
-  }
-})();
-
-<!-- PATCH: Popup & Switcher & Polar Map (Touch) -->
-<script>
-  if (window.self !== window.top) {
-    setTimeout(() => {
-      const modal = document.getElementById('welcome-modal');
-      if (modal) modal.style.display = 'none';
-    }, 100);
-    window.showWelcomeModal = function() {};
-  }
-</script>
-
-<div id="app-switcher-container">
-  <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-  <button id="app-switcher-toggle" title="Apri menu app">▶</button>
-</div>
-
+<!-- PATCH DEFINITIVA: SWITCHER, MAPPA POLARE E BADGE -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -1150,9 +1035,32 @@ window.addEventListener('load', () => {
   .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
 </style>
 
+<div id="app-switcher-container">
+  <div id="app-switcher-menu">
+    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+    </a>
+    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
+    </a>
+  </div>
+  <button id="app-switcher-toggle" title="Apri menu app">▶</button>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // --- SWITCHER MENU ---
+  // 1. FIX BADGE DUPLICATI
+  // Rimuove eventuali badge SYNC vecchi che si sovrappongono in basso a destra
+  document.querySelectorAll('div').forEach(el => {
+    if (el.innerText && el.innerText.includes('🔗')) el.remove();
+  });
+  // Crea il badge pulito
+  const badge = document.createElement('div');
+  badge.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;color:#4ade80;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
+  badge.textContent = '🔗 ✓ SYNC';
+  document.body.appendChild(badge);
+
+  // 2. SWITCHER MENU (LOGICA INVERSA: TELESCOPIO SPENTO, CUPOLA ACCESA)
   const sc = document.getElementById('app-switcher-container');
   const tg = document.getElementById('app-switcher-toggle');
   tg.onclick = function(e) {
@@ -1171,27 +1079,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
   };
 
-  // --- MAPPA POLARE CON TOUCH E ZOOM ---
-  const D2R = Math.PI/180;
-  // Rimpicciolita per smartphone (200px su mobile, 340px su PC)
+  // 3. MAPPA POLARE ORIGINALE CON VIA LATTEA E COSTELLAZIONI
+  const D2R = Math.PI/180, R2D = 180/Math.PI;
   const isMobile = window.innerWidth < 600;
-  const SIZE = isMobile ? 200 : 340; 
+  const SIZE = isMobile ? 220 : 340; // Dimensione ottimizzata
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
   
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
-  // Aggiunto touch-action:none per gestire il pinch-to-zoom senza far scrollare la pagina
+  // Aggiunta trasparenza (opacity 0.75) e touch-action:none per gestire il pinch-to-zoom
   container.style.cssText = `position:fixed;top:${isMobile ? '150px' : '240px'};right:15px;width:${SIZE}px;height:${SIZE}px;z-index:9000;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
   
   const cv = document.createElement('canvas');
-  cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;';
+  cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.75;'; // Trasparenza extra sul canvas
   cv.width = SIZE*DPR; cv.height = SIZE*DPR;
   container.appendChild(cv);
   document.body.appendChild(container);
   const ctx = cv.getContext('2d');
   ctx.scale(DPR, DPR);
 
-  // Controlli Zoom (+ e -)
+  // Controlli Zoom (+ e -) per PC
   let zoom = 1;
   const zoomBox = document.createElement('div');
   zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
@@ -1215,7 +1122,39 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
-  const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46}];
+  // --- DATI MAPPA (STELLE, COSTELLAZIONI, VIA LATTEA) ---
+  const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
+
+  const CONST = [
+    {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
+    {s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},
+    {s:[{ra:2.29,dec:59.15},{ra:10.13,dec:56.54},{ra:14.18,dec:60.72},{ra:21.45,dec:60.24},{ra:28.60,dec:63.67}],l:[[0,1,2,3,4]]},
+    {s:[{ra:88.79,dec:7.41},{ra:81.28,dec:6.35},{ra:85.19,dec:-1.94},{ra:84.05,dec:-1.20},{ra:83.00,dec:-0.30},{ra:86.94,dec:-9.67},{ra:78.63,dec:-8.20}],l:[[1,0],[0,4],[4,2],[2,3],[3,5],[5,6],[2,5]]},
+    {s:[{ra:279.23,dec:38.78},{ra:282.52,dec:33.36},{ra:284.74,dec:32.69},{ra:283.63,dec:36.90},{ra:281.19,dec:37.61}],l:[[0,1,2,3,4,0]]},
+    {s:[{ra:310.36,dec:45.28},{ra:305.56,dec:40.26},{ra:311.55,dec:33.97},{ra:296.24,dec:45.13},{ra:292.68,dec:27.96}],l:[[3,0,1,2]]},
+    {s:[{ra:297.70,dec:8.87},{ra:296.56,dec:10.61},{ra:298.83,dec:6.41},{ra:291.37,dec:3.11}],l:[[0,1,2,3]]},
+    {s:[{ra:346.19,dec:15.21},{ra:345.94,dec:28.08},{ra:2.10,dec:29.09},{ra:3.31,dec:15.18},{ra:326.05,dec:9.88}],l:[[0,1,2,3,0]]},
+    {s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},
+    {s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}
+  ];
+
+  // Via Lattea
+  const MW = [];
+  function galToEq(l,b){
+    const lR=l*D2R,bR=b*D2R;
+    const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR);
+    const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg;
+    const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg;
+    const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg;
+    let ra=Math.atan2(ye,xe)*R2D; ra=((ra%360)+360)%360;
+    return{ra,dec:Math.asin(Math.max(-1,Math.min(1,ze)))*R2D};
+  }
+  for(let l=0;l<360;l+=2) for(let b=-9;b<=9;b+=2){
+    const dens=Math.exp(-(b*b)/(2*4.5*4.5));
+    if(Math.random()>dens*0.85+0.15)continue;
+    const eq=galToEq(l+(Math.random()-0.5)*3,b+(Math.random()-0.5)*1.8);
+    MW.push({ra:eq.ra,dec:eq.dec,size:1.8+Math.random()*2.8,alpha:0.035+dens*0.10});
+  }
 
   function polar(alt, az) {
     const r = (SIZE/2-2) * zoom * (90-alt)/90;
@@ -1232,22 +1171,49 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.save(); ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2-2, 0, Math.PI*2); ctx.clip();
     
     const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2);
-    bg.addColorStop(0,'rgba(22,32,68,0.92)'); bg.addColorStop(1,'rgba(4,8,20,0.85)');
+    bg.addColorStop(0,'rgba(22,32,68,0.85)'); bg.addColorStop(1,'rgba(4,8,20,0.75)');
     ctx.fillStyle = bg; ctx.fillRect(0,0,SIZE,SIZE);
 
     if (typeof Astro !== 'undefined') {
+      // Via Lattea
+      MW.forEach(p => {
+        const a = Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date);
+        if(a.alt < 0) return;
+        const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, p.size, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(190,180,215,${p.alpha})`; ctx.fill();
+      });
+
       // Griglia
       ctx.strokeStyle = 'rgba(139,180,255,0.17)'; ctx.lineWidth = 0.7;
       [30,60].forEach(alt => { const r = (SIZE/2-2)*zoom*(90-alt)/90; if(r<=SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,r,0,Math.PI*2); ctx.stroke(); } });
       for(let az=0; az<360; az+=30){ const a = az*D2R; ctx.beginPath(); ctx.moveTo(SIZE/2,SIZE/2); ctx.lineTo(SIZE/2+SIZE*Math.sin(a), SIZE/2-SIZE*Math.cos(a)); ctx.stroke(); }
+
+      // Costellazioni
+      ctx.strokeStyle='rgba(150,180,255,0.24)'; ctx.lineWidth=0.7;
+      CONST.forEach(c => {
+        c.l.forEach(line => {
+          let s=false; ctx.beginPath();
+          line.forEach(i => {
+            const st=c.s[i]; if(!st) return;
+            const a=Astro.altAz(st.ra*D2R,st.dec*D2R,lat,lon,date);
+            if(a.alt<0){s=false;return;}
+            const pt=polar(a.alt,a.az);
+            if(pt.r>SIZE/2){s=false;return;}
+            if(!s){ctx.moveTo(pt.x,pt.y);s=true;}else ctx.lineTo(pt.x,pt.y);
+          });
+          ctx.stroke();
+        });
+      });
 
       // Stelle
       STARS.forEach(s => {
         const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date);
         if(a.alt < 0) return;
         const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.7, 2.6-s.mag*0.5), 0, Math.PI*2);
-        ctx.fillStyle = s.mag<1?'#fff':'#aabbcc'; ctx.fill();
+        const size = Math.max(0.7, 2.6-s.mag*0.5);
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2);
+        ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill();
       });
 
       // Mirino Telescopio
@@ -1263,6 +1229,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     ctx.restore();
     
+    // Cardinali
     [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => {
       ctx.fillStyle='#d4af37'; ctx.font='bold 11px Orbitron'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(d.l, SIZE/2 + (SIZE/2-12)*Math.sin(d.a*D2R), SIZE/2 - (SIZE/2-12)*Math.cos(d.a*D2R));
@@ -1271,13 +1238,12 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
 
-  // --- GESTIONE TOUCH (DRAG A 1 DITO E PINCH-TO-ZOOM A 2 DITA) ---
+  // --- GESTIONE TOUCH (PINCH-TO-ZOOM A 2 DITA E PAN A 1 DITO) ---
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0;
   let pinchStartDist = 0, pinchStartZoom = 1;
 
   container.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
-      // Due dita: prepara zoom
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -1285,7 +1251,6 @@ document.addEventListener("DOMContentLoaded", () => {
       pinchStartZoom = zoom;
       drag = false; 
     } else if (e.touches.length === 1) {
-      // Un dito: prepara trascinamento
       if(e.target.tagName === 'BUTTON') return;
       drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; 
       const r = container.getBoundingClientRect(); 
@@ -1296,14 +1261,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   container.addEventListener('touchmove', e => {
     if (e.touches.length === 2 && pinchStartDist > 0) {
-      // Calcola zoom in base alla distanza tra le dita
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
       zoom = Math.max(1, Math.min(6, pinchStartZoom * (dist / pinchStartDist)));
     } else if (drag && e.touches.length === 1) {
-      // Trascinamento mappa
       const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
       container.style.left = (sl + cx - sx) + 'px'; 
       container.style.top = (st + cy - sy) + 'px'; 
@@ -1316,7 +1279,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.touches.length === 0) { drag = false; container.style.cursor = 'grab'; }
   });
 
-  // Fallback per il mouse sul PC (drag)
+  // Fallback Drag per Mouse (PC)
   container.addEventListener('mousedown', e => {
     if(e.target.tagName === 'BUTTON') return;
     drag = true; sx = e.clientX; sy = e.clientY; 
@@ -1333,6 +1296,5 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('mouseup', () => { drag = false; container.style.cursor = 'grab'; });
 });
 </script>
-
-</body>
+</body  >
 </html>
