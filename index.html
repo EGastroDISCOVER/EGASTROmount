@@ -7,6 +7,7 @@
 <link rel="icon" type="image/png" href="logo-mount.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#05070a">
+<meta name="app-id" content="mount">
 <link rel="apple-touch-icon" href="logo-mount.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -739,7 +740,6 @@ window.addEventListener('load', () => {
 <!--  SYNC BUS UNICO + NAVIGAZIONE + IFRAME + SERVICE WORKER       -->
 <!--  FIX v1.1 — bidirezionale, chiusura iframe, sync_activate     -->
 <!-- ============================================================ -->
-<script src="sync-bus.js"></script>
 <script>
 // ============================================================
 //  EGASTRO Mount (SATELLITE) — Sync + Navigazione
@@ -1015,6 +1015,7 @@ window.addEventListener('load', () => {
       window.showWelcomeModal = function() {};
     }
   });
+</script>
 <script>
 /* ========== UNIVERSAL SWITCHER FIX + POLAR MAP ZOOM ========== */
 (function(){
