@@ -664,13 +664,13 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — v9.0 (Finale Definitivo)
+//  EGASTRO Mount (SATELLITE) — v9.0
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
   let _isRemote = false;
 
-  // 1. Navigazione Menu
+  // 1. Navigazione
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -720,7 +720,7 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Wrapping Comandi
+  // 4. Comandi (Esegue localmente, poi invia)
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
@@ -752,7 +752,7 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Ricezione Comandi
+  // 5. Ricezione Comandi dal Master
   SyncBus.on('cmd_connect', d => { 
     if (d) { 
       _isRemote = true; 
@@ -792,7 +792,7 @@ window.addEventListener('load', () => {
   }
 </script>
 
-<!-- PATCH: Blocco popup in iframe e Bottone Connetti -->
+<!-- PATCH UI e Popup -->
 <script>
   if (window.self !== window.top) {
     setTimeout(() => {
