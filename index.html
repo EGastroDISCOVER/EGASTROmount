@@ -664,7 +664,7 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — v10.0 (Finale)
+//  EGASTRO Mount (SATELLITE) — v11.0 (Finale)
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
@@ -695,9 +695,14 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. Ricezione GPS con POPUP
+  // 2. GPS (Mostra popup SOLO se le coordinate cambiano)
+  let _lastGpsKey = null;
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
+    const key = d.lat.toFixed(2) + ',' + d.lon.toFixed(2);
+    if (_lastGpsKey === key) return; // Se sono le stesse coordinate, non fare nulla
+    _lastGpsKey = key;
+    
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
     try { 
       if (typeof updateTelemetry === 'function') updateTelemetry(); 
@@ -722,7 +727,7 @@ window.addEventListener('load', () => {
   }, 150);
 
   // 4. Comandi (Esegue localmente, poi invia)
-  const _origToggle = window.toggleConnection; // Salviamo la funzione originale!
+  const _origToggle = window.toggleConnection; 
   
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
@@ -754,7 +759,7 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Ricezione Comandi dal Master
+  // 5. Ricezione Comandi
   SyncBus.on('cmd_connect', d => { 
     if (d) { 
       _isRemote = true; 
@@ -763,7 +768,6 @@ window.addEventListener('load', () => {
           MS.simulated = true; 
           document.getElementById('simBtn')?.classList.add('sim-active'); 
         } 
-        // CHIAMA LA FUNZIONE ORIGINALE PER CONNETTERE DAVVERO
         if (typeof _origToggle === 'function') {
           _origToggle.call(window);
         } else {
@@ -810,7 +814,7 @@ window.addEventListener('load', () => {
   }
 </script>
 
-<!-- PATCH: Blocco popup in iframe e Bottone Connetti -->
+<!-- PATCH UI -->
 <script>
   if (window.self !== window.top) {
     setTimeout(() => {
