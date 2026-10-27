@@ -612,242 +612,223 @@ window.addEventListener('load',()=>{
 </script>
 <!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
-<script>
-(function () {
-  if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
-  if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
-
-  // All'avvio, forziamo il simulatore se non siamo connessi
-  setTimeout(() => {
-    if (!MS.connected && !MS.wifiEnabled && !MS.btEnabled) {
-      MS.simulated = true;
-      const simBtn = document.getElementById('simBtn'); if (simBtn) simBtn.classList.add('sim-active');
-    }
-  }, 1000);
-
-  function buildState() {
-    try {
-      const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      return { ra: astro.ra, dec: astro.dec, raMech: MS.ra, decMech: MS.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
-    } catch (e) { return null; }
-  }
-
-  let _last = '';
-  setInterval(() => {
-    const s = buildState(); if (!s) return;
-    const j = JSON.stringify(s); if (j === _last) return;
-    _last = j; SyncBus.send('mount_state', s);
-  }, 150);
-
-  const _ensureConnection = (callback) => {
-    if (!MS.connected) {
-      MS.simulated = true;
-      const simBtn = document.getElementById('simBtn'); if (simBtn) simBtn.classList.add('sim-active');
-      if (typeof toggleConnection === 'function') toggleConnection();
-      setTimeout(callback, 300);
-    } else { callback(); }
-  };
-
-  const _run = (fnName, ...args) => {
-    try { if (typeof window[fnName] === 'function') window[fnName](...args); } catch (e) {}
-  };
-
-  SyncBus.on('sync_activate', d => {
-    if (!d || d.role !== 'master') return;
-    _ensureConnection(() => {});
-    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
-    const s = buildState(); if (s) SyncBus.send('mount_state', s);
-  });
-
-  // --- RICEZIONE COMANDI DAL PIANETA ---
-  SyncBus.on('cmd_connect', d => {
-    if (!d) return;
-    if (d.on !== MS.connected) {
-      if (d.on) MS.simulated = true; // Forza il simulatore per il test
-      _run('toggleConnection');
-    }
-  });
-
-  SyncBus.on('cmd_goto', d => {
-    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
-    _ensureConnection(() => { _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
-  });
-
-  SyncBus.on('cmd_stop',   () => _ensureConnection(() => _run('stopMotion')));
-  SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
-  SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
-  SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
-  
-  SyncBus.on('cmd_set_home', () => _ensureConnection(() => _run('setHome')));
-  SyncBus.on('cmd_set_park', () => _ensureConnection(() => _run('setPark')));
-
-  SyncBus.on('cmd_tracking', d => {
-    if (!d) return;
-    if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') {
-      _run('toggleTrackingOn');
-    }
-  });
-
-  SyncBus.on('cmd_speed', d => {
-    if (!d || !Number.isFinite(d.rate)) return;
-    const targets = [0.005, 0.02, 0.06, 0.2];
-    const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a);
-    MS.speedPerStep = best;
-    MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
-    const sel = document.getElementById('slew-speed');
-    if (sel) sel.value = String(best);
-    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-  });
-
-  SyncBus.on('cmd_manual_start', d => {
-    if (!d || !d.dir) return;
-    _ensureConnection(() => { MS.activeDir = d.dir; MS.slewMode = 'manual'; });
-  });
-
-  SyncBus.on('cmd_manual_stop', () => {
-    if (!MS.connected) return;
-    MS.activeDir = null;
-    if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
-  });
-})();
-</script>
-
-<!-- INIZIO INTEGRAZIONE GPS -->
-<script>
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const params = new URLSearchParams(window.location.search);
-    const lat = parseFloat(params.get('lat'));
-    const lon = parseFloat(params.get('lon'));
-    if (typeof MS !== 'undefined' && !isNaN(lat) && !isNaN(lon)) {
-      MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true;
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
-      if (typeof showToast === 'function') showToast(`📍 GPS ricevuto: ${lat.toFixed(2)}, ${lon.toFixed(2)}`);
-    }
-  }, 1000); 
-});
-</script>
-
-<!-- FINESTRA PER L'APP MASTER (RIPRISTINATA) -->
+<!-- FINESTRA PER L'APP MASTER -->
 <div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
   <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
+<!-- MENU A SCOMPARSA -->
+<style>
+  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
+  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
+  #app-switcher-toggle:hover { background: #d4af37; color: #000; }
+  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
+  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; pointer-events: none; opacity: 0.35; }
+  .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
+  .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
+  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+</style>
+
+<div id="app-switcher-container">
+  <div id="app-switcher-menu">
+    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+    </a>
+    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
+    </a>
+  </div>
+  <button id="app-switcher-toggle" title="Apri menu app">▶</button>
+</div>
+
 <script>
-(function () {
-  if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
-  if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
-
-  // 1. SINCRONIZZAZIONE GPS ALL'AVVIO (Legge l'URL)
-  setTimeout(() => {
-    const params = new URLSearchParams(window.location.search);
-    const lat = parseFloat(params.get('lat'));
-    const lon = parseFloat(params.get('lon'));
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true;
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+document.addEventListener("DOMContentLoaded", () => {
+  // ============================================================
+  // 1. GESTIONE POPUP E IFRAME
+  // ============================================================
+  if (window.self !== window.top) {
+    setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
+    window.showWelcomeModal = function() {};
+  }
+  window.addEventListener('message', e => {
+    if (e.data === 'egastro-close-frame' || e.data === 'show-master') {
+      const fc = document.getElementById('app-frame-container');
+      if (fc) fc.style.display = 'none';
     }
-  }, 500); // Leggero ritardo per far caricare l'UI
+  });
 
-  function buildState() {
-    try {
-      const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
-      return { ra: astro.ra, dec: astro.dec, raMech: MS.ra, decMech: MS.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
-    } catch (e) { return null; }
+  // ============================================================
+  // 2. SWITCHER MENU
+  // ============================================================
+  const sc = document.getElementById('app-switcher-container');
+  const tg = document.getElementById('app-switcher-toggle');
+  if (sc && tg) {
+    tg.removeAttribute('onclick');
+    tg.onclick = function(e) {
+      e.preventDefault(); e.stopPropagation();
+      const open = sc.classList.toggle('open');
+      this.innerText = open ? '◀' : '▶';
+    };
+    document.addEventListener('click', e => {
+      if (!sc.contains(e.target)) { sc.classList.remove('open'); tg.innerText = '▶'; }
+    });
+  }
+  const btnDome = document.getElementById('btn-goto-dome');
+  if (btnDome) {
+    btnDome.onclick = function(e) {
+      e.preventDefault();
+      if (window.parent !== window) { window.parent.postMessage('show-master', '*'); return; }
+      const fc = document.getElementById('app-frame-container');
+      const fr = document.getElementById('app-frame');
+      if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
+    };
   }
 
-  let _last = '';
-  setInterval(() => {
-    const s = buildState(); if (!s) return;
-    const j = JSON.stringify(s); if (j === _last) return;
-    _last = j; SyncBus.send('mount_state', s);
-  }, 150);
-
-  // FUNZIONE DI CONNESSIONE FORZATA (per i comandi dal Pianeta)
-  const _ensureConnection = (callback) => {
-    if (!MS.connected) {
-      MS.simulated = true;
-      MS.wifiEnabled = false;
-      MS.btEnabled = false;
-      const simBtn = document.getElementById('simBtn'); if (simBtn) simBtn.classList.add('sim-active');
-      if (typeof toggleConnection === 'function') toggleConnection();
-      setTimeout(callback, 300);
-    } else { callback(); }
-  };
-
-  const _run = (fnName, ...args) => {
-    try { if (typeof window[fnName] === 'function') window[fnName](...args); } catch (e) {}
-  };
-
-  SyncBus.on('sync_activate', d => {
-    if (!d || d.role !== 'master') return;
-    _ensureConnection(() => {});
-    if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
-    const s = buildState(); if (s) SyncBus.send('mount_state', s);
-  });
-
-  // 2. RICEZIONE COMANDI DAL PIANETA
-  SyncBus.on('cmd_connect', d => {
-    if (!d) return;
-    if (d.on && !MS.connected) {
-      // Forza l'accensione del simulatore se arriva il comando dal Pianeta
-      MS.simulated = true;
-      MS.wifiEnabled = false;
-      MS.btEnabled = false;
-      const simBtn = document.getElementById('simBtn');
-      if (simBtn && !simBtn.classList.contains('sim-active')) simBtn.classList.add('sim-active');
-      if (typeof toggleConnection === 'function') toggleConnection();
-    } else if (!d.on && MS.connected) {
-      if (typeof disconnectMount === 'function') disconnectMount(false);
-    }
-  });
-
-  SyncBus.on('cmd_goto', d => {
-    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
-    _ensureConnection(() => { _run('_startGoto', d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
-  });
-
-  SyncBus.on('cmd_stop',   () => _ensureConnection(() => _run('stopMotion')));
-  SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
-  SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
-  SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
+  // ============================================================
+  // 3. MAPPA POLARE CON VIA LATTEA E COSTELLAZIONI
+  // ============================================================
+  const D2R = Math.PI/180, R2D = 180/Math.PI;
+  const isMobile = window.innerWidth < 600;
+  const SIZE = isMobile ? 220 : 340;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
   
-  SyncBus.on('cmd_set_home', () => _ensureConnection(() => _run('setHome')));
-  SyncBus.on('cmd_set_park', () => _ensureConnection(() => _run('setPark')));
+  const container = document.createElement('div');
+  container.id = 'skyPolarContainer';
+  container.style.cssText = `position:fixed;top:${isMobile ? '150px' : '240px'};right:15px;width:${SIZE}px;height:${SIZE}px;z-index:9000;cursor:grab;user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
+  
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.78;';
+  cv.width = SIZE*DPR; cv.height = SIZE*DPR;
+  container.appendChild(cv);
+  document.body.appendChild(container);
+  const ctx = cv.getContext('2d');
+  ctx.scale(DPR, DPR);
 
-  SyncBus.on('cmd_tracking', d => {
-    if (!d) return;
-    _ensureConnection(() => {
-      if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') {
-        _run('toggleTrackingOn');
+  let zoom = 1;
+  const zoomBox = document.createElement('div');
+  zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+  ['+','−'].forEach((s,i) => {
+    const b = document.createElement('button'); b.textContent = s;
+    b.style.cssText = 'width:24px;height:24px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+    b.onclick = e => { e.stopPropagation(); zoom = Math.max(1, Math.min(6, zoom + (i===0?0.5:-0.5))); };
+    zoomBox.appendChild(b);
+  });
+  container.appendChild(zoomBox);
+
+  const btn = document.createElement('div');
+  btn.className = 'circle-btn'; btn.id = 'skyPolarBtn'; btn.title = 'Mappa Polare';
+  btn.style.cssText = 'border-color:rgba(139,211,255,.65);color:#8bd3ff;';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
+  document.querySelector('.top-right-buttons').appendChild(btn);
+
+  let visible = false, rafId = null;
+  function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
+  btn.onclick = toggle;
+
+  const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
+  const CONST = [
+    {s:[{ra:165.93,dec:61.75},{ra:165.46,dec:56.38},{ra:178.46,dec:53.69},{ra:183.86,dec:57.03},{ra:193.51,dec:55.96},{ra:200.98,dec:54.93},{ra:206.88,dec:49.31}],l:[[0,1,2,3,4,5,6]]},
+    {s:[{ra:37.95,dec:89.26},{ra:263.05,dec:86.59},{ra:251.49,dec:82.04},{ra:236.01,dec:77.79},{ra:222.68,dec:74.16},{ra:230.18,dec:71.83}],l:[[0,1,2,3,4,5]]},
+    {s:[{ra:2.29,dec:59.15},{ra:10.13,dec:56.54},{ra:14.18,dec:60.72},{ra:21.45,dec:60.24},{ra:28.60,dec:63.67}],l:[[0,1,2,3,4]]},
+    {s:[{ra:88.79,dec:7.41},{ra:81.28,dec:6.35},{ra:85.19,dec:-1.94},{ra:84.05,dec:-1.20},{ra:83.00,dec:-0.30},{ra:86.94,dec:-9.67},{ra:78.63,dec:-8.20}],l:[[1,0],[0,4],[4,2],[2,3],[3,5],[5,6],[2,5]]},
+    {s:[{ra:279.23,dec:38.78},{ra:282.52,dec:33.36},{ra:284.74,dec:32.69},{ra:283.63,dec:36.90},{ra:281.19,dec:37.61}],l:[[0,1,2,3,4,0]]},
+    {s:[{ra:310.36,dec:45.28},{ra:305.56,dec:40.26},{ra:311.55,dec:33.97},{ra:296.24,dec:45.13},{ra:292.68,dec:27.96}],l:[[3,0,1,2]]},
+    {s:[{ra:297.70,dec:8.87},{ra:296.56,dec:10.61},{ra:298.83,dec:6.41},{ra:291.37,dec:3.11}],l:[[0,1,2,3]]},
+    {s:[{ra:346.19,dec:15.21},{ra:345.94,dec:28.08},{ra:2.10,dec:29.09},{ra:3.31,dec:15.18},{ra:326.05,dec:9.88}],l:[[0,1,2,3,0]]},
+    {s:[{ra:2.10,dec:29.09},{ra:17.43,dec:35.62},{ra:30.97,dec:42.33}],l:[[0,1,2]]},
+    {s:[{ra:247.35,dec:-26.43},{ra:241.36,dec:-19.81},{ra:240.08,dec:-22.62},{ra:264.33,dec:-42.99},{ra:263.40,dec:-37.10}],l:[[1,2,0,3,4]]}
+  ];
+  const MW = [];
+  function galToEq(l,b){ const lR=l*D2R,bR=b*D2R; const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR); const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg; const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg; const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg; let ra=Math.atan2(ye,xe)*R2D; ra=((ra%360)+360)%360; return{ra,dec:Math.asin(Math.max(-1,Math.min(1,ze)))*R2D}; }
+  for(let l=0;l<360;l+=2) for(let b=-9;b<=9;b+=2){ const dens=Math.exp(-(b*b)/(2*4.5*4.5)); if(Math.random()>dens*0.85+0.15)continue; const eq=galToEq(l+(Math.random()-0.5)*3,b+(Math.random()-0.5)*1.8); MW.push({ra:eq.ra,dec:eq.dec,size:1.8+Math.random()*2.8,alpha:0.035+dens*0.10}); }
+
+  function polar(alt, az) { const r = (SIZE/2-2) * zoom * (90-alt)/90; const azR = az * D2R; return { x: SIZE/2 + r*Math.sin(azR), y: SIZE/2 - r*Math.cos(azR), r }; }
+  
+  function draw() {
+    if(!visible) { rafId = null; return; }
+    let lat = 41.9, lon = 12.5, astro = {ra:0, dec:0};
+    try { if(typeof MS !== 'undefined') { lat = Number.isFinite(MS.gpsLat)?MS.gpsLat:lat; lon = Number.isFinite(MS.gpsLon)?MS.gpsLon:lon; astro = getAstroCoords(); } } catch(e){}
+    const date = new Date(); ctx.clearRect(0,0,SIZE,SIZE); ctx.save(); ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2-2, 0, Math.PI*2); ctx.clip();
+    const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2); bg.addColorStop(0,'rgba(22,32,68,0.85)'); bg.addColorStop(1,'rgba(4,8,20,0.75)'); ctx.fillStyle = bg; ctx.fillRect(0,0,SIZE,SIZE);
+    if (typeof Astro !== 'undefined') {
+      MW.forEach(p => { const a = Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.beginPath(); ctx.arc(pt.x, pt.y, p.size, 0, Math.PI*2); ctx.fillStyle = `rgba(190,180,215,${p.alpha})`; ctx.fill(); });
+      ctx.strokeStyle = 'rgba(139,180,255,0.17)'; ctx.lineWidth = 0.7; [30,60].forEach(alt => { const r = (SIZE/2-2)*zoom*(90-alt)/90; if(r<=SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,r,0,Math.PI*2); ctx.stroke(); } });
+      for(let az=0; az<360; az+=30){ const a = az*D2R; ctx.beginPath(); ctx.moveTo(SIZE/2,SIZE/2); ctx.lineTo(SIZE/2+SIZE*Math.sin(a), SIZE/2-SIZE*Math.cos(a)); ctx.stroke(); }
+      ctx.strokeStyle='rgba(150,180,255,0.24)'; ctx.lineWidth=0.7;
+      CONST.forEach(c => { c.l.forEach(line => { let s=false; ctx.beginPath(); line.forEach(i => { const st=c.s[i]; if(!st) return; const a=Astro.altAz(st.ra*D2R,st.dec*D2R,lat,lon,date); if(a.alt<0){s=false;return;} const pt=polar(a.alt,a.az); if(pt.r>SIZE/2){s=false;return;} if(!s){ctx.moveTo(pt.x,pt.y);s=true;}else ctx.lineTo(pt.x,pt.y); }); ctx.stroke(); }); });
+      STARS.forEach(s => { const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; const size = Math.max(0.7, 2.6-s.mag*0.5); ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill(); });
+      const tp = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (tp.alt >= 0) { const pt = polar(tp.alt, tp.az); if(pt.r <= SIZE/2) { ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x-10,pt.y); ctx.lineTo(pt.x-4,pt.y); ctx.moveTo(pt.x+4,pt.y); ctx.lineTo(pt.x+10,pt.y); ctx.stroke(); } }
+    }
+    ctx.restore();
+    [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => { ctx.fillStyle='#d4af37'; ctx.font='bold 11px Orbitron'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(d.l, SIZE/2 + (SIZE/2-12)*Math.sin(d.a*D2R), SIZE/2 - (SIZE/2-12)*Math.cos(d.a*D2R)); });
+    rafId = requestAnimationFrame(draw);
+  }
+  
+  let drag = false, sx = 0, sy = 0, sl = 0, st = 0, pinchStartDist = 0, pinchStartZoom = 1;
+  container.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; pinchStartDist = Math.hypot(dx, dy); pinchStartZoom = zoom; drag = false; } else if (e.touches.length === 1) { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; } }, { passive: false });
+  container.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinchStartDist > 0) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; zoom = Math.max(1, Math.min(6, pinchStartZoom * (Math.hypot(dx, dy) / pinchStartDist))); } else if (drag && e.touches.length === 1) { const cx = e.touches[0].clientX, cy = e.touches[0].clientY; container.style.left = (sl + cx - sx) + 'px'; container.style.top = (st + cy - sy) + 'px'; container.style.right = 'auto'; } }, { passive: false });
+  container.addEventListener('touchend', e => { if (e.touches.length < 2) pinchStartDist = 0; if (e.touches.length === 0) drag = false; });
+  container.addEventListener('mousedown', e => { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.clientX; sy = e.clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; });
+  window.addEventListener('mousemove', e => { if(!drag) return; container.style.left = (sl + e.clientX - sx) + 'px'; container.style.top = (st + e.clientY - sy) + 'px'; container.style.right = 'auto'; });
+  window.addEventListener('mouseup', () => { drag = false; });
+
+  // ============================================================
+  // 4. SYNC BUS E GESTIONE CONNESSIONE (UNIFICATO E PULITO)
+  // ============================================================
+  if (typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
+    
+    // Forza GPS da URL all'avvio
+    setTimeout(() => {
+      const p = new URLSearchParams(window.location.search);
+      const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon'));
+      if (Number.isFinite(lat) && Number.isFinite(lon)) { MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true; if(typeof updateTelemetry==='function') updateTelemetry(); }
+    }, 500);
+
+    function buildState() {
+      try { const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
+        return { ra: astro.ra, dec: astro.dec, raMech: MS.ra, decMech: MS.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
+      } catch (e) { return null; }
+    }
+    let _last = '';
+    setInterval(() => { const s = buildState(); if (!s) return; const j = JSON.stringify(s); if (j === _last) return; _last = j; SyncBus.send('mount_state', s); }, 150);
+
+    // Funzione per forzare la connessione se arriva un comando
+    const _ensureConnection = (cb) => {
+      if (!MS.connected) {
+        MS.simulated = true; MS.wifiEnabled = false; MS.btEnabled = false;
+        const sb = document.getElementById('simBtn'); if(sb) sb.classList.add('sim-active');
+        if (typeof toggleConnection === 'function') toggleConnection();
+        setTimeout(cb, 300);
+      } else { cb(); }
+    };
+    const _run = (f, ...a) => { try { if (typeof window[f] === 'function') window[f](...a); } catch(e){} };
+
+    // RICEZIONE COMANDI DAL PIANETA
+    SyncBus.on('cmd_connect', d => {
+      if (!d) return;
+      if (d.on && !MS.connected) {
+        MS.simulated = true; MS.wifiEnabled = false; MS.btEnabled = false;
+        const sb = document.getElementById('simBtn'); if(sb && !sb.classList.contains('sim-active')) sb.classList.add('sim-active');
+        if (typeof toggleConnection === 'function') toggleConnection();
+      } else if (!d.on && MS.connected) {
+        if (typeof disconnectMount === 'function') disconnectMount(false);
       }
     });
-  });
-
-  SyncBus.on('cmd_speed', d => {
-    if (!d || !Number.isFinite(d.rate)) return;
-    const targets = [0.005, 0.02, 0.06, 0.2];
-    const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a);
-    MS.speedPerStep = best;
-    MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best];
-    const sel = document.getElementById('slew-speed');
-    if (sel) sel.value = String(best);
-    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-  });
-
-  SyncBus.on('cmd_manual_start', d => {
-    if (!d || !d.dir) return;
-    _ensureConnection(() => { MS.activeDir = d.dir; MS.slewMode = 'manual'; });
-  });
-
-  SyncBus.on('cmd_manual_stop', () => {
-    if (!MS.connected) return;
-    MS.activeDir = null;
-    if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
-  });
-})();
+    SyncBus.on('cmd_goto', d => { if (d && Number.isFinite(d.ra)) _ensureConnection(() => _run('_startGoto', d.ra * Math.PI/180, d.dec * Math.PI/180)); });
+    SyncBus.on('cmd_stop',   () => _ensureConnection(() => _run('stopMotion')));
+    SyncBus.on('cmd_park',   () => _ensureConnection(() => _run('parkMount')));
+    SyncBus.on('cmd_unpark', () => _ensureConnection(() => _run('unparkMount')));
+    SyncBus.on('cmd_home',   () => _ensureConnection(() => _run('goHome')));
+    SyncBus.on('cmd_set_home',() => _ensureConnection(() => _run('setHome')));
+    SyncBus.on('cmd_set_park',() => _ensureConnection(() => _run('setPark')));
+    SyncBus.on('cmd_tracking', d => { _ensureConnection(() => { if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') _run('toggleTrackingOn'); }); });
+    SyncBus.on('cmd_speed', d => { if (!d || !Number.isFinite(d.rate)) return; const targets = [0.005, 0.02, 0.06, 0.2]; const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a); MS.speedPerStep = best; MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best]; const sel = document.getElementById('slew-speed'); if(sel) sel.value = String(best); if(typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); });
+    SyncBus.on('cmd_manual_start', d => { if (d && d.dir) _ensureConnection(() => { MS.activeDir = d.dir; MS.slewMode = 'manual'; }); });
+    SyncBus.on('cmd_manual_stop', () => { if (!MS.connected) return; MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
+  }
+});
 </script>
 </body>
 </html>
