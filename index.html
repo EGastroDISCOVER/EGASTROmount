@@ -664,7 +664,7 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — v8.0 (Finale)
+//  EGASTRO Mount (SATELLITE) — v9.0 (Finale Definitivo)
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
@@ -695,7 +695,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // 2. Ricezione GPS
+  // 2. Ricezione GPS con POPUP
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -724,9 +724,10 @@ window.addEventListener('load', () => {
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
+      const wasConnected = MS.connected;
       const result = _origToggle.apply(this, arguments);
       if (!_isRemote && SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: MS.connected });
+        SyncBus.send('cmd_connect', { on: !wasConnected }); // Invia lo stato DESIDERATO
       }
       return result;
     };
@@ -751,8 +752,17 @@ window.addEventListener('load', () => {
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // 5. Ricezione Comandi dal Master
-  SyncBus.on('cmd_connect', d => { if (d) { _isRemote = true; if (d.on !== MS.connected) { if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); } window.toggleConnection(); } _isRemote = false; } });
+  // 5. Ricezione Comandi
+  SyncBus.on('cmd_connect', d => { 
+    if (d) { 
+      _isRemote = true; 
+      if (d.on !== MS.connected) { 
+        if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); } 
+        window.toggleConnection(); 
+      } 
+      _isRemote = false; 
+    } 
+  });
   SyncBus.on('cmd_goto', d => { if (d) { _isRemote = true; if (typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); _isRemote = false; } });
   SyncBus.on('cmd_stop', () => { _isRemote = true; if (typeof window.stopMotion === 'function') window.stopMotion(); _isRemote = false; });
   SyncBus.on('cmd_park', () => { _isRemote = true; if (typeof window.parkMount === 'function') window.parkMount(); _isRemote = false; });
