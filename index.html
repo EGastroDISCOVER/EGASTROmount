@@ -752,12 +752,12 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v5.0
+//  EGASTRO Mount (SATELLITE) — SyncBus Integration · v6.0
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
-  let _isRemote = false;
 
+  // 1. Menu e Navigazione
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -765,10 +765,8 @@ window.addEventListener('load', () => {
       const btn = document.getElementById('app-switcher-toggle'); if(btn) btn.innerText = '▶'; 
     } 
   });
-
   const btnTele = document.getElementById('btn-goto-telescope');
   if (btnTele) { btnTele.style.pointerEvents = 'none'; btnTele.style.opacity = '0.4'; btnTele.style.boxShadow = 'none'; }
-
   const btnDome = document.getElementById('btn-goto-dome');
   if (btnDome) {
     btnDome.addEventListener('click', function(e) {
@@ -778,7 +776,7 @@ window.addEventListener('load', () => {
     });
   }
 
-  // Ricezione GPS (Mostra popup una volta)
+  // 2. GPS (Popup una tantum)
   SyncBus.on('gps_update', d => {
     if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
     MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
@@ -787,17 +785,17 @@ window.addEventListener('load', () => {
     try { 
       if (typeof updateTelemetry === 'function') updateTelemetry(); 
       if (typeof saveFullState === 'function') saveFullState(); 
-      if (typeof showToast === 'function') showToast(`📍 GPS ricevuto dal Pianeta: ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}`);
+      if (typeof showToast === 'function') showToast(`📍 GPS sincronizzato: ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}`);
     } catch (e) {}
   });
 
+  // 3. Stato
   function buildState() {
     try {
       const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
       return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
     } catch (e) { return null; }
   }
-
   let _last = '';
   setInterval(() => {
     const s = buildState(); if (!s) return;
@@ -805,18 +803,17 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // Esecuzione locale dei comandi
+  // 4. Comandi (Se peer c'è, NON eseguire localmente)
   const _origToggle = window.toggleConnection;
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
-      if (SyncBus.isPeerAlive() && !_isRemote) {
+      if (SyncBus.isPeerAlive()) {
         SyncBus.send('cmd_connect', { on: !MS.connected });
       } else {
         _origToggle.apply(this, arguments);
       }
     };
   }
-
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
@@ -827,27 +824,15 @@ window.addEventListener('load', () => {
       if (data !== false) SyncBus.send(msgType, data);
     };
   }
-  wrapSlave('parkMount', 'cmd_park');
-  wrapSlave('unparkMount', 'cmd_unpark');
-  wrapSlave('goHome', 'cmd_home');
-  wrapSlave('stopMotion', 'cmd_stop');
+  wrapSlave('parkMount', 'cmd_park'); wrapSlave('unparkMount', 'cmd_unpark'); wrapSlave('goHome', 'cmd_home'); wrapSlave('stopMotion', 'cmd_stop');
   wrapSlave('toggleTrackingOn', 'cmd_tracking', () => ({ on: MS.tracking !== 'off' }));
   wrapSlave('changeSlewSpeed', 'cmd_speed', val => ({ rate: parseFloat(val) }));
 
-  // Ricezione comandi dal Master
+  // 5. Esecuzione locale reale (quando il comando arriva dal Master)
   SyncBus.on('sync_activate', d => {
     if (d && Number.isFinite(d.gpsLat)) { MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true; }
   });
-  SyncBus.on('cmd_connect', d => {
-    if (d) {
-      _isRemote = true;
-      if (d.on !== MS.connected) {
-        if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); }
-        if (typeof _origToggle === 'function') _origToggle.call(window);
-      }
-      _isRemote = false;
-    }
-  });
+  SyncBus.on('cmd_connect', d => { if (d && d.on !== MS.connected) { if (d.on) MS.simulated = true; if (typeof _origToggle === 'function') _origToggle.call(window); } });
   SyncBus.on('cmd_goto', d => { if (d && typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); });
   SyncBus.on('cmd_stop', () => { if (typeof window.stopMotion === 'function') window.stopMotion(); });
   SyncBus.on('cmd_park', () => { if (typeof window.parkMount === 'function') window.parkMount(); });
