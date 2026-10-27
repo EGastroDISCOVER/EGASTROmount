@@ -814,5 +814,162 @@ window.addEventListener('load', () => {
   }
 })();
 </script>
+  <script src="sync-bus.js"></script>
+<script>
+// ============================================================
+//  EGASTRO Mount — SyncBus Integration
+//  Riceve comandi dalla app madre, emette stato continuo
+// ============================================================
+(function () {
+  if (typeof SyncBus === 'undefined') { console.warn('[Mount-Sync] SyncBus mancante'); return; }
+  if (typeof MS === 'undefined')      { console.warn('[Mount-Sync] MS non trovato');   return; }
+
+  // ---------- stato completo da trasmettere ----------
+  function buildState() {
+    try {
+      const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
+      return {
+        ra: astro.ra, dec: astro.dec,          // radianti, astronomiche
+        raMech: MS.ra, decMech: MS.dec,        // radianti, meccaniche
+        tracking: MS.tracking,
+        slewMode: MS.slewMode,
+        isParked: MS.isParked,
+        connected: MS.connected,
+        speedLabel: MS.speedLabel,
+        speedPerStep: MS.speedPerStep,
+        invertNS: MS.invertNS, invertEW: MS.invertEW,
+        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon,
+        gpsActive: MS.gpsActive
+      };
+    } catch (e) { console.error('[Mount-Sync] buildState:', e); return null; }
+  }
+
+  // ---------- broadcast stato (solo se cambia) ----------
+  let _last = '';
+  setInterval(() => {
+    const s = buildState();
+    if (!s) return;
+    const j = JSON.stringify(s);
+    if (j === _last) return;
+    _last = j;
+    SyncBus.send('mount_state', s);
+  }, 150);
+
+  // Risposta immediata al primo hello del peer
+  SyncBus.on('hello', () => { const s = buildState(); if (s) SyncBus.send('mount_state', s); });
+
+  // ---------- ricezione GPS dalla madre ----------
+  SyncBus.on('gps_update', d => {
+    if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
+    MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
+    if (Number.isFinite(d.alt))      MS.gpsAlt = d.alt;
+    if (Number.isFinite(d.accuracy)) MS.gpsAccuracy = d.accuracy;
+    try {
+      updateTelemetry && updateTelemetry();
+      updateLinkButtons && updateLinkButtons();
+      saveFullState && saveFullState();
+    } catch (e) {}
+  });
+
+  // ---------- comandi dalla madre ----------
+  const _run = (fnName, ...args) => {
+    try { if (typeof window[fnName] === 'function') window[fnName](...args); }
+    catch (e) { console.error('[Mount-Sync] ' + fnName + ':', e); }
+  };
+
+  SyncBus.on('cmd_goto', d => {
+    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
+    _run('_startGoto', d.ra, d.dec);
+  });
+
+  SyncBus.on('cmd_stop',      () => _run('stopMotion'));
+  SyncBus.on('cmd_park',      () => _run('parkMount'));
+  SyncBus.on('cmd_unpark',    () => _run('unparkMount'));
+  SyncBus.on('cmd_home',      () => _run('goHome'));
+  SyncBus.on('cmd_set_home',  () => _run('setHome'));
+  SyncBus.on('cmd_set_park',  () => _run('setPark'));
+
+  SyncBus.on('cmd_tracking', d => {
+    if (!d) return;
+    try {
+      const rate = (d.rate && d.rate !== 'off') ? d.rate : (d.on ? 'sidereal' : 'off');
+      if (rate === 'off') {
+        MS.tracking = 'off';
+        const sel = document.getElementById('tracking-mode'); if (sel) sel.value = 'off';
+        if (MS.slewMode === 'tracking') MS.slewMode = 'idle';
+      } else {
+        MS.tracking = rate;
+        const sel = document.getElementById('tracking-mode'); if (sel) sel.value = rate;
+        if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
+      }
+      updateTrackingBtn && updateTrackingBtn();
+      saveFullState && saveFullState();
+      const proto = Protocols[MS.wifiDriver] || (MS.btDriver && Protocols[MS.btDriver.replace('_bt','')]);
+      if (proto && proto.tracking) proto.tracking(MS.tracking !== 'off');
+    } catch (e) {}
+  });
+
+  SyncBus.on('cmd_speed', d => {
+    if (!d || !Number.isFinite(d.rate)) return;
+    const targets = [0.005, 0.02, 0.06, 0.2];
+    const labels  = { 0.005: '1x', 0.02: '8x', 0.06: '32x', 0.2: '128x' };
+    const best = targets.reduce((a,b) => Math.abs(b-d.rate) < Math.abs(a-d.rate) ? b : a);
+    MS.speedPerStep = best; MS.speedLabel = labels[best];
+    const sel = document.getElementById('slew-speed');
+    if (sel) sel.value = String(best);
+    updateSpeedDisplay && updateSpeedDisplay();
+    saveFullState && saveFullState();
+  });
+
+  SyncBus.on('cmd_sync', d => {
+    if (!d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
+    try {
+      const raR  = d.ra  * Math.PI / 180;
+      const decR = d.dec * Math.PI / 180;
+      const mech = (typeof mechCoordsForAstro === 'function')
+        ? mechCoordsForAstro(raR, decR, MS.dec, true) : null;
+      if (mech) { MS.ra = mech.raMech; MS.dec = mech.decMech; }
+      else      { MS.ra = raR;         MS.dec = decR;         }
+      MS.tRA = MS.ra; MS.tDEC = MS.dec;
+      const proto = Protocols[MS.wifiDriver] || (MS.btDriver && Protocols[MS.btDriver.replace('_bt','')]);
+      if (proto && proto.sync) proto.sync(d.ra / 15, d.dec);
+      saveFullState && saveFullState();
+    } catch (e) {}
+  });
+
+  // ---------- GPS locale → madre (per ridondanza) ----------
+  ['confirmManualGPS','getGPSFromDevice','getGPSFromIP'].forEach(fnName => {
+    const orig = window[fnName];
+    if (typeof orig !== 'function') return;
+    window[fnName] = function () {
+      const r = orig.apply(this, arguments);
+      setTimeout(() => {
+        if (MS.gpsActive && Number.isFinite(MS.gpsLat) && Number.isFinite(MS.gpsLon)) {
+          SyncBus.send('gps_update', {
+            lat: MS.gpsLat, lon: MS.gpsLon,
+            alt: MS.gpsAlt, accuracy: MS.gpsAccuracy,
+            source: 'mount'
+          });
+        }
+      }, fnName === 'getGPSFromDevice' ? 1200 : 400);
+      return r;
+    };
+  });
+
+  // ---------- indicatore di sync flottante ----------
+  const ind = document.createElement('div');
+  ind.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:3px 8px;'
+    + 'background:rgba(10,18,32,.92);border:1px solid #333;border-radius:6px;'
+    + 'color:#666;font-size:10px;font-family:monospace;z-index:99999;pointer-events:none;';
+  ind.textContent = '🔗 init';
+  document.body.appendChild(ind);
+  setInterval(() => {
+    ind.textContent = '🔗 ' + (SyncBus.isPeerAlive() ? '✓ peer' : '○ solo');
+    ind.style.color = SyncBus.isPeerAlive() ? '#4ade80' : '#666';
+  }, 1500);
+
+  console.log('[Mount-Sync] attivo · transport:', SyncBus.transport);
+})();
+</script>
 </body>
 </html>
