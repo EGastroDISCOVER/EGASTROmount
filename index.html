@@ -594,8 +594,7 @@ window.addEventListener('unload',saveFullState);
 window.addEventListener('pagehide',saveFullState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
 
-window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registrato')).catch(err=>console.warn('SW non registrato:',err))}});
-</script>
+window.addEventListener('load',()=>{migrateStorage();loadAllPositions();init3D();recalibrateLayout();setTimeout(recalibrateLayout,150);setTimeout(recalibrateLayout,500);updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateToggleBtnPosition();showWelcomeModal();
 <!-- FINE SCRIPT PRINCIPALE DEL TELESCOPIO -->
 
 <!-- INIZIO INTEGRAZIONE -->
