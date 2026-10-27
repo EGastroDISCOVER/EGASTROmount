@@ -754,10 +754,42 @@ window.addEventListener('load', () => {
   <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
 </div>
 
+<!-- FINESTRA PER L'APP MASTER (se aperto in standalone) -->
+<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
+  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
+</div>
+
+<!-- MENU A SCOMPARSA -->
+<style>
+  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
+  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 10px 8px; display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+  #app-switcher-toggle { background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; color: #d4af37; width: 24px; height: 50px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: all 0.3s; font-size: 11px; user-select: none; }
+  #app-switcher-toggle:hover { background: #d4af37; color: #000; }
+  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
+  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+  .app-btn-telescope:hover { background: #d4af37; color: #000; transform: scale(1.1); }
+  .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
+  .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
+  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+</style>
+
+<div id="app-switcher-container">
+  <div id="app-switcher-menu">
+    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+    </a>
+    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
+      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
+    </a>
+  </div>
+  <button id="app-switcher-toggle" title="Apri menu app" onclick="const c=document.getElementById('app-switcher-container'); c.classList.toggle('open'); this.innerText=c.classList.contains('open')?'◀':'▶';">▶</button>
+</div>
+
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — Sincronizzazione e Navigazione
+//  EGASTRO Mount (SATELLITE) — Sincronizzazione
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
@@ -779,11 +811,11 @@ window.addEventListener('load', () => {
   if (btnDome) {
     btnDome.addEventListener('click', function(e) {
       e.preventDefault();
-      // Se siamo in un iframe, chiediamo alla Master di mostrarsi
       if (window.parent !== window) {
+        // Se siamo dentro l'iframe del Master, chiudiamo l'iframe
         window.parent.postMessage('show-master', '*');
       } else {
-        // Se siamo in modalità standalone, apri l'iframe della Master
+        // Se siamo standalone, apriamo il Master
         document.getElementById('app-frame').src = 'https://egastrodiscover.github.io/EGASTRO/';
         document.getElementById('app-frame-container').style.display = 'block';
       }
@@ -815,20 +847,28 @@ window.addEventListener('load', () => {
     _last = j; SyncBus.send('mount_state', s);
   }, 150);
 
-  // 4. Comandi (Esecuzione locale + invio alla Master)
+  // 4. Wrapper per inviare comandi al Master se cliccati in locale
+  const _origToggle = window.toggleConnection;
+  if (typeof _origToggle === 'function') {
+    window.toggleConnection = function() {
+      if (!SyncBus.isPeerAlive()) {
+        return _origToggle.apply(this, arguments);
+      }
+      SyncBus.send('cmd_connect', { on: !MS.connected });
+    };
+  }
+
   function wrapSlave(fnName, msgType, dataFn) {
     const orig = window[fnName]; if (typeof orig !== 'function') return;
     window[fnName] = function () {
-      const result = orig.apply(this, arguments); // Esegue sempre localmente
-      if (!_isRemote) { // Invia se non è remoto
-        const data = dataFn ? dataFn.apply(this, arguments) : null;
-        if (data !== false) SyncBus.send(msgType, data);
+      if (!SyncBus.isPeerAlive()) {
+        return orig.apply(this, arguments);
       }
-      return result;
+      const data = dataFn ? dataFn.apply(this, arguments) : null;
+      if (data !== false) SyncBus.send(msgType, data);
     };
   }
   
-  wrapSlave('toggleConnection', 'cmd_connect', () => ({ on: !MS.connected }));
   wrapSlave('parkMount', 'cmd_park');
   wrapSlave('unparkMount', 'cmd_unpark');
   wrapSlave('goHome', 'cmd_home');
@@ -868,45 +908,34 @@ window.addEventListener('load', () => {
     });
   }
 </script>
-  <!-- PATCH: Aggiornamento visivo tasto Connetti (Slave) -->
+
+<!-- PATCH: Blocca popup se in iframe e Aggiorna pulsante Connetti -->
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    window.updateSlaveConnBtn = function(isConnected) {
-      const btn = document.getElementById('connect-btn');
-      if (!btn) return;
-
-      if (isConnected) {
-        btn.innerText = 'Scollega';
-        btn.className = 'btn danger'; // Usa la classe rossa che hai già nel CSS
-      } else {
-        btn.innerText = 'Connetti';
-        btn.className = 'btn primary'; // Usa la classe originale
-      }
-    };
-
-    setInterval(() => {
-      if (typeof MS !== 'undefined') {
-        window.updateSlaveConnBtn(MS.connected);
-      }
-    }, 500);
-  });
-</script>
-  <!-- PATCH: Blocca popup se in iframe -->
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    // Se l'app è dentro un iframe (quindi aperta dal Master), nascondi il popup
+    // Blocca popup in iframe
     if (window.self !== window.top) {
-      // Aspettiamo che il popup sia stato creato e poi lo nascondiamo
       setTimeout(() => {
         const modal = document.getElementById('welcome-modal');
         if (modal) modal.style.display = 'none';
       }, 100);
-      
-      // Sovrascriviamo la funzione per sicurezza
-      window.showWelcomeModal = function() {
-        // Non fare nulla se siamo in un iframe
-      };
+      window.showWelcomeModal = function() {};
     }
+
+    // Aggiorna pulsante Connetti
+    window.updateSlaveConnBtn = function(isConnected) {
+      const btn = document.getElementById('connect-btn');
+      if (!btn) return;
+      if (isConnected) {
+        btn.innerText = 'Scollega';
+        btn.className = 'btn danger';
+      } else {
+        btn.innerText = 'Connetti';
+        btn.className = 'btn primary';
+      }
+    };
+    setInterval(() => {
+      if (typeof MS !== 'undefined') window.updateSlaveConnBtn(MS.connected);
+    }, 500);
   });
 </script>
 </body>
