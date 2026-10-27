@@ -757,8 +757,16 @@ window.addEventListener('load', () => {
     if (d) { 
       _isRemote = true; 
       if (d.on !== MS.connected) { 
-        if (d.on) { MS.simulated = true; document.getElementById('simBtn')?.classList.add('sim-active'); } 
-        window.toggleConnection(); 
+        if (d.on) { 
+          MS.simulated = true; 
+          document.getElementById('simBtn')?.classList.add('sim-active'); 
+        } 
+        // BYPASSA IL WRAPPER E CHIAMA LA FUNZIONE ORIGINALE
+        if (typeof _origToggle === 'function') {
+          _origToggle.call(window);
+        } else {
+          window.toggleConnection();
+        }
       } 
       _isRemote = false; 
     } 
