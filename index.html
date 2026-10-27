@@ -664,13 +664,13 @@ window.addEventListener('load', () => {
 <script src="sync-bus.js"></script>
 <script>
 // ============================================================
-//  EGASTRO Mount (SATELLITE) — v9.0
+//  EGASTRO Mount (SATELLITE) — v10.0 (Finale)
 // ============================================================
 (function () {
   if (typeof SyncBus === 'undefined' || typeof MS === 'undefined') return;
   let _isRemote = false;
 
-  // 1. Navigazione
+  // 1. Navigazione Menu
   document.addEventListener('click', function(e) { 
     const container = document.getElementById('app-switcher-container');
     if (container && !container.contains(e.target)) { 
@@ -713,6 +713,7 @@ window.addEventListener('load', () => {
       return { ra: astro.ra, dec: astro.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, rate: MS.speedPerStep, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive };
     } catch (e) { return null; }
   }
+  
   let _last = '';
   setInterval(() => {
     const s = buildState(); if (!s) return;
@@ -721,13 +722,14 @@ window.addEventListener('load', () => {
   }, 150);
 
   // 4. Comandi (Esegue localmente, poi invia)
-  const _origToggle = window.toggleConnection;
+  const _origToggle = window.toggleConnection; // Salviamo la funzione originale!
+  
   if (typeof _origToggle === 'function') {
     window.toggleConnection = function() {
       const wasConnected = MS.connected;
       const result = _origToggle.apply(this, arguments);
       if (!_isRemote && SyncBus.isPeerAlive()) {
-        SyncBus.send('cmd_connect', { on: !wasConnected }); // Invia lo stato DESIDERATO
+        SyncBus.send('cmd_connect', { on: !wasConnected }); 
       }
       return result;
     };
@@ -761,7 +763,7 @@ window.addEventListener('load', () => {
           MS.simulated = true; 
           document.getElementById('simBtn')?.classList.add('sim-active'); 
         } 
-        // BYPASSA IL WRAPPER E CHIAMA LA FUNZIONE ORIGINALE
+        // CHIAMA LA FUNZIONE ORIGINALE PER CONNETTERE DAVVERO
         if (typeof _origToggle === 'function') {
           _origToggle.call(window);
         } else {
@@ -771,6 +773,7 @@ window.addEventListener('load', () => {
       _isRemote = false; 
     } 
   });
+  
   SyncBus.on('cmd_goto', d => { if (d) { _isRemote = true; if (typeof window._startGoto === 'function') window._startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180); _isRemote = false; } });
   SyncBus.on('cmd_stop', () => { _isRemote = true; if (typeof window.stopMotion === 'function') window.stopMotion(); _isRemote = false; });
   SyncBus.on('cmd_park', () => { _isRemote = true; if (typeof window.parkMount === 'function') window.parkMount(); _isRemote = false; });
@@ -788,6 +791,13 @@ window.addEventListener('load', () => {
     _isRemote = false;
   });
 
+  // 6. Risveglio dal background
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const s = buildState(); if (s) SyncBus.send('mount_state', s);
+    }
+  });
+
 })();
 </script>
 
@@ -800,7 +810,7 @@ window.addEventListener('load', () => {
   }
 </script>
 
-<!-- PATCH UI e Popup -->
+<!-- PATCH: Blocco popup in iframe e Bottone Connetti -->
 <script>
   if (window.self !== window.top) {
     setTimeout(() => {
