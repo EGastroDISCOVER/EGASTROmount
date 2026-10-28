@@ -792,5 +792,331 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>
+  <!-- ============================================================ -->
+<!-- EGASTROmount SATELLITE — Integrazione SyncBus v3             -->
+<!-- Da incollare PRIMA di </body>                                -->
+<!-- ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     1. VERIFICA PREREQUISITI
+     ============================================================ */
+  if (typeof SyncBus === 'undefined') {
+    console.error('[SATELLITE] SyncBus mancante: includi sync-bus.js v3 prima di questo script');
+    return;
+  }
+  if (SyncBus.appId !== 'mount') {
+    console.warn('[SATELLITE] Rilevato appId=' + SyncBus.appId + ', atteso "mount"');
+  }
+
+  /* ============================================================
+     2. STATO INTERNO
+     ============================================================ */
+  const satRuntime = {
+    isLeader: false,
+    readonly: false,
+    lastMasterState: null,
+    lastMasterSeen: 0
+  };
+
+  /* ============================================================
+     3. UTILITY: TOAST / LOG
+     ============================================================ */
+  function toast(msg, isError) {
+    if (typeof showToast === 'function') {
+      try { showToast(msg, !!isError); return; } catch (e) {}
+    }
+    console[isError ? 'error' : 'log']('[SATELLITE]', msg);
+  }
+
+  /* ============================================================
+     4. LEADER ELECTION — Una sola istanza controlla la mount
+     Impedisce movimenti impazziti se l'utente apre 2 satellite
+     ============================================================ */
+  function becomeLeaderOrReadonly() {
+    if (!SyncBus.isSatellite) return;
+    const acquired = SyncBus.requestLeader();
+    satRuntime.isLeader = acquired;
+
+    if (!acquired) {
+      satRuntime.readonly = true;
+      window.__READONLY__ = true;
+      console.warn('[SATELLITE] Un\'altra istanza è leader — modalità SOLA LETTURA');
+      toast('Un\'altra istanza del satellite controlla già la montatura', true);
+
+      // Neutralizza i comandi che muovono la mount
+      const blocked = [
+        'toggleConnection', 'disconnectMount', 'stopMotion',
+        '_startGoto', 'parkMount', 'unparkMount', 'goHome',
+        'toggleTrackingOn', 'changeSlewSpeed', 'meridianFlip',
+        'setHome', 'setPark'
+      ];
+      blocked.forEach(function (fn) {
+        if (typeof window[fn] === 'function') {
+          window[fn] = function () {
+            console.warn('[READONLY] ' + fn + ' ignorato');
+            toast('Comando ignorato (sola lettura)', true);
+          };
+        }
+      });
+    } else {
+      satRuntime.readonly = false;
+      window.__READONLY__ = false;
+      console.log('[SATELLITE] Sono LEADER: controllo la mount');
+      SyncBus.send('satellite_ready', { instance: SyncBus.instanceId });
+    }
+  }
+
+  /* ============================================================
+     5. RICEZIONE COMANDI DAL MASTER
+     L'ACK è automatico (gestito da sync-bus v3)
+     ============================================================ */
+  SyncBus.on('cmd_connect', function (d) {
+    if (satRuntime.readonly || !d) return;
+    const wantOn = !!d.on;
+    const isOn = (typeof MS !== 'undefined') ? MS.connected : false;
+    if (wantOn && !isOn) {
+      if (typeof toggleConnection === 'function') toggleConnection();
+    } else if (!wantOn && isOn) {
+      if (typeof disconnectMount === 'function') disconnectMount(false);
+    }
+  });
+
+  SyncBus.on('cmd_goto', function (d) {
+    if (satRuntime.readonly || !d) return;
+    if (!Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
+    // Assicura connessione
+    if (typeof MS !== 'undefined' && !MS.connected) {
+      if (typeof toggleConnection === 'function') toggleConnection();
+      setTimeout(function () {
+        if (typeof _startGoto === 'function') {
+          _startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180);
+        }
+      }, 600);
+    } else {
+      if (typeof _startGoto === 'function') {
+        _startGoto(d.ra * Math.PI / 180, d.dec * Math.PI / 180);
+      }
+    }
+    toast('GOTO ricevuto' + (d.name ? ': ' + d.name : ''));
+  });
+
+  SyncBus.on('cmd_stop', function () {
+    if (satRuntime.readonly) return;
+    if (typeof stopMotion === 'function') stopMotion();
+    toast('STOP ricevuto');
+  });
+
+  SyncBus.on('cmd_park', function () {
+    if (satRuntime.readonly) return;
+    if (typeof parkMount === 'function') parkMount();
+    toast('PARK ricevuto');
+  });
+
+  SyncBus.on('cmd_unpark', function () {
+    if (satRuntime.readonly) return;
+    if (typeof unparkMount === 'function') unparkMount();
+    toast('UNPARK ricevuto');
+  });
+
+  SyncBus.on('cmd_home', function () {
+    if (satRuntime.readonly) return;
+    if (typeof goHome === 'function') goHome();
+    toast('HOME ricevuto');
+  });
+
+  SyncBus.on('cmd_set_home', function () {
+    if (satRuntime.readonly) return;
+    if (typeof setHome === 'function') setHome();
+    toast('SET HOME ricevuto');
+  });
+
+  SyncBus.on('cmd_set_park', function () {
+    if (satRuntime.readonly) return;
+    if (typeof setPark === 'function') setPark();
+    toast('SET PARK ricevuto');
+  });
+
+  SyncBus.on('cmd_tracking', function (d) {
+    if (satRuntime.readonly || !d) return;
+    const wantOn = !!d.on;
+    const isOn = (typeof MS !== 'undefined' && MS.tracking !== 'off');
+    if (wantOn !== isOn && typeof toggleTrackingOn === 'function') {
+      toggleTrackingOn();
+    }
+  });
+
+  SyncBus.on('cmd_speed', function (d) {
+    if (satRuntime.readonly || !d || !Number.isFinite(d.rate)) return;
+    const targets = [0.005, 0.02, 0.06, 0.2];
+    const best = targets.reduce(function (a, b) {
+      return Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a;
+    });
+    if (typeof MS !== 'undefined') {
+      MS.speedPerStep = best;
+      MS.speedLabel = ({ 0.005: '1x', 0.02: '8x', 0.06: '32x', 0.2: '128x' })[best];
+    }
+    const sel = document.getElementById('slew-speed');
+    if (sel) sel.value = String(best);
+    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+  });
+
+  SyncBus.on('cmd_manual_start', function (d) {
+    if (satRuntime.readonly || !d || !d.dir) return;
+    if (typeof MS !== 'undefined') {
+      MS.activeDir = d.dir;
+      MS.slewMode = 'manual';
+    }
+  });
+
+  SyncBus.on('cmd_manual_stop', function () {
+    if (satRuntime.readonly) return;
+    if (typeof MS !== 'undefined') {
+      MS.activeDir = null;
+      if (MS.slewMode === 'manual') {
+        MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
+      }
+    }
+  });
+
+  /* ============================================================
+     6. RICEZIONE STATO DAL MASTER (GPS, target, ecc.)
+     ============================================================ */
+  SyncBus.on('master_state', function (d) {
+    if (!d) return;
+    satRuntime.lastMasterState = d;
+    satRuntime.lastMasterSeen = Date.now();
+
+    if (typeof MS !== 'undefined') {
+      // GPS dal master
+      if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
+        MS.gpsLat = d.gpsLat;
+        MS.gpsLon = d.gpsLon;
+        MS.gpsActive = true;
+      }
+      // Target corrente dal master (per allineare i pannelli)
+      if (d.target && Number.isFinite(d.target.ra)) {
+        // Non sovrascrivere il target locale se l'utente ne sta scegliendo uno
+        // (commenta se vuoi che il master imponga il target)
+        // MS.tRA = d.target.ra * Math.PI/180;
+        // MS.tDEC = d.target.dec * Math.PI/180;
+      }
+    }
+
+    if (typeof updateTelemetry === 'function') {
+      try { updateTelemetry(); } catch (e) {}
+    }
+  });
+
+  /* ============================================================
+     7. RICEZIONE HELLO / FOCUS
+     ============================================================ */
+  SyncBus.on('master_ready', function (d) {
+    if (!d) return;
+    // Applica GPS dal master all'avvio
+    if (Number.isFinite(d.lat) && Number.isFinite(d.lon) && typeof MS !== 'undefined') {
+      MS.gpsLat = d.lat;
+      MS.gpsLon = d.lon;
+      MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+    }
+    console.log('[SATELLITE] Master pronto:', d.instance);
+  });
+
+  SyncBus.on('focus_request', function () {
+    window.focus();
+    // Se siamo in iframe, chiedi al parent di mostrarci
+    if (window.parent !== window) {
+      try { window.parent.postMessage('show-master', '*'); } catch (e) {}
+    }
+  });
+
+  /* ============================================================
+     8. PUBBLICAZIONE PERIODICA STATO MOUNT
+     Solo il leader pubblica per evitare conflitti
+     ============================================================ */
+  function publishMountState() {
+    if (satRuntime.readonly) return;
+    if (typeof MS === 'undefined') return;
+    if (!SyncBus.isPeerAlive()) return; // nessun master in ascolto
+
+    try {
+      SyncBus.send('mount_state', {
+        __isState: true, // auto-versioning anti-riordino
+        connected: MS.connected,
+        tracking:  MS.tracking,
+        isParked:  MS.isParked,
+        ra:        MS.ra,
+        dec:       MS.dec,
+        slewMode:  MS.slewMode,
+        rate:      MS.speedPerStep,
+        pierSide:  MS.pierSide,
+        mountType: MS.mountType
+      });
+    } catch (e) {
+      console.warn('[SATELLITE] publishMountState:', e);
+    }
+  }
+
+  /* ============================================================
+     9. PEER OFFLINE
+     ============================================================ */
+  SyncBus.on('peer_offline', function () {
+    console.warn('[SATELLITE] Master offline');
+  });
+
+  /* ============================================================
+     10. PARAMETRI URL (lat/lon/target in ingresso dal master)
+     ============================================================ */
+  function applyUrlParams() {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const lat = parseFloat(p.get('lat'));
+      const lon = parseFloat(p.get('lon'));
+      if (Number.isFinite(lat) && Number.isFinite(lon) && typeof MS !== 'undefined') {
+        MS.gpsLat = lat;
+        MS.gpsLon = lon;
+        MS.gpsActive = true;
+        if (typeof updateTelemetry === 'function') updateTelemetry();
+      }
+      const tRa  = parseFloat(p.get('targetRa'));
+      const tDec = parseFloat(p.get('targetDec'));
+      if (Number.isFinite(tRa) && Number.isFinite(tDec) && typeof MS !== 'undefined') {
+        // Prepara un target ma non avviare GOTO automaticamente
+        MS.tRA  = tRa * Math.PI / 180;
+        MS.tDEC = tDec * Math.PI / 180;
+      }
+    } catch (e) {}
+  }
+
+  /* ============================================================
+     11. BOOT
+     ============================================================ */
+  function boot() {
+    applyUrlParams();
+    becomeLeaderOrReadonly();
+    setInterval(publishMountState, 250);
+    console.log('[SATELLITE] Sync pronto · instance=' + SyncBus.instanceId +
+                ' · leader=' + satRuntime.isLeader);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(boot, 300);
+  } else {
+    window.addEventListener('load', function () { setTimeout(boot, 300); });
+  }
+
+  /* ============================================================
+     12. EXPORT GLOBALE (per debug / uso manuale)
+     ============================================================ */
+  window.SatelliteSync = {
+    isLeader:   () => satRuntime.isLeader,
+    isReadonly: () => satRuntime.readonly,
+    getLastMasterState: () => satRuntime.lastMasterState
+  };
+})();
+</script>
 </body>
 </html>
