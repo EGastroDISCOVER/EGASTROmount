@@ -228,7 +228,19 @@ g.addEventListener('focus',function(){snd('hello')});
 g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
 </script>
-</head>
+<style id="mobile-fix">
+@media (max-width: 768px) {
+  html, body { height: 100dvh !important; min-height: 100dvh !important; overflow: hidden; }
+  #canvas-container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100dvh !important; z-index: 1 !important; }
+  .dashboard { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important; max-height: 70vh !important; overflow-y: auto !important; }
+  .top-bar { padding-top: calc(4px + env(safe-area-inset-top, 0px)) !important; }
+}
+</style><script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+  if (new URLSearchParams(location.search).get('debug') === '1') {
+    eruda.init(); eruda.show(); console.log('[MOBILE] Eruda attiva');
+  }
+</script></head>
 <body>
 <div id="canvas-container"></div>
 <div class="top-bar">
@@ -1265,5 +1277,151 @@ document.addEventListener("DOMContentLoaded", () => {
   else ready();
 })();
 </script>
-<script id="egastromount-complete-final">(function(){if(window.__egastromountComplete)return;window.__egastromountComplete=true;localStorage.removeItem("egastro_leader_v3");if(typeof SyncBus!=="undefined"){SyncBus.requestLeader();SyncBus.on("focus_request",function(){});var origSend=SyncBus.send.bind(SyncBus);SyncBus.send=function(t,d){if(t==="focus_request")return;return origSend(t,d)}}window.addEventListener("message",function(e){if(e.data==="hide-satellite-frame"||e.data==="egastro-close-frame"){var fc=document.getElementById("app-frame-container");if(fc)fc.style.display="none"}},true);var btnDome=document.getElementById("btn-goto-dome");if(btnDome){btnDome.onclick=function(e){e.preventDefault();if(window.parent!==window){window.parent.postMessage("hide-satellite-frame","*")}else{var fc=document.getElementById("app-frame-container"),fr=document.getElementById("app-frame");if(!fc||!fr){window.open("https://egastrodiscover.github.io/EGASTRO/","_blank");return}var src=fr.getAttribute("src")||"";if(src.indexOf("/EGASTRO/")>=0&&src.indexOf("EGASTROmount")<0){fc.style.display="block"}else{fr.src="https://egastrodiscover.github.io/EGASTRO/";fc.style.display="block"}}}}function updateBadge(){var b=document.getElementById("syncBadge"),d=document.getElementById("syncDot"),t=document.getElementById("syncText");if(!b||!d||!t)return;if(window.__READONLY__){b.style.borderColor="#fbbf24";d.style.color="#fbbf24";t.textContent="READONLY";return}if(SyncBus.isLeader&&SyncBus.isLeader()){if(SyncBus.isPeerAlive()){b.style.borderColor="#4ade80";b.style.background="rgba(74,222,128,0.15)";d.style.color="#4ade80";t.textContent="LEADER ✓ MASTER"}else{b.style.borderColor="#8bd3ff";b.style.background="rgba(139,211,255,0.15)";d.style.color="#8bd3ff";t.textContent="STAND-ALONE"}}else{b.style.borderColor="#6b778c";d.style.color="#6b778c";t.textContent="SLAVE"}}setInterval(updateBadge,1000);updateBadge();if(typeof publish==="function"){setInterval(function(){try{publish()}catch(e){}},300)}console.log("[SATELLITE] ✅ FINAL-COMPLETE attivo")})();</script></body>
+<script id="master-final4">
+(function(){
+  if (window.__master4) return;
+  window.__master4 = true;
+
+  var RAD = Math.PI/180, DEG = 180/Math.PI;
+  var FOLLOW_RATE_FAST = 8.0, TRACKING_RATES = { sidereal:7.2921e-5, solar:7.2722e-5, lunar:7.0237e-5 };
+  var DEFAULT_HOME_DEC = Math.PI/2;
+
+  var LocalMS = {
+    ra:0, dec:DEFAULT_HOME_DEC, tRA:0, tDEC:DEFAULT_HOME_DEC,
+    homeRA:0, homeDEC:DEFAULT_HOME_DEC, parkRA:0, parkDEC:DEFAULT_HOME_DEC,
+    connected:false, isParked:false, slewMode:'idle', tracking:'off',
+    speedPerStep:0.02, speedLabel:'8x', simulated:false
+  };
+
+  function normRA(r){ r=r%(2*Math.PI); if(r<0) r+=2*Math.PI; if(r>=2*Math.PI) r-=2*Math.PI; return r; }
+  function angleDiff(a,b){ var d=(b-a)%(2*Math.PI); if(d>Math.PI) d-=2*Math.PI; if(d<=-Math.PI) d+=2*Math.PI; return d; }
+  function getLocalAstro(){ var d=LocalMS.dec%(2*Math.PI); if(d>Math.PI)d-=2*Math.PI; if(d<-Math.PI)d+=2*Math.PI; var da,off=0; if(d>Math.PI/2){da=Math.PI-d;off=Math.PI}else if(d<-Math.PI/2){da=-Math.PI-d;off=Math.PI}else da=d; return {ra:normRA(LocalMS.ra+off),dec:da}; }
+
+  function localGoto(raRad,decRad){ var rd=angleDiff(LocalMS.ra,raRad),dd=decRad-LocalMS.dec; while(dd>Math.PI)dd-=2*Math.PI; while(dd<-Math.PI)dd+=2*Math.PI; if(Math.sqrt(rd*rd+dd*dd)<0.001){LocalMS.slewMode='idle';return;} LocalMS.tRA=raRad; LocalMS.tDEC=decRad; LocalMS.slewMode='goto'; }
+
+  setInterval(function(){
+    if (LocalMS.slewMode==='goto'){
+      var rd=angleDiff(LocalMS.ra,LocalMS.tRA),dd=LocalMS.tDEC-LocalMS.dec,dist=Math.sqrt(rd*rd+dd*dd),step=FOLLOW_RATE_FAST*(1/60);
+      if(dist<0.005){ LocalMS.ra=LocalMS.tRA; LocalMS.dec=LocalMS.tDEC; LocalMS.slewMode=LocalMS.tracking!=='off'?'tracking':'idle'; return; }
+      var f=Math.min(1,step/dist); LocalMS.ra=normRA(LocalMS.ra+rd*f); LocalMS.dec=LocalMS.dec+dd*f;
+    } else if(LocalMS.slewMode==='tracking'){ var rate=TRACKING_RATES[LocalMS.tracking]||0; if(rate>0)LocalMS.ra=normRA(LocalMS.ra+rate/60); }
+  }, 16);
+
+  window.__LocalMount = { MS:LocalMS, connected:function(){return LocalMS.connected;}, goto:localGoto,
+    stop:function(){ LocalMS.slewMode=LocalMS.tracking!=='off'?'tracking':'idle'; LocalMS.tRA=LocalMS.ra; LocalMS.tDEC=LocalMS.dec; },
+    setTracking:function(m){ LocalMS.tracking=m; LocalMS.slewMode=m==='off'?'idle':'tracking'; },
+    setSpeed:function(r,l){ LocalMS.speedPerStep=r; LocalMS.speedLabel=l; },
+    park:function(){ LocalMS.isParked=true; }, unpark:function(){ LocalMS.isParked=false; },
+    home:function(){ var h=getLocalAstro(); localGoto(h.ra,h.dec); },
+    setHome:function(){ var h=getLocalAstro(); LocalMS.homeRA=h.ra; LocalMS.homeDEC=h.dec; },
+    setPark:function(){ var h=getLocalAstro(); LocalMS.parkRA=h.ra; LocalMS.parkDEC=h.dec; }
+  };
+
+  function satAlive(){ return typeof SyncBus!=='undefined'&&SyncBus.isPeerAlive()&&SyncBus.getPeerId()==='mount'; }
+
+  function ready(){
+    if (typeof scopeState==='undefined'){ setTimeout(ready,150); return; }
+
+    window.scopeToggleConnect = function(){
+      if (satAlive()) SyncBus.send('cmd_connect',{on:!scopeState.connected});
+      else { if(LocalMS.connected){ LocalMS.connected=false; LocalMS.simulated=false; } else { LocalMS.simulated=true; LocalMS.connected=true; } updateBadge(); }
+    };
+
+    window.masterGoto = window.scopeStepAction = window.scopeSlewToTarget = function(){
+      if(!scopeState.target) return;
+      if(satAlive()) SyncBus.send('cmd_goto',{ra:scopeState.target.ra,dec:scopeState.target.dec,name:scopeState.target.name||''});
+      else localGoto(scopeState.target.ra*RAD, scopeState.target.dec*RAD);
+    };
+
+    window.scopeStopSlewing = window.scopeEmergencyStop = window.masterStop = function(){
+      if(satAlive()){ SyncBus.send('cmd_stop',{}); SyncBus.send('cmd_stop',{}); }
+      else window.__LocalMount.stop();
+      scopeState.tracking=false; var ms=document.getElementById('tracking-mode'); if(ms)ms.value='off';
+      var tb=document.getElementById('trackingOnBtn'); if(tb){tb.textContent='TRACKING ON';tb.classList.remove('highlight');}
+    };
+
+    window.scopePark = function(){ if(satAlive())SyncBus.send('cmd_park',{}); else window.__LocalMount.park(); };
+    window.scopeUnpark = function(){ if(satAlive())SyncBus.send('cmd_unpark',{}); else window.__LocalMount.unpark(); };
+    window.scopeHome = function(){ if(satAlive())SyncBus.send('cmd_home',{}); else window.__LocalMount.home(); };
+    window.scopeSetHome = function(){ if(satAlive())SyncBus.send('cmd_set_home',{}); else window.__LocalMount.setHome(); };
+    window.scopeSetPark = function(){ if(satAlive())SyncBus.send('cmd_set_park',{}); else window.__LocalMount.setPark(); };
+
+    window.scopeToggleTracking = window.toggleTrackingOn = function(){
+      if(satAlive()) SyncBus.send('cmd_tracking',{on:scopeState.tracking==='off'});
+      else window.__LocalMount.setTracking(LocalMS.tracking==='off'?'sidereal':'off');
+    };
+
+    window.scopeChangeRate = function(dir){
+      var rates=[1,8,32,128], map={1:0.005,8:0.02,32:0.06,128:0.2};
+      var idx=rates.indexOf(scopeState.rate); if(idx===-1)idx=1;
+      idx=Math.max(0,Math.min(rates.length-1,idx+dir));
+      scopeState.rate=rates[idx];
+      var rd=document.getElementById('scopeRateDisplay'); if(rd)rd.innerText=rates[idx]+'X';
+      if(satAlive())SyncBus.send('cmd_speed',{rate:map[rates[idx]]});
+      else window.__LocalMount.setSpeed(map[rates[idx]],rates[idx]+'x');
+    };
+
+    var dirMap={n:'up',s:'down',e:'right',w:'left',nw:'up-left',ne:'up-right',sw:'down-left',se:'down-right'};
+    window.dPadStart = function(dir,btn){
+      var d=dirMap[dir]||dir; if(btn)btn.classList.add('active');
+      if(satAlive()){ SyncBus.send('cmd_manual_start',{dir:d}); if(!window.__dpTimer)window.__dpTimer=setInterval(function(){SyncBus.send('cmd_manual_start',{dir:d});},150); }
+      else { LocalMS.slewMode='manual'; var step=0.005; if(d.includes('up'))LocalMS.tDEC+=step; if(d.includes('down'))LocalMS.tDEC-=step; if(d.includes('left'))LocalMS.tRA-=step; if(d.includes('right'))LocalMS.tRA+=step; }
+    };
+    window.dPadStop = function(btn){
+      if(window.__dpTimer){clearInterval(window.__dpTimer);window.__dpTimer=null;}
+      if(btn)btn.classList.remove('active');
+      document.querySelectorAll('.d-btn').forEach(function(b){b.classList.remove('active');});
+      if(satAlive())SyncBus.send('cmd_manual_stop',{}); else window.__LocalMount.stop();
+    };
+
+    SyncBus.on('mount_state', function(d){
+      if(!d)return;
+      scopeState.connected=!!d.connected; scopeState.tracking=d.tracking&&d.tracking!=='off'; scopeState.isParked=!!d.isParked;
+      if(Number.isFinite(d.rate)){ var rm={0.005:1,0.02:8,0.06:32,0.2:128}; scopeState.rate=rm[d.rate]||8; var rd=document.getElementById('scopeRateDisplay'); if(rd)rd.innerText=scopeState.rate+'X'; }
+      var ov=document.getElementById('parkOverlay'); if(ov)ov.classList.toggle('open',!!d.isParked);
+      updateBadge();
+    });
+
+    SyncBus.on('request_master_state', function(){
+      var lat=parseFloat((document.getElementById('lat')||{}).value)||41.9;
+      var lon=parseFloat((document.getElementById('lon')||{}).value)||12.5;
+      SyncBus.send('master_ready',{lat:lat,lon:lon});
+    });
+
+    SyncBus.on('satellite_ready', function(){
+      var lat=parseFloat((document.getElementById('lat')||{}).value)||41.9;
+      var lon=parseFloat((document.getElementById('lon')||{}).value)||12.5;
+      setTimeout(function(){ SyncBus.send('master_ready',{lat:lat,lon:lon}); },200);
+    });
+
+    SyncBus.on('slew_arrived', function(d){
+      if(!d)return; scopeState.tracking=true; var ms=document.getElementById('tracking-mode'); if(ms)ms.value='sidereal';
+      var tb=document.getElementById('trackingOnBtn'); if(tb){tb.textContent='TRACKING OFF';tb.classList.add('highlight');}
+      if(typeof updateTrackingBtn==='function')updateTrackingBtn();
+    });
+
+    if(typeof SyncBus!=='undefined'){ var origSend=SyncBus.send.bind(SyncBus); SyncBus.send=function(t,d){ if(t==='focus_request')return; return origSend(t,d); }; }
+    window.addEventListener('message',function(e){ if(e.data==='show-master'){e.stopImmediatePropagation();} if(e.data==='hide-satellite-frame'){var fc=document.getElementById('app-frame-container');if(fc)fc.style.display='none';} },true);
+
+    var td=document.getElementById('btn-goto-telescope');
+    if(td){ td.onclick=function(e){ e.preventDefault(); var fc=document.getElementById('app-frame-container'),fr=document.getElementById('app-frame'); if(!fc||!fr)return; var src=fr.getAttribute('src')||''; if(src.indexOf('EGASTROmount')>=0){fc.style.display='block';}else{fr.src='https://egastrodiscover.github.io/EGASTROmount/';fc.style.display='block';} }; }
+
+    setInterval(function(){ if(typeof MS==='undefined'||satAlive())return; MS.ra=LocalMS.ra; MS.dec=LocalMS.dec; MS.tRA=LocalMS.tRA; MS.tDEC=LocalMS.tDEC; MS.slewMode=LocalMS.slewMode; MS.tracking=LocalMS.tracking; MS.isParked=LocalMS.isParked; MS.connected=LocalMS.connected; },30);
+
+    function updateBadge(){
+      var b=document.getElementById('syncBadge'); if(!b)return;
+      var dot=b.querySelector('span:first-child'); var txt=b.querySelector('span:last-child');
+      if(!dot||!txt)return;
+      if(satAlive()){ txt.textContent='SYNC OK'; dot.style.color='#4ade80'; b.style.borderColor='#4ade80'; }
+      else { txt.textContent='STAND-ALONE'; dot.style.color='#8bd3ff'; b.style.borderColor='#8bd3ff'; }
+    }
+    setInterval(updateBadge, 1000);
+    updateBadge();
+
+    console.log('[MASTER] ✅ COMPLETE4 attivo');
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+</script></body>
 </html>
