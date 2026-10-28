@@ -617,7 +617,7 @@ window.addEventListener('load',()=>{
   <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
-<!-- MENU A SCOMPARSA E MAPPA POLARE -->
+<!<!-- MENU A SCOMPARSA E MAPPA POLARE (COMPLETO) -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -649,7 +649,7 @@ window.addEventListener('load',()=>{
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. POPUP E IFRAME
+  // 1. GESTIONE POPUP E IFRAME
   if (window.self !== window.top) {
     setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
     window.showWelcomeModal = function() {};
@@ -710,7 +710,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Container per Dimensioni (a destra dello zoom, in verticale)
   const sizeBox = document.createElement('div');
-  // Spostato a sinistra dei tasti zoom: right: 36px (8px + 24px + 4px)
   sizeBox.style.cssText = 'position:absolute;bottom:8px;right:36px;display:flex;flex-direction:column;gap:4px;z-index:5; background:rgba(0,0,0,0.6); padding:4px; border-radius:10px; border:1px solid rgba(212,175,55,0.4);';
   [0.5, 0.75, 1.0].forEach(factor => {
     const b = document.createElement('button');
@@ -872,4 +871,9 @@ document.addEventListener("DOMContentLoaded", () => {
     SyncBus.on('cmd_tracking', d => { _ensureConnection(() => { if (d.on !== (MS.tracking !== 'off') && typeof window.toggleTrackingOn === 'function') _run('toggleTrackingOn'); }); });
     SyncBus.on('cmd_speed', d => { if (!d || !Number.isFinite(d.rate)) return; const targets = [0.005, 0.02, 0.06, 0.2]; const best = targets.reduce((a,b) => Math.abs(b - d.rate) < Math.abs(a - d.rate) ? b : a); MS.speedPerStep = best; MS.speedLabel = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' }[best]; const sel = document.getElementById('slew-speed'); if(sel) sel.value = String(best); if(typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); });
     SyncBus.on('cmd_manual_start', d => { if (d && d.dir) _ensureConnection(() => { MS.activeDir = d.dir; MS.slewMode = 'manual'; }); });
-    SyncBus.on('cmd_manual_stop
+    SyncBus.on('cmd_manual_stop', () => { if (!MS.connected) return; MS.activeDir = null; if (MS.slewMode === 'manual') MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle'; });
+  }
+});
+</script>
+</body>
+</html>
