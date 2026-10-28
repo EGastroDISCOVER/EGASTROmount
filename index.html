@@ -162,6 +162,30 @@ input:focus,select:focus{border-color:#d4af37;box-shadow:0 0 10px rgba(212,175,5
 .limits-section-title{font-family:'Orbitron',sans-serif;font-size:12px;color:#d4af37;letter-spacing:1px;text-transform:uppercase;margin-top:15px;padding-bottom:5px;border-bottom:1px solid rgba(212,175,55,0.3)}
 @media (max-width: 768px){body{display:block;height:100vh;height:100dvh;overflow:hidden}body::after{display:none}#canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}.top-bar{z-index:10;top:calc(4px + env(safe-area-inset-top,0px));left:6px;right:6px;gap:6px}.info-panel{padding:5px 8px;gap:4px}.connect-block{padding-right:6px;gap:4px}.dot{width:7px;height:7px}#connect-btn{padding:3px 8px!important;font-size:10px!important;height:22px}.link-btn-wrapper .link-label{font-size:6px;letter-spacing:0.2px}.link-btn{width:28px;height:28px;min-width:28px}.link-btn svg{width:12px;height:12px}.gps-pair{gap:2px}.gps-pair .link-btn{width:26px;height:26px;min-width:26px}.gps-pair .link-btn svg{width:11px;height:11px}.gps-pair .reset-mini{width:22px;height:22px;min-width:22px}.gps-pair .reset-mini svg{width:9px;height:9px}.top-telemetry-overlay{top:50px;left:8px;gap:2px}.top-telemetry-overlay .ct-item .k{font-size:7px;min-width:28px}.top-telemetry-overlay .ct-item .v{font-size:11px}.top-telemetry-overlay .ct-item .v.limit{font-size:8px}.top-right-buttons{gap:6px}.circle-btn{width:42px;height:42px;font-size:13px;border-radius:8px}.circle-btn svg{width:22px;height:22px}.dashboard{position:absolute;bottom:0;left:0;width:100%;z-index:10;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 160px;grid-template-rows:auto auto auto;gap:6px;background:rgba(10,14,20,0.98);max-height:70vh;overflow-y:auto}.dashboard.collapsed{height:80px;min-height:80px;padding:6px 10px;display:flex;flex-direction:row;justify-content:center}.mini-strip{padding-left:0;gap:3px}.mini-strip-row{gap:4px}.mini-strip-labels span{font-size:7px;letter-spacing:0.2px}.mini-btn{height:34px;border-radius:6px}.mini-btn svg{width:17px;height:17px}.status-section{grid-column:1;grid-row:1}.tracking-section{grid-column:1;grid-row:2}.position-section{grid-column:1;grid-row:3}.dpad-section{grid-column:2;grid-row:1/span 3}.dash-section{gap:5px}.dash-section h3{display:none}input,select{padding:5px 6px;font-size:10px;height:30px}.btn{padding:5px 6px;font-size:10px;height:30px}.btn-grid{grid-template-columns:repeat(4,1fr);gap:4px}.btn-grid .btn{padding:6px 2px;font-size:9px;height:30px}.slewing-indicator{font-size:10px;height:28px;padding:4px}.speed-display{font-size:10px;padding:4px}.d-pad-container{height:100%}.d-pad{max-width:160px;gap:4px}.d-btn svg{width:24px;height:24px}.stop-btn{font-size:11px}.modal-box input,.modal-box select{height:44px;padding:8px 10px;font-size:14px}.modal-box select{padding:10px 34px 10px 12px}.side-menu{width:280px}}
 @media (max-width: 900px) and (orientation: landscape){.dashboard{grid-template-columns:1fr 1.3fr 0.7fr auto;grid-template-rows:auto;min-height:140px;height:auto;max-height:none}.d-pad{max-width:140px}}
+/* Badge spostato sotto la telemetria (mobile-safe: zero impatto sulle icone destre) */
+#syncBadge {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  margin: 6px 0 0 0 !important;
+  padding: 3px 8px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 180px !important;
+  font-size: 9px !important;
+  justify-content: flex-start !important;
+  align-self: flex-start !important;
+  pointer-events: auto !important;
+}
+#syncText {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 140px !important;
+  display: inline-block !important;
+}
 </style>
 <script>
 (function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V,LK='egastro_leader_v'+V;
@@ -1423,5 +1447,21 @@ document.addEventListener("DOMContentLoaded", () => {
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ready);
   else ready();
 })();
-</script></body>
+</script>
+<script>
+/* === BADGE → sotto la colonna telemetria === */
+(function(){
+  function moveBadge(){
+    const tel = document.getElementById('top-telemetry-overlay');
+    const sb  = document.getElementById('syncBadge');
+    if (!tel || !sb) return setTimeout(moveBadge, 200);
+    if (sb.parentElement === tel) return; // già spostato
+    tel.appendChild(sb);
+  }
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', moveBadge);
+  else moveBadge();
+})();
+</script>
+</body>
 </html>
