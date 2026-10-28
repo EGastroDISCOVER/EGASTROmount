@@ -683,7 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const wrapper = document.createElement('div');
   wrapper.id = 'skyPolarWrapper';
-  wrapper.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;z-index:9000;opacity:0;pointer-events:none;transition:opacity .35s ease;display:flex;flex-direction:column;align-items:flex-end;`;
+  wrapper.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;z-index:9000;opacity:0;pointer-events:none;transition:opacity .35s ease;display:flex;align-items:flex-start;gap:8px;`;
   
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
@@ -695,24 +695,9 @@ document.addEventListener("DOMContentLoaded", () => {
   wrapper.appendChild(container);
 
   const controlsBar = document.createElement('div');
-  controlsBar.style.cssText = 'display:flex; justify-content:flex-end; gap:8px; margin-top:8px; align-items:flex-end; width:100%;';
+  controlsBar.style.cssText = 'display:flex; gap:6px; align-items:flex-end;';
   
-  const sizeBox = document.createElement('div');
-  sizeBox.style.cssText = 'display:flex; flex-direction:column; gap:4px; background:rgba(13,18,28,0.9); padding:4px; border-radius:8px; border:1px solid rgba(212,175,55,0.4);';
-  [0.5, 0.75, 1.0].forEach(factor => {
-    const b = document.createElement('button');
-    b.textContent = factor === 0.5 ? '50%' : factor === 0.75 ? '75%' : '100%';
-    b.style.cssText = 'width:36px; height:20px; background:none; border:none; color:#aaa; font-size:9px; font-weight:bold; cursor:pointer; padding:0; border-radius:4px;';
-    b.onclick = (e) => {
-      e.stopPropagation();
-      sizeFactor = factor;
-      localStorage.setItem('egastro_polar_size', factor);
-      resizeMap();
-    };
-    sizeBox.appendChild(b);
-    b._factor = factor;
-  });
-  
+  // Zoom (a sinistra)
   const zoomBox = document.createElement('div');
   zoomBox.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
   ['+','−'].forEach((s,i) => {
@@ -722,8 +707,25 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomBox.appendChild(b);
   });
 
-  controlsBar.appendChild(sizeBox);
+  // Proporzioni (a destra dello zoom, come in foto)
+  const sizeBox = document.createElement('div');
+  sizeBox.style.cssText = 'display:flex; flex-direction:column; gap:4px; background:rgba(13,18,28,0.9); padding:4px; border-radius:8px; border:1px solid rgba(212,175,55,0.4);';
+  [0.5, 0.75, 1.0].forEach(factor => {
+    const b = document.createElement('button');
+    b.textContent = factor === 0.5 ? '50' : factor === 0.75 ? '75' : '100';
+    b.style.cssText = 'width:30px; height:20px; background:none; border:none; color:#aaa; font-size:10px; font-weight:bold; cursor:pointer; padding:0; border-radius:4px;';
+    b.onclick = (e) => {
+      e.stopPropagation();
+      sizeFactor = factor;
+      localStorage.setItem('egastro_polar_size', factor);
+      resizeMap();
+    };
+    sizeBox.appendChild(b);
+    b._factor = factor;
+  });
+
   controlsBar.appendChild(zoomBox);
+  controlsBar.appendChild(sizeBox);
   wrapper.appendChild(controlsBar);
   document.body.appendChild(wrapper);
 
