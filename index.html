@@ -681,12 +681,10 @@ document.addEventListener("DOMContentLoaded", () => {
   
   let sizeFactor = localStorage.getItem('egastro_polar_size') ? parseFloat(localStorage.getItem('egastro_polar_size')) : (window.innerWidth < 600 ? 0.5 : 1.0);
   
-  // Wrapper per spostare mappa e tasti
   const wrapper = document.createElement('div');
   wrapper.id = 'skyPolarWrapper';
   wrapper.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;z-index:9000;opacity:0;pointer-events:none;transition:opacity .35s ease;display:flex;flex-direction:column;align-items:flex-end;`;
   
-  // La mappa (mobile)
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
   container.style.cssText = `width:340px;height:340px;cursor:grab;user-select:none;touch-action:none;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));transition:width .2s, height .2s;position:relative;`;
@@ -696,13 +694,11 @@ document.addEventListener("DOMContentLoaded", () => {
   container.appendChild(cv);
   wrapper.appendChild(container);
 
-  // Controlli (sotto la mappa)
   const controlsBar = document.createElement('div');
-  controlsBar.style.cssText = 'display:flex; justify-content:flex-end; align-items:center; gap:4px; margin-top:-15px; width:100%; position:relative; z-index:10;';
+  controlsBar.style.cssText = 'display:flex; justify-content:flex-end; align-items:center; gap:4px; margin-top:8px; width:100%;';
   
-  // Zoom (spostato a sinistra per non coprire la mappa)
   const zoomBox = document.createElement('div');
-  zoomBox.style.cssText = 'display:flex; flex-direction:column; gap:4px; transform:translateX(-20px);';
+  zoomBox.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
   ['+','−'].forEach((s,i) => {
     const b = document.createElement('button'); b.textContent = s;
     b.style.cssText = 'width:24px;height:24px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;';
@@ -710,7 +706,6 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomBox.appendChild(b);
   });
 
-  // Proporzioni
   const sizeBox = document.createElement('div');
   sizeBox.style.cssText = 'display:flex; flex-direction:column; gap:2px; background:rgba(13,18,28,0.9); padding:2px; border-radius:6px; border:1px solid rgba(212,175,55,0.4);';
   [0.5, 0.75, 1.0].forEach(factor => {
