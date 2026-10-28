@@ -677,8 +677,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  // ============================================================
+  // MAPPA POLARE
+  // ============================================================
   const D2R = Math.PI/180, R2D = 180/Math.PI;
-  
   let sizeFactor = localStorage.getItem('egastro_polar_size') ? parseFloat(localStorage.getItem('egastro_polar_size')) : (window.innerWidth < 600 ? 0.5 : 1.0);
   
   const wrapper = document.createElement('div');
@@ -728,10 +730,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.appendChild(wrapper);
 
   const ctx = cv.getContext('2d');
-
   let SIZE = 340;
   let zoom = 1;
-  let camAz = 0;
 
   function resizeMap() {
     const baseSize = 340; 
@@ -803,7 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function galToEq(l,b){ const lR=l*D2R,bR=b*D2R; const xg=Math.cos(bR)*Math.cos(lR),yg=Math.cos(bR)*Math.sin(lR),zg=Math.sin(bR); const xe=-0.0548755604*xg+0.4941094279*yg-0.8676661490*zg; const ye=-0.8734370902*xg-0.4448296300*yg-0.1980763734*zg; const ze=-0.4838350155*xg+0.7469822445*yg+0.4559837762*zg; let ra=Math.atan2(ye,xe)*R2D; ra=((ra%360)+360)%360; return{ra,dec:Math.asin(Math.max(-1,Math.min(1,ze)))*R2D}; }
   for(let l=0;l<360;l+=2) for(let b=-9;b<=9;b+=2){ const dens=Math.exp(-(b*b)/(2*4.5*4.5)); if(Math.random()>dens*0.85+0.15)continue; const eq=galToEq(l+(Math.random()-0.5)*3,b+(Math.random()-0.5)*1.8); MW.push({ra:eq.ra,dec:eq.dec,size:1.8+Math.random()*2.8,alpha:0.035+dens*0.10}); }
 
-  function polar(alt, az) { const r = (SIZE/2-2) * zoom * (90-alt)/90; const azR = (az + camAz) * D2R; return { x: SIZE/2 + r*Math.sin(azR), y: SIZE/2 - r*Math.cos(azR), r }; }
+  function polar(alt, az) { const r = (SIZE/2-2) * zoom * (90-alt)/90; const azR = az * D2R; return { x: SIZE/2 + r*Math.sin(azR), y: SIZE/2 - r*Math.cos(azR), r }; }
   
   function draw() {
     if(!visible) { rafId = null; return; }
@@ -817,7 +817,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       ctx.strokeStyle = 'rgba(139,180,255,0.17)'; ctx.lineWidth = 0.7; 
       [30,60].forEach(alt => { const r = (SIZE/2-2)*zoom*(90-alt)/90; if(r<=SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,r,0,Math.PI*2); ctx.stroke(); } });
-      for(let az=0; az<360; az+=30){ const a = (az + camAz) * D2R; ctx.beginPath(); ctx.moveTo(SIZE/2,SIZE/2); ctx.lineTo(SIZE/2+SIZE*Math.sin(a), SIZE/2-SIZE*Math.cos(a)); ctx.stroke(); }
+      for(let az=0; az<360; az+=30){ const a = az*D2R; ctx.beginPath(); ctx.moveTo(SIZE/2,SIZE/2); ctx.lineTo(SIZE/2+SIZE*Math.sin(a), SIZE/2-SIZE*Math.cos(a)); ctx.stroke(); }
       
       if (CONST.length > 0) {
         ctx.strokeStyle='rgba(160, 200, 255, 0.6)'; ctx.lineWidth=1.1;
@@ -850,27 +850,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const tp = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (tp.alt >= 0) { const pt = polar(tp.alt, tp.az); if(pt.r <= SIZE/2) { ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x-10,pt.y); ctx.lineTo(pt.x-4,pt.y); ctx.moveTo(pt.x+4,pt.y); ctx.lineTo(pt.x+10,pt.y); ctx.stroke(); } }
     }
     ctx.restore();
-    [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => { 
-      const azR = (d.a + camAz) * D2R; 
-      ctx.fillStyle='#d4af37'; ctx.font='bold 11px Orbitron'; ctx.textAlign='center'; ctx.textBaseline='middle'; 
-      ctx.fillText(d.l, SIZE/2 + (SIZE/2-12)*Math.sin(azR), SIZE/2 - (SIZE/2-12)*Math.cos(azR)); 
-    });
+    [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => { ctx.fillStyle='#d4af37'; ctx.font='bold 11px Orbitron'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(d.l, SIZE/2 + (SIZE/2-12)*Math.sin(d.a*D2R), SIZE/2 - (SIZE/2-12)*Math.cos(d.a*D2R)); });
     rafId = requestAnimationFrame(draw);
   }
   
-  let drag = false, sx = 0, sy = 0, lastX = 0, lastY = 0, dragMoved = false;
-  container.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; pinchStartDist = Math.hypot(dx, dy); pinchStartZoom = zoom; drag = false; } else if (e.touches.length === 1) { if(e.target.tagName === 'BUTTON') return; drag = true; dragMoved = false; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; sx = lastX; sy = lastY; } }, { passive: false });
-  
-  container.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinchStartDist > 0) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; zoom = Math.max(1, Math.min(6, pinchStartZoom * (Math.hypot(dx, dy) / pinchStartDist))); } else if (drag && e.touches.length === 1) { const cx = e.touches[0].clientX, cy = e.touches[0].clientY; if (Math.abs(cx-sx)>3 || Math.abs(cy-sy)>3) dragMoved = true; if(dragMoved) { camAz = (camAz + (cx-lastX)*0.5) % 360; lastX = cx; lastY = cy; } } }, { passive: false });
-  
+  let drag = false, sx = 0, sy = 0, sl = 0, st = 0, pinchStartDist = 0, pinchStartZoom = 1;
+  container.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; pinchStartDist = Math.hypot(dx, dy); pinchStartZoom = zoom; drag = false; } else if (e.touches.length === 1) { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; } }, { passive: false });
+  container.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinchStartDist > 0) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; zoom = Math.max(1, Math.min(6, pinchStartZoom * (Math.hypot(dx, dy) / pinchStartDist))); } else if (drag && e.touches.length === 1) { const cx = e.touches[0].clientX, cy = e.touches[0].clientY; container.style.left = (sl + cx - sx) + 'px'; container.style.top = (st + cy - sy) + 'px'; container.style.right = 'auto'; } }, { passive: false });
   container.addEventListener('touchend', e => { if (e.touches.length < 2) pinchStartDist = 0; if (e.touches.length === 0) drag = false; });
-  
-  container.addEventListener('mousedown', e => { if(e.target.tagName === 'BUTTON') return; drag = true; dragMoved = false; lastX = e.clientX; lastY = e.clientY; sx = lastX; sy = lastY; });
-  window.addEventListener('mousemove', e => { if(!drag) return; if (Math.abs(e.clientX-sx)>3 || Math.abs(e.clientY-sy)>3) dragMoved = true; if(dragMoved) { camAz = (camAz + (e.clientX-lastX)*0.5) % 360; lastX = e.clientX; lastY = e.clientY; } });
+  container.addEventListener('mousedown', e => { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.clientX; sy = e.clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; });
+  window.addEventListener('mousemove', e => { if(!drag) return; container.style.left = (sl + e.clientX - sx) + 'px'; container.style.top = (st + e.clientY - sy) + 'px'; container.style.right = 'auto'; });
   window.addEventListener('mouseup', () => { drag = false; });
 
   container.addEventListener('click', (e) => {
-    if (dragMoved) return;
+    if (drag) return;
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left - SIZE/2;
     const y = e.clientY - rect.top - SIZE/2;
@@ -881,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const lon = (typeof MS !== 'undefined' && Number.isFinite(MS.gpsLon)) ? MS.gpsLon : 12.5;
     const alt = 90 - (r / (SIZE/2 - 2)) * 90 / zoom;
     let az = Math.atan2(x, -y) * 180 / Math.PI;
-    az = ((az - camAz) % 360 + 360) % 360;
+    az = ((az % 360) + 360) % 360;
 
     if (alt < -20) {
       if (typeof showToast === 'function') showToast('Bloccato: limite di -20° superato', true);
@@ -904,8 +897,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof showToast === 'function') showToast('Inviato GOTO al telescopio');
     }
   });
-  
-  let pinchStartDist = 0, pinchStartZoom = 1;
 
   if (typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     setTimeout(() => { const p = new URLSearchParams(window.location.search); const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon')); if (Number.isFinite(lat) && Number.isFinite(lon)) { MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true; if(typeof updateTelemetry==='function') updateTelemetry(); } }, 500);
