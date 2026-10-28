@@ -616,7 +616,7 @@ window.addEventListener('load',()=>{
 <div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
   <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
 </div>
-<!-- MENU A SCOMPARSA E MAPPA POLARE -->
+<!-- MENU A SCOMPARSA E MAPPA POLARE (CON SELEZIONE DIMENSIONE) -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -648,6 +648,7 @@ window.addEventListener('load',()=>{
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. POPUP E IFRAME
   if (window.self !== window.top) {
     setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
     window.showWelcomeModal = function() {};
@@ -659,6 +660,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // 2. MENU SWITCHER
   const sc = document.getElementById('app-switcher-container');
   const tg = document.getElementById('app-switcher-toggle');
   if (sc && tg) {
@@ -676,41 +678,47 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  // 3. MAPPA POLARE
   const D2R = Math.PI/180, R2D = 180/Math.PI;
   
+  // --- GESTIONE DIMENSIONE (50% / 75% / 100%) ---
+  // Valore di default: 50% se mobile, 100% se desktop
   let sizeFactor = localStorage.getItem('egastro_polar_size') ? parseFloat(localStorage.getItem('egastro_polar_size')) : (window.innerWidth < 600 ? 0.5 : 1.0);
   
-  // Contenitore esterno
-  const wrapper = document.createElement('div');
-  wrapper.id = 'skyPolarWrapper';
-  wrapper.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;z-index:9000;opacity:0;pointer-events:none;transition:opacity .35s ease;`;
-  
-  // Mappa rotonda
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
-  container.style.cssText = `width:340px;height:340px;cursor:grab;user-select:none;touch-action:none;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));transition:width .2s, height .2s;`;
+  // Usiamo variabili CSS per le dimensioni per poter cambiare dinamicamente
+  container.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;width:340px;height:340px;z-index:9000;cursor:grab;user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease, width .2s, height .2s;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
   
   const cv = document.createElement('canvas');
   cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.78;';
   container.appendChild(cv);
-  wrapper.appendChild(container);
-  document.body.appendChild(wrapper);
+  document.body.appendChild(container);
   const ctx = cv.getContext('2d');
 
   let SIZE = 340;
   let zoom = 1;
   
-  // Barra dei controlli (Sotto la mappa, allineata a destra)
-  const controlsBar = document.createElement('div');
-  controlsBar.style.cssText = 'display:flex; justify-content:flex-end; gap:8px; margin-top:8px; align-items:flex-end;';
-  
-  // Gruppo Proporzioni
+  // Contenitore per i controlli (Zoom e dimensioni)
+  const controlsBox = document.createElement('div');
+  controlsBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+  container.appendChild(controlsBox);
+
+  // Pulsanti Zoom (+/-)
+  ['+','−'].forEach((s,i) => {
+    const b = document.createElement('button'); b.textContent = s;
+    b.style.cssText = 'width:24px;height:24px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+    b.onclick = e => { e.stopPropagation(); zoom = Math.max(1, Math.min(6, zoom + (i===0?0.5:-0.5))); };
+    controlsBox.appendChild(b);
+  });
+
+  // Pulsanti Dimensione (50%, 75%, 100%)
   const sizeBox = document.createElement('div');
-  sizeBox.style.cssText = 'display:flex; gap:4px; background:rgba(0,0,0,0.6); padding:4px; border-radius:8px; border:1px solid rgba(212,175,55,0.4);';
+  sizeBox.style.cssText = 'position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:5;background:rgba(0,0,0,0.6);padding:4px;border-radius:10px;border:1px solid rgba(212,175,55,0.4);';
   [0.5, 0.75, 1.0].forEach(factor => {
     const b = document.createElement('button');
-    b.textContent = factor === 0.5 ? '50' : factor === 0.75 ? '75' : '100';
-    b.style.cssText = 'width:26px; height:22px; background:none; border:none; color:#aaa; font-size:10px; font-weight:bold; cursor:pointer; padding:0; border-radius:4px;';
+    b.textContent = factor === 0.5 ? '50%' : factor === 0.75 ? '75%' : '100%';
+    b.style.cssText = 'background:none; border:none; color:#aaa; font-size:10px; font-weight:bold; cursor:pointer; padding:2px 4px; border-radius:4px;';
     b.onclick = (e) => {
       e.stopPropagation();
       sizeFactor = factor;
@@ -720,22 +728,10 @@ document.addEventListener("DOMContentLoaded", () => {
     sizeBox.appendChild(b);
     b._factor = factor;
   });
-  
-  // Gruppo Zoom
-  const zoomBox = document.createElement('div');
-  zoomBox.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-  ['+','−'].forEach((s,i) => {
-    const b = document.createElement('button'); b.textContent = s;
-    b.style.cssText = 'width:24px;height:24px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;';
-    b.onclick = e => { e.stopPropagation(); zoom = Math.max(1, Math.min(6, zoom + (i===0?0.5:-0.5))); };
-    zoomBox.appendChild(b);
-  });
-
-  controlsBar.appendChild(sizeBox);
-  controlsBar.appendChild(zoomBox);
-  wrapper.appendChild(controlsBar);
+  container.appendChild(sizeBox);
 
   function resizeMap() {
+    // Dimensione base PC è 340px. La dimensione finale dipende dal fattore scelto.
     const baseSize = 340; 
     SIZE = Math.round(baseSize * sizeFactor);
     container.style.width = SIZE + 'px';
@@ -744,8 +740,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = SIZE * DPR;
     cv.height = SIZE * DPR;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // Reset trasformazione
     
+    // Aggiorna l'aspetto dei pulsanti attivi
     Array.from(sizeBox.children).forEach(b => {
       if (b._factor === sizeFactor) {
         b.style.background = '#d4af37';
@@ -757,6 +754,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
+  // Inizializza dimensioni
   resizeMap();
 
   const btn = document.createElement('div');
@@ -766,11 +764,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector('.top-right-buttons').appendChild(btn);
 
   let visible = false, rafId = null;
-  function toggle() { visible = !visible; wrapper.style.opacity = visible?'1':'0'; wrapper.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
+  function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
-  // CATALOGO COMPLETO (150+ stelle e 40 Messier integrati)
-  const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96},{n:"Bellatrix",ra:81.28,dec:6.35,mag:1.64},{n:"Alnilam",ra:84.05,dec:-1.20,mag:1.69},{n:"Alnitak",ra:85.19,dec:-1.94,mag:1.77},{n:"Saiph",ra:86.94,dec:-9.67,mag:2.07},{n:"Caph",ra:2.29,dec:59.15,mag:2.28},{n:"Schedar",ra:10.13,dec:56.54,mag:2.24},{n:"Gamma Cas",ra:14.18,dec:60.72,mag:2.47},{n:"Ruchbah",ra:21.45,dec:60.24,mag:2.68},{n:"Sadr",ra:305.56,dec:40.26,mag:2.23},{n:"Castore",ra:113.65,dec:31.89,mag:1.58},{n:"Pollux",ra:116.33,dec:28.03,mag:1.14},{n:"Regolo",ra:152.09,dec:11.97,mag:1.35},{n:"Spica",ra:201.30,dec:-11.16,mag:0.97},{n:"Alpheratz",ra:2.10,dec:29.09,mag:2.06},{n:"Mirach",ra:17.43,dec:35.62,mag:2.07},{n:"Almach",ra:30.97,dec:42.33,mag:2.10},{n:"Mirfak",ra:51.08,dec:49.86,mag:1.79},{n:"Algol",ra:47.04,dec:40.96,mag:2.09},{n:"Hamal",ra:31.79,dec:23.46,mag:2.00},{n:"Procyon",ra:114.83,dec:5.22,mag:0.34},{n:"Achernar",ra:24.43,dec:-57.24,mag:0.46},{n:"Fomalhaut",ra:344.41,dec:-29.62,mag:1.17},{n:"Acrux",ra:186.65,dec:-63.10,mag:0.77},{n:"Mimosa",ra:191.93,dec:-59.69,mag:1.25},{n:"Hadar",ra:210.96,dec:-60.37,mag:0.61},{n:"Rigil Kent",ra:219.90,dec:-60.83,mag:-0.27},{n:"Canopo",ra:95.99,dec:-52.70,mag:-0.74},{n:"Gacrux",ra:187.79,dec:-57.11,mag:1.59},{n:"Shaula",ra:263.40,dec:-37.10,mag:1.62},{n:"Sargas",ra:264.33,dec:-42.99,mag:1.84},{n:"Wezen",ra:107.10,dec:-26.39,mag:1.83},{n:"Adhara",ra:104.66,dec:-28.97,mag:1.50},{n:"Mirzam",ra:95.67,dec:-17.96,mag:1.98},{n:"Diphda",ra:10.90,dec:-17.99,mag:2.02},{n:"Enif",ra:326.05,dec:9.88,mag:2.39},{n:"Markab",ra:346.19,dec:15.21,mag:2.48},{n:"Scheat",ra:345.94,dec:28.08,mag:2.42},{n:"Algenib",ra:3.31,dec:15.18,mag:2.83},{n:"Menkar",ra:45.57,dec:4.09,mag:2.54},{n:"Unukalhai",ra:236.07,dec:6.43,mag:2.63},{n:"Sabik",ra:257.59,dec:-15.72,mag:2.43},{n:"Rasalhague",ra:263.73,dec:12.56,mag:2.08},{n:"Rasalgethi",ra:258.66,dec:14.39,mag:3.48},{n:"Kornephoros",ra:247.55,dec:21.49,mag:2.78},{n:"Alphard",ra:141.90,dec:-8.66,mag:2.00},{n:"Nunki",ra:283.82,dec:-26.30,mag:2.05}];
+  // DATI COMPLETI
+  const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
   const MESSIER = {M1:{ra:83.63,dec:22.01,t:"Neb"},M2:{ra:323.36,dec:-0.82,t:"Amm"},M3:{ra:205.55,dec:28.38,t:"Amm"},M4:{ra:245.90,dec:-26.53,t:"Amm"},M5:{ra:229.64,dec:2.08,t:"Amm"},M6:{ra:265.07,dec:-32.22,t:"Amm"},M7:{ra:268.46,dec:-34.79,t:"Amm"},M8:{ra:270.90,dec:-24.38,t:"Neb"},M11:{ra:282.77,dec:-6.27,t:"Amm"},M13:{ra:250.42,dec:36.46,t:"Amm"},M15:{ra:322.49,dec:12.17,t:"Amm"},M16:{ra:274.70,dec:-13.78,t:"Neb"},M17:{ra:275.20,dec:-16.17,t:"Neb"},M20:{ra:270.67,dec:-23.03,t:"Neb"},M22:{ra:279.10,dec:-23.90,t:"Amm"},M27:{ra:299.90,dec:22.72,t:"Neb"},M31:{ra:10.68,dec:41.26,t:"Gal"},M32:{ra:10.67,dec:40.87,t:"Gal"},M33:{ra:23.46,dec:30.66,t:"Gal"},M35:{ra:92.27,dec:24.33,t:"Amm"},M42:{ra:83.82,dec:-5.39,t:"Neb"},M44:{ra:130.10,dec:19.98,t:"Amm"},M45:{ra:56.75,dec:24.11,t:"Amm"},M51:{ra:202.47,dec:47.19,t:"Gal"},M57:{ra:283.39,dec:33.02,t:"Neb"},M63:{ra:198.84,dec:42.03,t:"Gal"},M64:{ra:194.18,dec:21.68,t:"Gal"},M65:{ra:169.73,dec:13.09,t:"Gal"},M66:{ra:170.06,dec:12.99,t:"Gal"},M78:{ra:86.69,dec:0.08,t:"Neb"},M81:{ra:148.80,dec:69.06,t:"Gal"},M82:{ra:148.97,dec:69.68,t:"Gal"},M83:{ra:204.25,dec:-29.87,t:"Gal"},M87:{ra:187.71,dec:12.39,t:"Gal"},M92:{ra:259.28,dec:43.14,t:"Amm"},M97:{ra:168.70,dec:55.02,t:"Neb"},M101:{ra:210.80,dec:54.35,t:"Gal"},M104:{ra:189.99,dec:-11.62,t:"Gal"},M106:{ra:184.74,dec:47.30,t:"Gal"}};
   const NEB_EXTRA = [{ra:311.5,dec:30.7},{ra:314.7,dec:44.3},{ra:60.8,dec:36.4},{ra:97.9,dec:5.0},{ra:38.3,dec:61.3},{ra:337.4,dec:-20.8},{ra:100.24,dec:9.89},{ra:328.33,dec:47.27},{ra:350.20,dec:61.20},{ra:13.30,dec:56.62}];
 
@@ -838,14 +836,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      STARS.forEach(s => { const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; const size = Math.max(1.2, 3.0-s.mag*0.5); ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill(); });
+      STARS.forEach(s => { const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; const size = Math.max(0.7, 2.6-s.mag*0.5); ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill(); });
 
-      Object.values(MESSIER).forEach(m => { const a = Astro.altAz(m.ra*D2R, m.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.strokeStyle = 'rgba(139,211,255,0.85)'; ctx.lineWidth = 1.2; ctx.beginPath(); if(m.t==='Gal') ctx.ellipse(pt.x,pt.y,4,2,0,0,Math.PI*2); else if(m.t==='Neb') ctx.rect(pt.x-2.5,pt.y-2.5,5,5); else ctx.arc(pt.x,pt.y,3,0,Math.PI*2); ctx.stroke(); });
+      Object.values(MESSIER).forEach(m => { const a = Astro.altAz(m.ra*D2R, m.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.strokeStyle = 'rgba(139,211,255,0.85)'; ctx.lineWidth = 0.9; ctx.beginPath(); if(m.t==='Gal') ctx.ellipse(pt.x,pt.y,3,1.8,0,0,Math.PI*2); else if(m.t==='Neb') ctx.rect(pt.x-2,pt.y-2,4,4); else ctx.arc(pt.x,pt.y,2,0,Math.PI*2); ctx.stroke(); });
 
-      NEB_EXTRA.forEach(n => { const a = Astro.altAz(n.ra*D2R, n.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI*2); ctx.strokeStyle = 'rgba(168,139,250,0.8)'; ctx.lineWidth = 1.2; ctx.stroke(); });
+      NEB_EXTRA.forEach(n => { const a = Astro.altAz(n.ra*D2R, n.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.beginPath(); ctx.arc(pt.x, pt.y, 2, 0, Math.PI*2); ctx.strokeStyle = 'rgba(168,139,250,0.8)'; ctx.lineWidth = 0.9; ctx.stroke(); });
 
       if (typeof calcPlanetsPrecise === 'function') {
-        calcPlanetsPrecise(date).forEach(p => { const a = p.alt !== undefined ? p : Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.fillStyle = p.color || '#d4af37'; ctx.beginPath(); ctx.arc(pt.x, pt.y, p.isSun || p.isMoon ? 5 : 3, 0, Math.PI*2); ctx.fill(); });
+        calcPlanetsPrecise(date).forEach(p => { const a = p.alt !== undefined ? p : Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.fillStyle = p.color || '#d4af37'; ctx.beginPath(); ctx.arc(pt.x, pt.y, p.isSun || p.isMoon ? 4 : 2.5, 0, Math.PI*2); ctx.fill(); });
       }
 
       const tp = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (tp.alt >= 0) { const pt = polar(tp.alt, tp.az); if(pt.r <= SIZE/2) { ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x-10,pt.y); ctx.lineTo(pt.x-4,pt.y); ctx.moveTo(pt.x+4,pt.y); ctx.lineTo(pt.x+10,pt.y); ctx.stroke(); } }
@@ -855,6 +853,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
   
+  // Eventi Touch / Mouse per trascinamento e zoom
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0, pinchStartDist = 0, pinchStartZoom = 1;
   container.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; pinchStartDist = Math.hypot(dx, dy); pinchStartZoom = zoom; drag = false; } else if (e.touches.length === 1) { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; } }, { passive: false });
   container.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinchStartDist > 0) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; zoom = Math.max(1, Math.min(6, pinchStartZoom * (Math.hypot(dx, dy) / pinchStartDist))); } else if (drag && e.touches.length === 1) { const cx = e.touches[0].clientX, cy = e.touches[0].clientY; container.style.left = (sl + cx - sx) + 'px'; container.style.top = (st + cy - sy) + 'px'; container.style.right = 'auto'; } }, { passive: false });
@@ -863,6 +862,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('mousemove', e => { if(!drag) return; container.style.left = (sl + e.clientX - sx) + 'px'; container.style.top = (st + e.clientY - sy) + 'px'; container.style.right = 'auto'; });
   window.addEventListener('mouseup', () => { drag = false; });
 
+  // 4. SYNC BUS
   if (typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     setTimeout(() => { const p = new URLSearchParams(window.location.search); const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon')); if (Number.isFinite(lat) && Number.isFinite(lon)) { MS.gpsLat = lat; MS.gpsLon = lon; MS.gpsActive = true; if(typeof updateTelemetry==='function') updateTelemetry(); } }, 500);
     function buildState() { try { const astro = (typeof getAstroCoords === 'function') ? getAstroCoords() : { ra: MS.ra, dec: MS.dec }; return { ra: astro.ra, dec: astro.dec, raMech: MS.ra, decMech: MS.dec, tracking: MS.tracking, slewMode: MS.slewMode, isParked: MS.isParked, connected: MS.connected, simulated: MS.simulated, gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive }; } catch (e) { return null; } }
