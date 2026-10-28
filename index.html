@@ -163,12 +163,46 @@ input:focus,select:focus{border-color:#d4af37;box-shadow:0 0 10px rgba(212,175,5
 @media (max-width: 768px){body{display:block;height:100vh;height:100dvh;overflow:hidden}body::after{display:none}#canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}.top-bar{z-index:10;top:calc(4px + env(safe-area-inset-top,0px));left:6px;right:6px;gap:6px}.info-panel{padding:5px 8px;gap:4px}.connect-block{padding-right:6px;gap:4px}.dot{width:7px;height:7px}#connect-btn{padding:3px 8px!important;font-size:10px!important;height:22px}.link-btn-wrapper .link-label{font-size:6px;letter-spacing:0.2px}.link-btn{width:28px;height:28px;min-width:28px}.link-btn svg{width:12px;height:12px}.gps-pair{gap:2px}.gps-pair .link-btn{width:26px;height:26px;min-width:26px}.gps-pair .link-btn svg{width:11px;height:11px}.gps-pair .reset-mini{width:22px;height:22px;min-width:22px}.gps-pair .reset-mini svg{width:9px;height:9px}.top-telemetry-overlay{top:50px;left:8px;gap:2px}.top-telemetry-overlay .ct-item .k{font-size:7px;min-width:28px}.top-telemetry-overlay .ct-item .v{font-size:11px}.top-telemetry-overlay .ct-item .v.limit{font-size:8px}.top-right-buttons{gap:6px}.circle-btn{width:42px;height:42px;font-size:13px;border-radius:8px}.circle-btn svg{width:22px;height:22px}.dashboard{position:absolute;bottom:0;left:0;width:100%;z-index:10;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 160px;grid-template-rows:auto auto auto;gap:6px;background:rgba(10,14,20,0.98);max-height:70vh;overflow-y:auto}.dashboard.collapsed{height:80px;min-height:80px;padding:6px 10px;display:flex;flex-direction:row;justify-content:center}.mini-strip{padding-left:0;gap:3px}.mini-strip-row{gap:4px}.mini-strip-labels span{font-size:7px;letter-spacing:0.2px}.mini-btn{height:34px;border-radius:6px}.mini-btn svg{width:17px;height:17px}.status-section{grid-column:1;grid-row:1}.tracking-section{grid-column:1;grid-row:2}.position-section{grid-column:1;grid-row:3}.dpad-section{grid-column:2;grid-row:1/span 3}.dash-section{gap:5px}.dash-section h3{display:none}input,select{padding:5px 6px;font-size:10px;height:30px}.btn{padding:5px 6px;font-size:10px;height:30px}.btn-grid{grid-template-columns:repeat(4,1fr);gap:4px}.btn-grid .btn{padding:6px 2px;font-size:9px;height:30px}.slewing-indicator{font-size:10px;height:28px;padding:4px}.speed-display{font-size:10px;padding:4px}.d-pad-container{height:100%}.d-pad{max-width:160px;gap:4px}.d-btn svg{width:24px;height:24px}.stop-btn{font-size:11px}.modal-box input,.modal-box select{height:44px;padding:8px 10px;font-size:14px}.modal-box select{padding:10px 34px 10px 12px}.side-menu{width:280px}}
 @media (max-width: 900px) and (orientation: landscape){.dashboard{grid-template-columns:1fr 1.3fr 0.7fr auto;grid-template-rows:auto;min-height:140px;height:auto;max-height:none}.d-pad{max-width:140px}}
 </style>
+<script>
+(function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V,LK='egastro_leader_v'+V;
+function aid(){var m=document.querySelector('meta[name="app-id"]');if(m&&m.content){var v=String(m.content).trim().toLowerCase();if(v==='mount'||v==='observatory')return v}if(document.getElementById('dpad-grid'))return'mount';return'observatory'}
+var A=aid(),I=A+'-'+Math.random().toString(36).slice(2,8),bc=null;try{bc=new BroadcastChannel(C)}catch(e){}
+var ls=new Map(),pa=new Map(),pr={alive:!1,id:null,lastSeen:0,helloBackAt:0},ov=0,iv=new Map();
+function mm(t,d,id){return{v:V,type:t,data:d||null,from:A,instance:I,ts:Date.now(),id:id||(Math.random().toString(36).slice(2)+Date.now().toString(36))}}
+function dis(m){if(!m||!m.type||!m.from)return;if(m.from===A)return;pr.alive=!0;pr.id=m.from;pr.lastSeen=Date.now();
+if(m.type==='ping'){snd('pong');return}if(m.type==='pong')return;
+if(m.type==='hello'){var n=Date.now();if(n-pr.helloBackAt>300){pr.helloBackAt=n;setTimeout(function(){snd('hello')},30+Math.random()*50)}return}
+if(m.type==='ack'){var p=pa.get(m.data&&m.data.id);if(p){clearTimeout(p.timer);pa.delete(m.data.id);p.resolve(!0)}return}
+if(m.data&&Number.isFinite(m.data.__v)){var l=iv.get(m.from)||0;if(m.data.__v<=l)return;iv.set(m.from,m.data.__v)}
+if(m.data&&m.data.__needAck&&m.data.__ackId)snd('ack',{id:m.data.__ackId});
+var h=ls.get(m.type);if(h)h.forEach(function(f){try{f(m.data,m)}catch(e){console.error('[SyncBus]',m.type,e)}});
+var a=ls.get('*');if(a)a.forEach(function(f){try{f(m.data,m)}catch(e){}})}
+var lsd=0;function rs(m){if(bc){try{bc.postMessage(m)}catch(e){}}else{try{m.nonce=Math.random();localStorage.setItem(L,JSON.stringify(m))}catch(e){}}}
+function snd(t,d){var n=Date.now();if(n-lsd<16){setTimeout(function(){snd(t,d)},16);return}lsd=n;if(d&&d.__isState)d.__v=++ov;rs(mm(t,d))}
+function swa(t,d,to){return new Promise(function(r){var ai='ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),pl=Object.assign({},d||{},{__needAck:!0,__ackId:ai}),m=mm(t,pl),tm=setTimeout(function(){pa.delete(ai);r(!1)},to||4000);pa.set(ai,{resolve:r,timer:tm});rs(m)})}
+function on(t,f){if(!ls.has(t))ls.set(t,[]);ls.get(t).push(f);return function(){var ar=ls.get(t);if(!ar)return;var i=ar.indexOf(f);if(i>=0)ar.splice(i,1)}}
+function glr(){try{return JSON.parse(localStorage.getItem(LK)||'null')}catch(e){return null}}
+function slr(){try{localStorage.setItem(LK,JSON.stringify({instance:I,app:A,expiresAt:Date.now()+6000}))}catch(e){}}
+function il(){if(A!=='mount')return!1;var r=glr();return!!(r&&r.instance===I&&r.expiresAt>Date.now())}
+function rl(){if(A!=='mount')return!1;var r=glr();if(!r||r.expiresAt<=Date.now()){slr();return!0}return r.instance===I}
+var lt=null;function slrr(){if(A!=='mount'||lt)return;rl();lt=setInterval(function(){if(il())slr()},3000)}
+function stlr(){if(lt){clearInterval(lt);lt=null}try{var r=glr();if(r&&r.instance===I)localStorage.removeItem(LK)}catch(e){}}
+if(bc)bc.onmessage=function(e){dis(e.data)};else g.addEventListener('storage',function(e){if(e.key!==L||!e.newValue)return;try{dis(JSON.parse(e.newValue))}catch(e){}});
+var pt=null;function st(){if(pt)return;[100,300,700,1500].forEach(function(ms){setTimeout(function(){snd('hello')},ms)});slrr();pt=setInterval(function(){snd('ping');if(Date.now()-pr.lastSeen>12000){if(pr.alive){pr.alive=!1;var h=ls.get('peer_offline');if(h)h.forEach(function(f){try{f()}catch(e){}})}}},2000)}
+function sp(){if(pt)clearInterval(pt);pt=null;stlr();if(bc)try{bc.close()}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){pr.helloBackAt=0;snd('hello')}});
+g.addEventListener('focus',function(){snd('hello')});
+g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
+console.log('[SyncBus v'+V+' INLINE] '+A+' / '+I+' · '+(bc?'BC':'LS'));
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
+</script>
 </head>
 <body>
 <div id="canvas-container"></div>
 <div class="top-bar">
 <div class="info-panel" id="info-panel">
 <div class="connect-block"><div class="dot" id="status-dot"></div><button class="btn primary" id="connect-btn" onclick="toggleConnection()">Connetti</button></div>
+<div id="syncBadge" style="display:flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; border:1px solid #6b778c; background:rgba(107,119,140,0.15); font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.5px; transition:all 0.3s; flex-shrink:0;"><span id="syncDot" style="font-size:10px; color:#6b778c;">●</span><span id="syncText">SYNC</span></div>
 <div class="link-btn-wrapper gps-wrapper"><div class="gps-pair"><button class="link-btn reset-mini" onclick="clearGPSCoordinates()" title="Reset coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button><button class="link-btn" id="gps-btn" onclick="openGPSManualModal()" title="Inserisci coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path></svg></button></div><span class="link-label">GPS</span></div>
 <div class="link-btn-wrapper"><button class="link-btn" id="wifiBtn" onclick="toggleWifi()" title="WiFi"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></button><span class="link-label">WIFI</span></div>
 <div class="link-btn-wrapper"><button class="link-btn" id="btBtn" onclick="toggleBt()" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg></button><span class="link-label">BT</span></div>
@@ -591,7 +625,7 @@ window.addEventListener('resize',recalibrateLayout);
 window.addEventListener('orientationchange',()=>{setTimeout(recalibrateLayout,250);setTimeout(recalibrateLayout,600)});
 setInterval(()=>{if(MS.connected)saveFullState()},5000);
 window.addEventListener('beforeunload',saveFullState);
-window.addEventListener('unload',saveFullState);
+/* unload listener disabled by OK patch */
 window.addEventListener('pagehide',saveFullState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
 
@@ -751,7 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('mouseup', () => { drag = false; });
 
   // 4. SYNC BUS
-  if (typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
+  if (false && typeof SyncBus !== 'undefined' && typeof MS !== 'undefined') {
     setTimeout(() => {
       const p = new URLSearchParams(window.location.search);
       const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon'));
@@ -1007,6 +1041,23 @@ document.addEventListener("DOMContentLoaded", () => {
     isLeader: () => isLeader,
     isReadonly: () => isReadonly
   };
+})();
+</script>
+<script>
+(function() {
+  function u() {
+    var b=document.getElementById('syncBadge'),d=document.getElementById('syncDot'),t=document.getElementById('syncText');
+    if(!b||!d||!t)return;
+    if(typeof SyncBus==='undefined'){b.style.borderColor='#6b778c';b.style.background='rgba(107,119,140,0.15)';d.style.color='#6b778c';t.textContent='NO BUS';return;}
+    if(window.__READONLY__){b.style.borderColor='#fbbf24';b.style.background='rgba(251,191,36,0.15)';d.style.color='#fbbf24';t.textContent='READONLY';return;}
+    if(SyncBus.isLeader&&SyncBus.isLeader()){
+      if(SyncBus.isPeerAlive()){b.style.borderColor='#4ade80';b.style.background='rgba(74,222,128,0.15)';d.style.color='#4ade80';t.textContent='LEADER ✓ MASTER';}
+      else{b.style.borderColor='#8bd3ff';b.style.background='rgba(139,211,255,0.15)';d.style.color='#8bd3ff';t.textContent='LEADER';}
+      return;
+    }
+    b.style.borderColor='#6b778c';d.style.color='#6b778c';t.textContent='SLAVE';
+  }
+  setInterval(u,1000);u();
 })();
 </script>
 </body>
