@@ -617,7 +617,7 @@ window.addEventListener('load',()=>{
   <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
-<!-- MENU A SCOMPARSA E MAPPA POLARE (89 COSTELLAZIONI) -->
+<!-- MENU A SCOMPARSA E MAPPA POLARE (CON SELEZIONE DIMENSIONE) -->
 <style>
   #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 24px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
@@ -649,7 +649,7 @@ window.addEventListener('load',()=>{
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. GESTIONE POPUP E IFRAME
+  // 1. POPUP E IFRAME
   if (window.self !== window.top) {
     setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
     window.showWelcomeModal = function() {};
@@ -681,32 +681,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 3. MAPPA POLARE
   const D2R = Math.PI/180, R2D = 180/Math.PI;
-  const isMobile = window.innerWidth < 600;
-  const SIZE = isMobile ? 220 : 340;
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  
+  // --- GESTIONE DIMENSIONE (50% / 75% / 100%) ---
+  // Valore di default: 50% se mobile, 100% se desktop
+  let sizeFactor = localStorage.getItem('egastro_polar_size') ? parseFloat(localStorage.getItem('egastro_polar_size')) : (window.innerWidth < 600 ? 0.5 : 1.0);
   
   const container = document.createElement('div');
   container.id = 'skyPolarContainer';
-  container.style.cssText = `position:fixed;top:${isMobile ? '150px' : '240px'};right:15px;width:${SIZE}px;height:${SIZE}px;z-index:9000;cursor:grab;user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
+  // Usiamo variabili CSS per le dimensioni per poter cambiare dinamicamente
+  container.style.cssText = `position:fixed;top:${window.innerWidth < 600 ? '120px' : '240px'};right:15px;width:340px;height:340px;z-index:9000;cursor:grab;user-select:none;touch-action:none;opacity:0;pointer-events:none;transition:opacity .35s ease, width .2s, height .2s;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));`;
   
   const cv = document.createElement('canvas');
   cv.style.cssText = 'width:100%;height:100%;display:block;border-radius:50%;opacity:0.78;';
-  cv.width = SIZE*DPR; cv.height = SIZE*DPR;
   container.appendChild(cv);
   document.body.appendChild(container);
   const ctx = cv.getContext('2d');
-  ctx.scale(DPR, DPR);
 
+  let SIZE = 340;
   let zoom = 1;
-  const zoomBox = document.createElement('div');
-  zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+  
+  // Contenitore per i controlli (Zoom e dimensioni)
+  const controlsBox = document.createElement('div');
+  controlsBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+  container.appendChild(controlsBox);
+
+  // Pulsanti Zoom (+/-)
   ['+','−'].forEach((s,i) => {
     const b = document.createElement('button'); b.textContent = s;
     b.style.cssText = 'width:24px;height:24px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;';
     b.onclick = e => { e.stopPropagation(); zoom = Math.max(1, Math.min(6, zoom + (i===0?0.5:-0.5))); };
-    zoomBox.appendChild(b);
+    controlsBox.appendChild(b);
   });
-  container.appendChild(zoomBox);
+
+  // Pulsanti Dimensione (50%, 75%, 100%)
+  const sizeBox = document.createElement('div');
+  sizeBox.style.cssText = 'position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:5;background:rgba(0,0,0,0.6);padding:4px;border-radius:10px;border:1px solid rgba(212,175,55,0.4);';
+  [0.5, 0.75, 1.0].forEach(factor => {
+    const b = document.createElement('button');
+    b.textContent = factor === 0.5 ? '50%' : factor === 0.75 ? '75%' : '100%';
+    b.style.cssText = 'background:none; border:none; color:#aaa; font-size:10px; font-weight:bold; cursor:pointer; padding:2px 4px; border-radius:4px;';
+    b.onclick = (e) => {
+      e.stopPropagation();
+      sizeFactor = factor;
+      localStorage.setItem('egastro_polar_size', factor);
+      resizeMap();
+    };
+    sizeBox.appendChild(b);
+    b._factor = factor;
+  });
+  container.appendChild(sizeBox);
+
+  function resizeMap() {
+    // Dimensione base PC è 340px. La dimensione finale dipende dal fattore scelto.
+    const baseSize = 340; 
+    SIZE = Math.round(baseSize * sizeFactor);
+    container.style.width = SIZE + 'px';
+    container.style.height = SIZE + 'px';
+    
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = SIZE * DPR;
+    cv.height = SIZE * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // Reset trasformazione
+    
+    // Aggiorna l'aspetto dei pulsanti attivi
+    Array.from(sizeBox.children).forEach(b => {
+      if (b._factor === sizeFactor) {
+        b.style.background = '#d4af37';
+        b.style.color = '#000';
+      } else {
+        b.style.background = 'none';
+        b.style.color = '#aaa';
+      }
+    });
+  }
+  
+  // Inizializza dimensioni
+  resizeMap();
 
   const btn = document.createElement('div');
   btn.className = 'circle-btn'; btn.id = 'skyPolarBtn'; btn.title = 'Mappa Polare';
@@ -718,9 +768,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggle() { visible = !visible; container.style.opacity = visible?'1':'0'; container.style.pointerEvents = visible?'auto':'none'; btn.classList.toggle('gps-active', visible); if(visible && !rafId) draw(); }
   btn.onclick = toggle;
 
+  // DATI COMPLETI
   const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Phecda",ra:178.46,dec:53.69,mag:2.44},{n:"Megrez",ra:183.86,dec:57.03,mag:3.31},{n:"Alioth",ra:193.51,dec:55.96,mag:1.77},{n:"Mizar",ra:200.98,dec:54.93,mag:2.23},{n:"Alkaid",ra:206.88,dec:49.31,mag:1.86},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Altair",ra:297.70,dec:8.87,mag:0.76},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46},{n:"Capella",ra:79.17,dec:45.99,mag:0.08},{n:"Rigel",ra:78.63,dec:-8.20,mag:0.13},{n:"Betelgeuse",ra:88.79,dec:7.41,mag:0.42},{n:"Aldebaran",ra:68.98,dec:16.51,mag:0.86},{n:"Antares",ra:247.35,dec:-26.43,mag:0.96}];
-  
-  // CARICAMENTO COSTELLAZIONI (da cache o dal repository del Pianeta)
+  const MESSIER = {M1:{ra:83.63,dec:22.01,t:"Neb"},M2:{ra:323.36,dec:-0.82,t:"Amm"},M3:{ra:205.55,dec:28.38,t:"Amm"},M4:{ra:245.90,dec:-26.53,t:"Amm"},M5:{ra:229.64,dec:2.08,t:"Amm"},M6:{ra:265.07,dec:-32.22,t:"Amm"},M7:{ra:268.46,dec:-34.79,t:"Amm"},M8:{ra:270.90,dec:-24.38,t:"Neb"},M11:{ra:282.77,dec:-6.27,t:"Amm"},M13:{ra:250.42,dec:36.46,t:"Amm"},M15:{ra:322.49,dec:12.17,t:"Amm"},M16:{ra:274.70,dec:-13.78,t:"Neb"},M17:{ra:275.20,dec:-16.17,t:"Neb"},M20:{ra:270.67,dec:-23.03,t:"Neb"},M22:{ra:279.10,dec:-23.90,t:"Amm"},M27:{ra:299.90,dec:22.72,t:"Neb"},M31:{ra:10.68,dec:41.26,t:"Gal"},M32:{ra:10.67,dec:40.87,t:"Gal"},M33:{ra:23.46,dec:30.66,t:"Gal"},M35:{ra:92.27,dec:24.33,t:"Amm"},M42:{ra:83.82,dec:-5.39,t:"Neb"},M44:{ra:130.10,dec:19.98,t:"Amm"},M45:{ra:56.75,dec:24.11,t:"Amm"},M51:{ra:202.47,dec:47.19,t:"Gal"},M57:{ra:283.39,dec:33.02,t:"Neb"},M63:{ra:198.84,dec:42.03,t:"Gal"},M64:{ra:194.18,dec:21.68,t:"Gal"},M65:{ra:169.73,dec:13.09,t:"Gal"},M66:{ra:170.06,dec:12.99,t:"Gal"},M78:{ra:86.69,dec:0.08,t:"Neb"},M81:{ra:148.80,dec:69.06,t:"Gal"},M82:{ra:148.97,dec:69.68,t:"Gal"},M83:{ra:204.25,dec:-29.87,t:"Gal"},M87:{ra:187.71,dec:12.39,t:"Gal"},M92:{ra:259.28,dec:43.14,t:"Amm"},M97:{ra:168.70,dec:55.02,t:"Neb"},M101:{ra:210.80,dec:54.35,t:"Gal"},M104:{ra:189.99,dec:-11.62,t:"Gal"},M106:{ra:184.74,dec:47.30,t:"Gal"}};
+  const NEB_EXTRA = [{ra:311.5,dec:30.7},{ra:314.7,dec:44.3},{ra:60.8,dec:36.4},{ra:97.9,dec:5.0},{ra:38.3,dec:61.3},{ra:337.4,dec:-20.8},{ra:100.24,dec:9.89},{ra:328.33,dec:47.27},{ra:350.20,dec:61.20},{ra:13.30,dec:56.62}];
+
   let CONST = [];
   function loadConstellationsData() {
     const cached = localStorage.getItem('egastro_constellations_v2');
@@ -787,6 +839,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       STARS.forEach(s => { const a = Astro.altAz(s.ra*D2R, s.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; const size = Math.max(0.7, 2.6-s.mag*0.5); ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = s.mag<1?'#fff':(s.mag<2?'#e0e8ff':'#aabbcc'); ctx.fill(); });
 
+      Object.values(MESSIER).forEach(m => { const a = Astro.altAz(m.ra*D2R, m.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.strokeStyle = 'rgba(139,211,255,0.85)'; ctx.lineWidth = 0.9; ctx.beginPath(); if(m.t==='Gal') ctx.ellipse(pt.x,pt.y,3,1.8,0,0,Math.PI*2); else if(m.t==='Neb') ctx.rect(pt.x-2,pt.y-2,4,4); else ctx.arc(pt.x,pt.y,2,0,Math.PI*2); ctx.stroke(); });
+
+      NEB_EXTRA.forEach(n => { const a = Astro.altAz(n.ra*D2R, n.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.beginPath(); ctx.arc(pt.x, pt.y, 2, 0, Math.PI*2); ctx.strokeStyle = 'rgba(168,139,250,0.8)'; ctx.lineWidth = 0.9; ctx.stroke(); });
+
+      if (typeof calcPlanetsPrecise === 'function') {
+        calcPlanetsPrecise(date).forEach(p => { const a = p.alt !== undefined ? p : Astro.altAz(p.ra*D2R, p.dec*D2R, lat, lon, date); if(a.alt < 0) return; const pt = polar(a.alt, a.az); if(pt.r > SIZE/2) return; ctx.fillStyle = p.color || '#d4af37'; ctx.beginPath(); ctx.arc(pt.x, pt.y, p.isSun || p.isMoon ? 4 : 2.5, 0, Math.PI*2); ctx.fill(); });
+      }
+
       const tp = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (tp.alt >= 0) { const pt = polar(tp.alt, tp.az); if(pt.r <= SIZE/2) { ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x-10,pt.y); ctx.lineTo(pt.x-4,pt.y); ctx.moveTo(pt.x+4,pt.y); ctx.lineTo(pt.x+10,pt.y); ctx.stroke(); } }
     }
     ctx.restore();
@@ -794,6 +854,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rafId = requestAnimationFrame(draw);
   }
   
+  // Eventi Touch / Mouse per trascinamento e zoom
   let drag = false, sx = 0, sy = 0, sl = 0, st = 0, pinchStartDist = 0, pinchStartZoom = 1;
   container.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; pinchStartDist = Math.hypot(dx, dy); pinchStartZoom = zoom; drag = false; } else if (e.touches.length === 1) { if(e.target.tagName === 'BUTTON') return; drag = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; const r = container.getBoundingClientRect(); sl = r.left; st = r.top; } }, { passive: false });
   container.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinchStartDist > 0) { e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; zoom = Math.max(1, Math.min(6, pinchStartZoom * (Math.hypot(dx, dy) / pinchStartDist))); } else if (drag && e.touches.length === 1) { const cx = e.touches[0].clientX, cy = e.touches[0].clientY; container.style.left = (sl + cx - sx) + 'px'; container.style.top = (st + cy - sy) + 'px'; container.style.right = 'auto'; } }, { passive: false });
