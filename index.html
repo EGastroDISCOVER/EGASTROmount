@@ -196,6 +196,38 @@ g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'
 console.log('[SyncBus v'+V+' INLINE] '+A+' / '+I+' · '+(bc?'BC':'LS'));
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
 </script>
+<script>
+(function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V,LK='egastro_leader_v'+V;
+function aid(){var m=document.querySelector('meta[name="app-id"]');if(m&&m.content){var v=String(m.content).trim().toLowerCase();if(v==='mount'||v==='observatory')return v}if(document.getElementById('dpad-grid'))return'mount';return'observatory'}
+var A=aid(),I=A+'-'+Math.random().toString(36).slice(2,8),bc=null;try{bc=new BroadcastChannel(C)}catch(e){}
+var ls=new Map(),pa=new Map(),pr={alive:!1,id:null,lastSeen:0,helloBackAt:0},ov=0,iv=new Map();
+function mm(t,d,id){return{v:V,type:t,data:d||null,from:A,instance:I,ts:Date.now(),id:id||(Math.random().toString(36).slice(2)+Date.now().toString(36))}}
+function dis(m){if(!m||!m.type||!m.from)return;if(m.from===A)return;pr.alive=!0;pr.id=m.from;pr.lastSeen=Date.now();
+if(m.type==='ping'){snd('pong');return}if(m.type==='pong')return;
+if(m.type==='hello'){var n=Date.now();if(n-pr.helloBackAt>300){pr.helloBackAt=n;setTimeout(function(){snd('hello')},30+Math.random()*50)}return}
+if(m.type==='ack'){var p=pa.get(m.data&&m.data.id);if(p){clearTimeout(p.timer);pa.delete(m.data.id);p.resolve(!0)}return}
+if(m.data&&Number.isFinite(m.data.__v)){var l=iv.get(m.from)||0;if(m.data.__v<=l)return;iv.set(m.from,m.data.__v)}
+if(m.data&&m.data.__needAck&&m.data.__ackId)snd('ack',{id:m.data.__ackId});
+var h=ls.get(m.type);if(h)h.forEach(function(f){try{f(m.data,m)}catch(e){}});
+var a=ls.get('*');if(a)a.forEach(function(f){try{f(m.data,m)}catch(e){}})}
+var lsd=0;function rs(m){if(bc){try{bc.postMessage(m)}catch(e){}}else{try{m.nonce=Math.random();localStorage.setItem(L,JSON.stringify(m))}catch(e){}}}
+function snd(t,d){var n=Date.now();if(n-lsd<16){setTimeout(function(){snd(t,d)},16);return}lsd=n;if(d&&d.__isState)d.__v=++ov;rs(mm(t,d))}
+function swa(t,d,to){return new Promise(function(r){var ai='ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),pl=Object.assign({},d||{},{__needAck:!0,__ackId:ai}),m=mm(t,pl),tm=setTimeout(function(){pa.delete(ai);r(!1)},to||4000);pa.set(ai,{resolve:r,timer:tm});rs(m)})}
+function on(t,f){if(!ls.has(t))ls.set(t,[]);ls.get(t).push(f);return function(){var ar=ls.get(t);if(!ar)return;var i=ar.indexOf(f);if(i>=0)ar.splice(i,1)}}
+function glr(){try{return JSON.parse(localStorage.getItem(LK)||'null')}catch(e){return null}}
+function slr(){try{localStorage.setItem(LK,JSON.stringify({instance:I,app:A,expiresAt:Date.now()+6000}))}catch(e){}}
+function il(){if(A!=='mount')return!1;var r=glr();return!!(r&&r.instance===I&&r.expiresAt>Date.now())}
+function rl(){if(A!=='mount')return!1;var r=glr();if(!r||r.expiresAt<=Date.now()){slr();return!0}return r.instance===I}
+var lt=null;function slrr(){if(A!=='mount'||lt)return;rl();lt=setInterval(function(){if(il())slr()},3000)}
+function stlr(){if(lt){clearInterval(lt);lt=null}try{var r=glr();if(r&&r.instance===I)localStorage.removeItem(LK)}catch(e){}}
+if(bc)bc.onmessage=function(e){dis(e.data)};else g.addEventListener('storage',function(e){if(e.key!==L||!e.newValue)return;try{dis(JSON.parse(e.newValue))}catch(e){}});
+var pt=null;function st(){if(pt)return;[100,300,700,1500].forEach(function(ms){setTimeout(function(){snd('hello')},ms)});slrr();pt=setInterval(function(){snd('ping');if(Date.now()-pr.lastSeen>12000){if(pr.alive){pr.alive=!1;var h=ls.get('peer_offline');if(h)h.forEach(function(f){try{f()}catch(e){}})}}},2000)}
+function sp(){if(pt)clearInterval(pt);pt=null;stlr();if(bc)try{bc.close()}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){pr.helloBackAt=0;snd('hello')}});
+g.addEventListener('focus',function(){snd('hello')});
+g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
+</script>
 </head>
 <body>
 <div id="canvas-container"></div>
@@ -1058,6 +1090,179 @@ document.addEventListener("DOMContentLoaded", () => {
     b.style.borderColor='#6b778c';d.style.color='#6b778c';t.textContent='SLAVE';
   }
   setInterval(u,1000);u();
+})();
+</script>
+<script>
+/* ============================================================
+   EGASTROmount SATELLITE — PATCH DEFINITIVE INTEGRATE
+   ============================================================ */
+(function() {
+  if (window.__egastromountPatched) return;
+  window.__egastromountPatched = true;
+
+  if (!window.__satGPS) window.__satGPS = { lat: 41.0723, lon: 14.3329 };
+
+  // Override getLST e getAltAz (usano __satGPS, non state)
+  window.getLST = function() {
+    var now = new Date();
+    var jd = now.getTime()/86400000 + 2440587.5;
+    var T = (jd - 2451545.0)/36525.0;
+    var g = 280.46061837 + 360.98564736629*(jd-2451545.0) + 0.000387933*T*T - T*T*T/38710000;
+    return ((g + window.__satGPS.lon) % 360 + 360) % 360;
+  };
+  window.getAltAz = function(ra, dec) {
+    var rad = function(d){return d*Math.PI/180;};
+    var deg = function(r){return r*180/Math.PI;};
+    var lst = rad(window.getLST());
+    var ha = lst - rad(ra);
+    var lat = rad(window.__satGPS.lat);
+    var decR = rad(dec);
+    var alt = Math.asin(Math.sin(decR)*Math.sin(lat) + Math.cos(decR)*Math.cos(lat)*Math.cos(ha));
+    var az = Math.atan2(-Math.cos(decR)*Math.sin(ha), Math.sin(decR)*Math.cos(lat) - Math.cos(decR)*Math.sin(lat)*Math.cos(ha));
+    return { alt: deg(alt), az: ((deg(az)%360)+360)%360 };
+  };
+
+  function ready() {
+    if (typeof SyncBus === 'undefined') { setTimeout(ready, 100); return; }
+    if (typeof MS === 'undefined') { setTimeout(ready, 100); return; }
+
+    // GPS sync
+    SyncBus.on('master_ready', function(d) {
+      if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
+      window.__satGPS.lat = d.lat;
+      window.__satGPS.lon = d.lon;
+    });
+    SyncBus.on('master_state', function(d) {
+      if (!d) return;
+      if (Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon)) {
+        window.__satGPS.lat = d.gpsLat;
+        window.__satGPS.lon = d.gpsLon;
+      }
+    });
+    setTimeout(function(){ SyncBus.send('request_master_state', {}); }, 800);
+    setTimeout(function(){ SyncBus.send('request_master_state', {}); }, 2500);
+
+    // PUBLISH con driver + protocol
+    window.publish = function() {
+      if (window.__READONLY__ || typeof MS === 'undefined' || !SyncBus.isPeerAlive()) return;
+      var raRad = MS.ra, decRad = MS.dec;
+      if (typeof scopeState !== 'undefined' && typeof altAzToRaDec === 'function') {
+        try {
+          var rd = altAzToRaDec(scopeState.mountAlt, scopeState.mountAz);
+          raRad = rd.ra * Math.PI / 180;
+          decRad = rd.dec * Math.PI / 180;
+        } catch(e) {}
+      }
+      var driver = 'NONE';
+      if (MS.simulated) driver = 'SIM';
+      else if (MS.wifiEnabled) driver = 'WIFI';
+      else if (MS.btEnabled) driver = 'BT';
+      var protocol = (typeof scopeState !== 'undefined' && scopeState.protocol) || MS.wifiDriver || 'onstep';
+      if (driver === 'SIM') protocol = 'sim';
+      SyncBus.send('mount_state', {
+        __isState: true,
+        connected: MS.connected,
+        tracking: MS.tracking,
+        isParked: MS.isParked,
+        ra: raRad,
+        dec: decRad,
+        slewMode: MS.slewMode,
+        rate: MS.speedPerStep,
+        driver: driver,
+        protocol: protocol
+      });
+    };
+
+    // cmd_speed
+    SyncBus.on('cmd_speed', function(d) {
+      if (window.__READONLY__ || !d || !Number.isFinite(d.rate)) return;
+      var targets = [0.005, 0.02, 0.06, 0.2];
+      var labels = { 0.005:'1x', 0.02:'8x', 0.06:'32x', 0.2:'128x' };
+      var best = targets.reduce(function(a,b){ return Math.abs(b-d.rate) < Math.abs(a-d.rate) ? b : a; });
+      MS.speedPerStep = best;
+      MS.speedLabel = labels[best];
+      var sel = document.getElementById('slew-speed');
+      if (sel) sel.value = String(best);
+      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+      var satRates = { 0.005:1, 0.02:8, 0.06:32, 0.2:128 };
+      if (typeof scopeState !== 'undefined') scopeState.rate = satRates[best];
+      var rd = document.getElementById('scopeRateDisplay');
+      if (rd) rd.innerText = (satRates[best] || 8) + 'X';
+      if (typeof showToast === 'function') showToast('Vel: ' + labels[best]);
+    });
+
+    // cmd_goto
+    SyncBus.on('cmd_goto', function(d) {
+      if (window.__READONLY__ || !d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
+      if (Number.isFinite(d.latMaster) && Number.isFinite(d.lonMaster)) {
+        window.__satGPS.lat = d.latMaster;
+        window.__satGPS.lon = d.lonMaster;
+      }
+      var pos = window.getAltAz(d.ra, d.dec);
+      console.log('[SATELLITE] GOTO:', d.name || '(target)', '· Alt/Az:', pos.alt.toFixed(1)+'°', pos.az.toFixed(1)+'°');
+      // auto-connect SIM
+      if (!MS.connected) {
+        MS.simulated = true;
+        var sr = document.querySelector('input[name="connType"][value="sim"]');
+        if (sr) { sr.checked = true; sr.dispatchEvent(new Event('change', {bubbles:true})); }
+        var cb = Array.from(document.querySelectorAll('.triton-btn')).find(function(b){ return b.innerText.trim() === 'Connetti'; });
+        if (cb) cb.click();
+      }
+      if (MS.isParked) {
+        MS.isParked = false;
+        var po = document.getElementById('parkOverlay');
+        if (po) po.classList.remove('open');
+      }
+      setTimeout(function() {
+        if (typeof _startGoto === 'function') {
+          try { _startGoto(d.ra * Math.PI/180, d.dec * Math.PI/180); } catch(e) {}
+        }
+        if (typeof scopeMoveToContinuous === 'function') {
+          var tg = function(){ return window.getAltAz(d.ra, d.dec); };
+          var s = tg();
+          if (Number.isFinite(s.alt) && Number.isFinite(s.az)) {
+            scopeMoveToContinuous(tg, function() {
+              if (typeof startTrackingLoop === 'function') startTrackingLoop();
+            });
+          }
+        }
+        if (typeof showToast === 'function') showToast('GOTO: ' + (d.name || 'target'));
+      }, 300);
+    });
+
+    // cmd_sync
+    SyncBus.on('cmd_sync', function() {
+      if (window.__READONLY__) return;
+      if (typeof scopeSyncMount === 'function') scopeSyncMount();
+    });
+
+    // badge sync
+    function updateSyncBadge() {
+      var b = document.getElementById('syncBadge');
+      var d = document.getElementById('syncDot');
+      var t = document.getElementById('syncText');
+      if (!b || !d || !t) return;
+      if (window.__READONLY__) {
+        b.style.borderColor='#fbbf24'; d.style.color='#fbbf24'; t.textContent='READONLY'; return;
+      }
+      if (SyncBus.isLeader && SyncBus.isLeader()) {
+        if (SyncBus.isPeerAlive()) {
+          b.style.borderColor='#4ade80'; b.style.background='rgba(74,222,128,0.15)'; d.style.color='#4ade80'; t.textContent='LEADER ✓ MASTER';
+        } else {
+          b.style.borderColor='#8bd3ff'; b.style.background='rgba(139,211,255,0.15)'; d.style.color='#8bd3ff'; t.textContent='LEADER';
+        }
+      } else {
+        b.style.borderColor='#6b778c'; d.style.color='#6b778c'; t.textContent='SLAVE';
+      }
+    }
+    setInterval(updateSyncBadge, 1000);
+    updateSyncBadge();
+
+    console.log('[SATELLITE] ✅ PATCH DEFINITIVE ATTIVE');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
 })();
 </script>
 </body>
