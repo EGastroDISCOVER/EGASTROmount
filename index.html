@@ -1276,5 +1276,47 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log('[SAT v3] ✅ Attivo');
 })();
 </script>
+
+<script>
+(function() {
+  // --- FIX PULSANTE RITORNO (DOME) ---
+  const dome = document.getElementById('btn-goto-dome');
+  if (dome) {
+    const newDome = dome.cloneNode(true);
+    dome.parentNode.replaceChild(newDome, dome);
+    newDome.onclick = e => { e.preventDefault(); window.parent.postMessage('hide-satellite-frame', '*'); };
+  }
+
+  // --- NUOVA LOGICA DI CONNESSIONE (ASCOM ALPACA HTTP) ---
+  if (typeof Protocols !== 'undefined') {
+    Protocols.ascom = {
+      base: '',
+      async connect(cfg, onOk, onErr) {
+        this.base = `http://${cfg.ip}:${cfg.port}/api/v1/telescope/0`;
+        try {
+          const res = await fetch(`${this.base}/connected`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ Connected: true }) 
+          });
+          if (res.ok) onOk(); else onErr(new Error('HTTP ' + res.status));
+        } catch (e) { onErr(e); }
+      },
+      async sendGoto(raHours, decDeg) {
+        await fetch(`${this.base}/slewtocoordinates`, { 
+          method: 'PUT', 
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ RightAscension: raHours, Declination: decDeg }) 
+        });
+      },
+      async sync(ra, dec) { await fetch(`${this.base}/synctocoordinates`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ RightAscension: ra, Declination: dec }) }); },
+      async stop() { await fetch(`${this.base}/abortslew`, { method: 'PUT' }); },
+      async park() { await fetch(`${this.base}/park`, { method: 'PUT' }); },
+      async unpark() { await fetch(`${this.base}/unpark`, { method: 'PUT' }); },
+      async tracking(on) { await fetch(`${this.base}/tracking`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ Tracking: on }) }); }
+    };
+  }
+})();
+</script>
 </body>
 </html>
