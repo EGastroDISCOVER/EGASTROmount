@@ -1349,64 +1349,195 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 </script>
-  <!-- TUNNEL SATELLITE -->
-<div id="app-switcher-container">
-  <div id="app-switcher-menu">
-    <!-- Dome (Acceso di default) -->
-    <a class="app-switch-btn app-btn-dome btn-active" id="btn-goto-dome" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <!-- Telescopio (Spento di default) -->
-    <a class="app-switch-btn app-btn-telescope btn-inactive" id="btn-goto-telescope" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-  <button id="app-switcher-toggle" title="Apri menu app">TUNNEL</button>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TUNNEL UNIFICATO v1 — incollare IDENTICO in ENTRAMBI i file       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script id="egastro-tunnel-v1">
+(function () {
+  'use strict';
+  if (window.__tunnelUnifiedV1) return;
+  window.__tunnelUnifiedV1 = true;
 
-<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
-  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
-</div>
+  var meta = document.querySelector('meta[name="app-id"]');
+  var MY_APP = meta && meta.content ? String(meta.content).toLowerCase() : '';
+  if (MY_APP !== 'observatory' && MY_APP !== 'mount') {
+    console.warn('[TUNNEL] app-id non valido, tunnel disabilitato');
+    return;
+  }
 
-<style>
-  #app-switcher-container { position: fixed !important; top: 50% !important; left: 0 !important; transform: translateY(-50%) translateX(calc(-100% + 26px)) !important; z-index: 2147483647 !important; display: flex !important; align-items: center !important; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
-  #app-switcher-container.open { transform: translateY(-50%) translateX(0) !important; }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95) !important; border: 1px solid rgba(212, 175, 55, 0.4) !important; border-left: none !important; border-radius: 0 12px 12px 0 !important; padding: 14px 8px !important; display: flex !important; flex-direction: column !important; gap: 12px !important; backdrop-filter: blur(15px) !important; box-shadow: 2px 0 10px rgba(0,0,0,0.5) !important; }
-  #app-switcher-toggle { width: 26px !important; height: 82px !important; writing-mode: vertical-rl !important; text-orientation: mixed !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 3px !important; font-family: 'Orbitron', sans-serif !important; color: #d4af37 !important; background: rgba(10, 18, 32, 0.95) !important; border: 1px solid #d4af37 !important; border-left: none !important; border-radius: 0 8px 8px 0 !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; }
-  .app-switch-btn { width: 36px !important; height: 36px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; cursor: pointer !important; transition: all 0.3s !important; }
-  .app-switch-btn svg { width: 18px !important; height: 18px !important; stroke: currentColor !important; fill: none !important; stroke-width: 2 !important; }
-  
-  /* Stato Acceso (Oro) */
-  .btn-active { border: 2px solid #d4af37 !important; background: #0a1220 !important; color: #d4af37 !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; pointer-events: auto !important; opacity: 1 !important; }
-  .btn-active:hover { background: #d4af37 !important; color: #000 !important; transform: scale(1.1) !important; }
-  /* Stato Spento (Blu) */
-  .btn-inactive { border: 2px solid #8bd3ff !important; background: #0a1220 !important; color: #8bd3ff !important; pointer-events: none !important; opacity: 0.35 !important; }
-</style>
-
-<script>
-(function() {
-  const sc = document.getElementById('app-switcher-container');
-  const tg = document.getElementById('app-switcher-toggle');
-  const dome = document.getElementById('btn-goto-dome');
-
-  tg.onclick = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    sc.classList.toggle('open');
+  var APPS = {
+    observatory: { name: 'Observatory', url: 'https://egastrodiscover.github.io/EGASTRO/' },
+    mount:       { name: 'Mount',       url: 'https://egastrodiscover.github.io/EGASTROmount/' }
   };
+  var OTHER = MY_APP === 'mount' ? 'observatory' : 'mount';
 
-  document.addEventListener('click', function(e) {
-    if (!sc.contains(e.target)) sc.classList.remove('open');
+  var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+  var SVG_TELESCOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
+  function svgFor(appId) { return appId === 'mount' ? SVG_TELESCOPE : SVG_DOME; }
+
+  var IN_FRAME = false;
+  try { IN_FRAME = window.self !== window.top; } catch (e) { IN_FRAME = true; }
+
+  // Pulizia vecchi tunnel
+  ['app-switcher-container','app-switcher-menu','app-switcher-toggle',
+   'planet-menu-ultimate','app-frame-container','app-frame',
+   'btn-goto-dome','btn-goto-telescope'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  document.querySelectorAll('.app-switch-btn').forEach(function (el) { el.remove(); });
+
+  if (!document.getElementById('__tunnelV1CSS')) {
+    var style = document.createElement('style');
+    style.id = '__tunnelV1CSS';
+    style.textContent =
+      '#tunnel-menu{position:fixed!important;left:0!important;top:50%!important;' +
+      'transform:translateY(-50%) translateX(calc(-100% + 26px))!important;' +
+      'z-index:2147483647!important;display:flex!important;align-items:center!important;' +
+      'transition:transform .4s cubic-bezier(.34,1.56,.64,1)!important}' +
+      '#tunnel-menu.open{transform:translateY(-50%) translateX(0)!important}' +
+      '#tunnel-panel{background:rgba(10,18,32,.95)!important;' +
+      'border:1px solid rgba(212,175,55,.4)!important;border-left:none!important;' +
+      'border-radius:0 12px 12px 0!important;padding:14px 8px!important;' +
+      'display:flex!important;flex-direction:column!important;gap:12px!important;' +
+      'backdrop-filter:blur(15px)!important;box-shadow:2px 0 10px rgba(0,0,0,.5)!important}' +
+      '.tunnel-app-btn{width:40px!important;height:40px!important;border-radius:50%!important;' +
+      'display:flex!important;align-items:center!important;justify-content:center!important;' +
+      'cursor:pointer!important;transition:all .3s!important;position:relative!important;' +
+      'padding:0!important;background:#0a1220!important}' +
+      '.tunnel-app-btn svg{width:20px!important;height:20px!important;stroke:currentColor!important;' +
+      'fill:none!important;stroke-width:2!important;pointer-events:none!important}' +
+      '.tunnel-app-btn.tunnel-current{border:2px solid #d4af37!important;color:#d4af37!important;' +
+      'box-shadow:0 0 15px rgba(212,175,55,.55),inset 0 0 8px rgba(212,175,55,.15)!important;' +
+      'cursor:default!important}' +
+      '.tunnel-app-btn.tunnel-current::after{content:"\2713"!important;position:absolute!important;' +
+      'bottom:-2px!important;right:-2px!important;width:15px!important;height:15px!important;' +
+      'border-radius:50%!important;background:#4ade80!important;color:#000!important;' +
+      'font-size:10px!important;font-weight:900!important;display:flex!important;' +
+      'align-items:center!important;justify-content:center!important;line-height:1!important;' +
+      'border:1.5px solid #0a1220!important}' +
+      '.tunnel-app-btn.tunnel-other{border:2px solid #8bd3ff!important;color:#8bd3ff!important}' +
+      '.tunnel-app-btn.tunnel-other:hover{background:#8bd3ff!important;color:#000!important;' +
+      'transform:scale(1.1)!important;box-shadow:0 0 20px rgba(139,211,255,.6)!important}' +
+      '#tunnel-toggle{width:26px!important;height:82px!important;' +
+      'writing-mode:vertical-rl!important;text-orientation:mixed!important;' +
+      'font-size:11px!important;font-weight:800!important;letter-spacing:3px!important;' +
+      'font-family:Orbitron,sans-serif!important;color:#d4af37!important;' +
+      'background:rgba(10,18,32,.95)!important;border:1px solid #d4af37!important;' +
+      'border-left:none!important;border-radius:0 8px 8px 0!important;' +
+      'cursor:pointer!important;backdrop-filter:blur(10px)!important;padding:0!important;' +
+      'display:flex!important;align-items:center!important;justify-content:center!important}' +
+      '#tunnel-toggle:hover{background:#d4af37!important;color:#000!important}' +
+      '#tunnel-frame-container{position:fixed!important;inset:0!important;' +
+      'z-index:2147483645!important;background:#000!important;display:none!important}' +
+      '#tunnel-frame{width:100%!important;height:100%!important;border:none!important}';
+    document.head.appendChild(style);
+  }
+
+  var menu = document.createElement('div');
+  menu.id = 'tunnel-menu';
+
+  var panel = document.createElement('div');
+  panel.id = 'tunnel-panel';
+
+  var currentBtn = document.createElement('button');
+  currentBtn.type = 'button';
+  currentBtn.className = 'tunnel-app-btn tunnel-current';
+  currentBtn.title = APPS[MY_APP].name + ' (sei qui)';
+  currentBtn.innerHTML = svgFor(MY_APP);
+
+  var otherBtn = document.createElement('button');
+  otherBtn.type = 'button';
+  otherBtn.className = 'tunnel-app-btn tunnel-other';
+  otherBtn.title = 'Apri ' + APPS[OTHER].name;
+  otherBtn.innerHTML = svgFor(OTHER);
+
+  panel.appendChild(currentBtn);
+  panel.appendChild(otherBtn);
+
+  var toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.id = 'tunnel-toggle';
+  toggle.textContent = 'TUNNEL';
+
+  menu.appendChild(panel);
+  menu.appendChild(toggle);
+
+  var frameContainer = document.createElement('div');
+  frameContainer.id = 'tunnel-frame-container';
+  var frame = document.createElement('iframe');
+  frame.id = 'tunnel-frame';
+  frame.setAttribute('allow', 'geolocation; camera; microphone; fullscreen; clipboard-read; clipboard-write');
+  frameContainer.appendChild(frame);
+
+  document.body.appendChild(menu);
+  document.body.appendChild(frameContainer);
+
+  toggle.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    menu.classList.toggle('open');
   });
 
-  // Premendo il Dome, torna al Pianeta
-  dome.onclick = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    if (window.parent !== window) {
-      window.parent.postMessage('hide-satellite-frame', '*');
-    } else {
-      window.location.href = 'https://egastrodiscover.github.io/EGASTRO/';
+  document.addEventListener('click', function (e) {
+    if (menu.classList.contains('open') && !menu.contains(e.target)) {
+      menu.classList.remove('open');
     }
-  };
+  }, true);
+
+  currentBtn.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    menu.classList.remove('open');
+  });
+
+  function showFrame() {
+    if (!frame.src || frame.src === 'about:blank') frame.src = APPS[OTHER].url;
+    frameContainer.style.display = 'block';
+    menu.style.display = 'none';
+  }
+  function hideFrame() {
+    frameContainer.style.display = 'none';
+    menu.style.display = '';
+  }
+
+  otherBtn.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    menu.classList.remove('open');
+
+    if (IN_FRAME) {
+      try { window.parent.postMessage({ type: 'tunnel-switch', target: OTHER }, '*'); } catch (err) {}
+      try {
+        if (window.SyncBus && typeof window.SyncBus.send === 'function') {
+          window.SyncBus.send('tunnel_switch', { target: OTHER });
+        }
+      } catch (err) {}
+      return;
+    }
+    showFrame();
+  });
+
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d) return;
+    if (typeof d === 'object' && d.type === 'tunnel-switch' && d.target === MY_APP) {
+      if (frameContainer.style.display !== 'none') hideFrame();
+      return;
+    }
+    if (d === 'hide-satellite-frame' || d === 'show-master' || d === 'egastro-close-frame') {
+      if (frameContainer.style.display !== 'none') hideFrame();
+    }
+  });
+
+  try {
+    if (window.SyncBus && typeof window.SyncBus.on === 'function') {
+      window.SyncBus.on('tunnel_switch', function (d) {
+        if (!d || d.target !== MY_APP) return;
+        if (frameContainer.style.display !== 'none') hideFrame();
+      });
+    }
+  } catch (err) {}
+
+  window.__tunnel = { myApp: MY_APP, other: OTHER, openOther: showFrame, close: hideFrame, inFrame: IN_FRAME };
+  console.log('[TUNNEL v1] ✅ Ready · App:', MY_APP, '· Other:', OTHER, '· InFrame:', IN_FRAME);
 })();
 </script>
 </body>
