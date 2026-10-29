@@ -818,20 +818,29 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <!-- SCRIPT MAPPA ISOLATA E TRACKING SICURO -->
+
+
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    // 1. TRACKING (Sicuro, non tocca il D-Pad)
-    let origStartGoto = window._startGoto;
-    window._startGoto = function(ra, dec, rate, skip, bypass) {
-      if (window._isHomeSlew) { if(typeof MS !== 'undefined') MS._pendingAutoTrack = false; window._isHomeSlew = false; } 
-      else { if(typeof MS !== 'undefined') MS._pendingAutoTrack = true; }
+/* ============ SATELLITE — TRACKING + MAPPA v3 ============ */
+(function () {
+  'use strict';
+  if (window.__sV3) return; window.__sV3 = true;
+
+  /* ---------- 1. TRACKING sicuro (non tocca D-Pad) ---------- */
+  function initTracking() {
+    if (typeof MS === 'undefined') { setTimeout(initTracking, 100); return; }
+
+    var origStartGoto = window._startGoto;
+    window._startGoto = function (ra, dec, rate, skip, bypass) {
+      if (window._isHomeSlew) { MS._pendingAutoTrack = false; window._isHomeSlew = false; }
+      else { MS._pendingAutoTrack = true; }
       return origStartGoto.apply(this, arguments);
     };
-    let origGoHome = window.goHome;
-    window.goHome = function() { window._isHomeSlew = true; return origGoHome.apply(this, arguments); };
+    var origGoHome = window.goHome;
+    window.goHome = function () { window._isHomeSlew = true; return origGoHome.apply(this, arguments); };
 
-    setInterval(() => {
+    setInterval(function () {
       if (typeof MS === 'undefined') return;
       if (MS.slewMode === 'manual') {
         if (MS._trackingBeforeManual === undefined) {
@@ -852,7 +861,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
           if (MS._pendingAutoTrack === true && MS.tracking === 'off') {
             MS.tracking = 'sidereal'; MS.slewMode = 'tracking';
-            const tm = document.getElementById('tracking-mode'); if (tm) tm.value = 'sidereal';
+            var tm = document.getElementById('tracking-mode');
+            if (tm) tm.value = 'sidereal';
             if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
             if (typeof showToast === 'function') showToast('Tracking ON: siderale');
           }
@@ -860,124 +870,410 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     }, 100);
+  }
+  initTracking();
 
-    // 2. MAPPA ISOLATA (Spenta all'avvio, iper-trasparente, slider fluido)
-    const isMobile = window.innerWidth < 600;
-    const BASE_SIZE = isMobile ? 250 : 340;
-    let scaleFactor = 1.0, zoom = 1.0;
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    let SIZE = BASE_SIZE, rafId = null, isDragging = false, lastX = 0, lastY = 0;
-    let isMapOpen = false;
+  /* ---------- 2. MAPPA POLARE 100/75/50 ---------- */
+  function initMap() {
+    if (typeof Astro === 'undefined' || typeof getAstroCoords !== 'function') {
+      setTimeout(initMap, 200); return;
+    }
 
-    const myContainer = document.createElement('div');
-    myContainer.id = '__myPolarContainer';
-    myContainer.style.cssText = 'position: fixed; right: 15px; top: 140px; z-index: 9000; border-radius: 50%; filter: drop-shadow(0 8px 30px rgba(0,0,0,.75)); background: transparent; cursor: grab; display: none;';
+    var CONST_URL = 'https://egastrodiscover.github.io/EGASTRO/constellations.json';
+    var isMobile = window.innerWidth < 600;
+    var BASE = isMobile ? 260 : 340;
+    var SIZES = { 100: 1.0, 75: 0.75, 50: 0.5 };
+    var currentSize = 100;
+    var scaleFactor = SIZES[100];
+    var internalZoom = 1.0;
+    var SIZE = Math.round(BASE * scaleFactor);
+    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var isOpen = false;
+    var rafId = null;
 
-    const sliderWrap = document.createElement('div');
-    sliderWrap.style.cssText = 'position: absolute; top: -36px; left: 50%; transform: translateX(-50%); width: 170px; display: flex; align-items: center; gap: 8px; background: rgba(13,18,28,0.95); padding: 5px 10px; border-radius: 12px; border: 1px solid #d4af37; z-index: 10;';
-    sliderWrap.innerHTML = '<span style="color:#d4af37;font-size:10px;font-family:Orbitron,sans-serif;font-weight:bold;">SIZE</span><input type="range" min="0.45" max="1.0" step="0.05" value="1.0" id="__myPolarSizeSlider" style="flex:1;height:4px;-webkit-appearance:none;background:#334155;border-radius:2px;outline:none;cursor:pointer;">';
-    myContainer.appendChild(sliderWrap);
+    /* Container */
+    var container = document.createElement('div');
+    container.id = '__myPolarContainer';
+    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));background:transparent;display:none;cursor:grab;';
 
-    const cv = document.createElement('canvas');
-    cv.style.display = 'block'; cv.style.borderRadius = '50%';
-    myContainer.appendChild(cv);
-    const ctx = cv.getContext('2d');
+    /* Selettore 100/75/50 */
+    var sizeSel = document.createElement('div');
+    sizeSel.id = '__myPolarSizeSel';
+    sizeSel.style.cssText = 'position:absolute;top:-38px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(13,18,28,0.95);padding:4px 6px;border-radius:14px;border:1px solid #d4af37;z-index:10;backdrop-filter:blur(10px);';
+    ['100', '75', '50'].forEach(function (sz) {
+      var b = document.createElement('button');
+      b.textContent = sz;
+      b.dataset.sz = sz;
+      b.style.cssText = 'background:transparent;border:1px solid #6b778c;color:#6b778c;padding:3px 10px;border-radius:10px;cursor:pointer;font-family:Orbitron,sans-serif;font-weight:700;font-size:10px;';
+      b.onclick = function (e) {
+        e.stopPropagation();
+        currentSize = parseInt(sz, 10);
+        scaleFactor = SIZES[currentSize];
+        SIZE = Math.round(BASE * scaleFactor);
+        container.style.width = SIZE + 'px';
+        container.style.height = SIZE + 'px';
+        cv.style.width = SIZE + 'px';
+        cv.style.height = SIZE + 'px';
+        cv.width = Math.floor(SIZE * DPR);
+        cv.height = Math.floor(SIZE * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        updateBtnState();
+        if (isOpen) drawPolar();
+      };
+      sizeSel.appendChild(b);
+    });
+    container.appendChild(sizeSel);
 
-    const zoomBox = document.createElement('div');
-    zoomBox.style.cssText = 'position: absolute; bottom: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 5;';
-    ['+','−'].forEach((s,i) => {
-      const b = document.createElement('button');
+    function updateBtnState() {
+      sizeSel.querySelectorAll('button').forEach(function (b) {
+        var on = parseInt(b.dataset.sz, 10) === currentSize;
+        b.style.background = on ? '#d4af37' : 'transparent';
+        b.style.color = on ? '#000' : '#6b778c';
+        b.style.borderColor = on ? '#d4af37' : '#6b778c';
+      });
+    }
+
+    /* Canvas */
+    var cv = document.createElement('canvas');
+    cv.style.cssText = 'display:block;border-radius:50%;';
+    container.appendChild(cv);
+    var ctx = cv.getContext('2d');
+
+    /* Zoom +/- */
+    var zoomBox = document.createElement('div');
+    zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+    ['+', '−'].forEach(function (s, i) {
+      var b = document.createElement('button');
       b.textContent = s;
-      b.style.cssText = 'width: 26px; height: 26px; background: rgba(13,18,28,.9); border: 1px solid rgba(212,175,55,.7); border-radius: 50%; color: #d4af37; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;';
-      b.onclick = e => { e.stopPropagation(); zoom = Math.max(0.5, Math.min(3, zoom + (i===0 ? 0.3 : -0.3))); if (isMapOpen) drawPolar(); };
+      b.style.cssText = 'width:26px;height:26px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;padding:0;';
+      b.onclick = function (e) {
+        e.stopPropagation();
+        internalZoom = Math.max(0.5, Math.min(3, internalZoom + (i === 0 ? 0.3 : -0.3)));
+        if (isOpen) drawPolar();
+      };
       zoomBox.appendChild(b);
     });
-    myContainer.appendChild(zoomBox);
-    document.body.appendChild(myContainer);
+    container.appendChild(zoomBox);
+    document.body.appendChild(container);
 
-    const myToggle = document.createElement('div');
-    myToggle.id = '__myPolarBtn'; myToggle.className = 'circle-btn'; myToggle.title = 'Mappa Polare';
-    myToggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
-    myToggle.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
-    myToggle.onclick = () => {
-      isMapOpen = !isMapOpen;
-      myContainer.style.display = isMapOpen ? 'block' : 'none';
-      if (isMapOpen) { applySize(); startDrawPolar(); } else if (rafId) cancelAnimationFrame(rafId);
+    container.style.width = SIZE + 'px';
+    container.style.height = SIZE + 'px';
+    cv.style.width = SIZE + 'px';
+    cv.style.height = SIZE + 'px';
+    cv.width = Math.floor(SIZE * DPR);
+    cv.height = Math.floor(SIZE * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    updateBtnState();
+
+    /* Toggle button */
+    var toggleBtn = document.createElement('div');
+    toggleBtn.id = '__myPolarBtn';
+    toggleBtn.className = 'circle-btn';
+    toggleBtn.title = 'Mappa Polare';
+    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
+    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
+    toggleBtn.onclick = function () {
+      isOpen = !isOpen;
+      container.style.display = isOpen ? 'block' : 'none';
+      if (isOpen) { if (!rafId) drawPolar(); }
+      else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
     };
-    document.querySelector('.top-right-buttons').appendChild(myToggle);
+    var topRight = document.querySelector('.top-right-buttons');
+    if (topRight) topRight.appendChild(toggleBtn);
+    else document.body.appendChild(toggleBtn);
 
-    function applySize() {
-      SIZE = Math.round(BASE_SIZE * scaleFactor);
-      myContainer.style.width = SIZE + 'px'; myContainer.style.height = SIZE + 'px';
-      cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
-      cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR);
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    /* Carica costellazioni */
+    var CONST = [];
+    fetch(CONST_URL + '?t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.features) return;
+        CONST = d.features.map(function (f) {
+          var segs = (f.geometry && f.geometry.coordinates) || [];
+          var stars = [], map = {};
+          var add = function (ra, dec) {
+            if (!isFinite(ra) || !isFinite(dec)) return -1;
+            var k = ra.toFixed(4) + ',' + dec.toFixed(4);
+            if (map[k] !== undefined) return map[k];
+            var i = stars.length; stars.push({ ra: ra, dec: dec }); map[k] = i; return i;
+          };
+          return {
+            name: (f.properties && f.properties.name) || f.id,
+            s: stars,
+            l: segs.map(function (seg) {
+              if (!Array.isArray(seg)) return [];
+              return seg.map(function (pt) {
+                if (!Array.isArray(pt) || pt.length < 2) return -1;
+                return add(pt[0], pt[1]);
+              }).filter(function (i) { return i >= 0; });
+            }).filter(function (l) { return l.length >= 2; })
+          };
+        }).filter(function (c) { return c.l.length > 0; });
+        if (isOpen) drawPolar();
+      })
+      .catch(function (e) { console.warn('[SAT] const:', e.message); });
+
+    var STARS_L = [
+      { n: "Polaris", ra: 37.95, dec: 89.26, mag: 1.98 },
+      { n: "Kochab", ra: 222.68, dec: 74.16, mag: 2.08 },
+      { n: "Dubhe", ra: 165.93, dec: 61.75, mag: 1.79 },
+      { n: "Merak", ra: 165.46, dec: 56.38, mag: 2.37 },
+      { n: "Vega", ra: 279.23, dec: 38.78, mag: 0.03 },
+      { n: "Deneb", ra: 310.36, dec: 45.28, mag: 1.25 },
+      { n: "Arturo", ra: 213.92, dec: 19.18, mag: -0.05 },
+      { n: "Sirio", ra: 101.29, dec: -16.72, mag: -1.46 }
+    ];
+    var DSO_L = [
+      { n: "M31", ra: 10.68, dec: 41.26, t: "G" },
+      { n: "M42", ra: 83.82, dec: -5.39, t: "N" },
+      { n: "M45", ra: 56.75, dec: 24.11, t: "C" },
+      { n: "M13", ra: 250.42, dec: 36.46, t: "C" }
+    ];
+
+    function polar(alt, az) {
+      var r = (SIZE / 2 - 6) * internalZoom * (90 - alt) / 90;
+      var azR = az * Math.PI / 180;
+      return { x: SIZE / 2 + r * Math.sin(azR), y: SIZE / 2 - r * Math.cos(azR), r: r };
     }
-    applySize();
 
-    // SLIDER FLUIDO: Modifica dimensioni e ridisegna istantaneamente (no transform scale)
-    document.getElementById('__myPolarSizeSlider').addEventListener('input', (e) => {
-      scaleFactor = parseFloat(e.target.value);
-      applySize();
-      if (isMapOpen) drawPolar();
-    });
-
-    let CONST = [];
-    fetch('https://egastrodiscover.github.io/EGASTRO/constellations.json?t=' + Date.now())
-      .then(r => r.json())
-      .then(d => {
-        if (d && d.features) {
-          CONST = d.features.map(f => {
-            const segs = f.geometry?.coordinates || []; const stars = []; const map = new Map();
-            const add = (ra, dec) => { const k = ra.toFixed(4)+','+dec.toFixed(4); if (map.has(k)) return map.get(k); const i = stars.length; stars.push({ra, dec, mag:3}); map.set(k, i); return i; };
-            return { s: stars, l: segs.map(seg => seg.map(pt => add(pt[0], pt[1]))) };
-          });
-        }
-      }).catch(e => {});
-
-    const STARS = [{n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},{n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},{n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},{n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46}];
-    const DSO = [{n:"M31",ra:10.68,dec:41.26,t:"G"},{n:"M42",ra:83.82,dec:-5.39,t:"N"},{n:"M45",ra:56.75,dec:24.11,t:"C"},{n:"M13",ra:250.42,dec:36.46,t:"C"}];
-
-    function polar(alt, az) { const r = (SIZE/2 - 5) * zoom * (90 - alt) / 90; const azR = az * Math.PI / 180; return { x: SIZE/2 + r * Math.sin(azR), y: SIZE/2 - r * Math.cos(azR), r }; }
+    function drawMilkyWay(date, lat, lon) {
+      var ngpRa = 192.86, ngpDec = 27.13;
+      var seed = 777;
+      var rand = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+      ctx.save();
+      for (var i = 0; i < 600; i++) {
+        var l = rand() * 360, b = (rand() - 0.5) * 20;
+        var bR = b * Math.PI / 180, lR = l * Math.PI / 180;
+        var sinDec = Math.sin(ngpDec * Math.PI / 180) * Math.sin(bR) + Math.cos(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR);
+        var dec = Math.asin(sinDec) * 180 / Math.PI;
+        var yv = Math.cos(bR) * Math.sin(lR);
+        var xv = Math.cos(ngpDec * Math.PI / 180) * Math.sin(bR) - Math.sin(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR);
+        var ra = ((ngpRa + Math.atan2(yv, xv) * 180 / Math.PI) % 360 + 360) % 360;
+        var p = Astro.altAz(ra * Math.PI / 180, dec * Math.PI / 180, lat, lon, date);
+        if (p.alt < 0) continue;
+        var pt = polar(p.alt, p.az);
+        if (pt.r > SIZE / 2) continue;
+        var sz = 3 + rand() * 8, al = 0.05 + rand() * 0.08;
+        ctx.fillStyle = (i % 3 === 0) ? 'rgba(200,170,180,' + al + ')' : 'rgba(160,200,255,' + al + ')';
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
 
     function drawPolar() {
-      if (!isMapOpen) { rafId = null; return; }
-      const lat = (typeof MS !== 'undefined' && MS.gpsLat) ? MS.gpsLat : 41.9; const lon = (typeof MS !== 'undefined' && MS.gpsLon) ? MS.gpsLon : 12.5; const date = new Date();
-      ctx.clearRect(0, 0, SIZE, SIZE); ctx.save(); ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 2, 0, Math.PI*2); ctx.clip();
-      
-      const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2); bg.addColorStop(0, 'rgba(22,32,68,0.30)'); bg.addColorStop(1, 'rgba(4,8,20,0.45)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
-      
-      ctx.strokeStyle = 'rgba(139,180,255,0.15)'; ctx.lineWidth = 0.8;
-      [30, 60].forEach(alt => { const r = (SIZE/2 - 2) * zoom * (90 - alt) / 90; if (r <= SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, r, 0, Math.PI*2); ctx.stroke(); } });
-      for (let az = 0; az < 360; az += 30) { const a = az * Math.PI / 180; ctx.beginPath(); ctx.moveTo(SIZE/2, SIZE/2); ctx.lineTo(SIZE/2 + SIZE * Math.sin(a), SIZE/2 - SIZE * Math.cos(a)); ctx.stroke(); }
-      STARS.forEach(s => { const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date); if (p.alt < 0) return; const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return; ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.8, 2.5 - s.mag*0.5), 0, Math.PI*2); ctx.fillStyle = '#fff'; ctx.fill(); });
-      ctx.strokeStyle = 'rgba(150,180,255,0.3)'; ctx.lineWidth = 0.8;
-      CONST.forEach(c => { c.l.forEach(line => { let st = false; ctx.beginPath(); line.forEach(i => { const s = c.s[i]; if (!s) return; const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date); if (p.alt < 0) { st = false; return; } const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) { st = false; return; } if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y); }); ctx.stroke(); }); });
-      DSO.forEach(m => { const p = Astro.altAz(m.ra*Math.PI/180, m.dec*Math.PI/180, lat, lon, date); if (p.alt < 0) return; const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return; ctx.beginPath(); if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI*2); else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6); else ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2); ctx.fillStyle = 'rgba(139,211,255,0.85)'; ctx.fill(); });
-      
-      if (typeof Astronomy !== 'undefined') { try { const obs = new Astronomy.Observer(lat, lon, 0); const time = new Astronomy.AstroTime(date); ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'].forEach(bodyName => { const body = Astronomy.Body[bodyName]; const eq = Astronomy.Equator(body, time, obs, true, true); const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal'); if (hor.altitude < 0) return; const pt = polar(hor.altitude, hor.azimuth); if (pt.r > SIZE/2) return; let color = '#ffd700', size = 4, label = bodyName; if (bodyName === 'Sun') { color = '#ffe600'; size = 6; label = 'Sole'; } if (bodyName === 'Moon') { color = '#e2e8f0'; size = 5; label = 'Luna'; } ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill(); if (SIZE > 250) { ctx.fillStyle = color; ctx.font = 'bold 9px Inter'; ctx.fillText(label, pt.x + 7, pt.y + 3); } }); } catch(e) {} }
-      
-      try { if (typeof getAstroCoords === 'function') { const astro = getAstroCoords(); const p = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (p.alt >= 0) { const pt = polar(p.alt, p.az); if (pt.r <= SIZE/2) { ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x-10, pt.y); ctx.lineTo(pt.x-4, pt.y); ctx.moveTo(pt.x+4, pt.y); ctx.lineTo(pt.x+10, pt.y); ctx.stroke(); } } } } catch(e) {}
-      
+      if (!isOpen) { rafId = null; return; }
+      var lat = (typeof MS !== 'undefined' && MS.gpsLat) || 41.9;
+      var lon = (typeof MS !== 'undefined' && MS.gpsLon) || 12.5;
+      var date = new Date();
+
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 2, 0, Math.PI * 2);
+      ctx.clip();
+
+      var bg = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 4, SIZE / 2, SIZE / 2, SIZE / 2);
+      bg.addColorStop(0, 'rgba(22,32,68,0.35)');
+      bg.addColorStop(1, 'rgba(4,8,20,0.5)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, SIZE, SIZE);
+
+      drawMilkyWay(date, lat, lon);
+
+      ctx.strokeStyle = 'rgba(139,180,255,0.18)';
+      ctx.lineWidth = 0.8;
+      [30, 60].forEach(function (alt) {
+        var r = (SIZE / 2 - 2) * internalZoom * (90 - alt) / 90;
+        if (r > 0 && r < SIZE / 2) { ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, r, 0, Math.PI * 2); ctx.stroke(); }
+      });
+      for (var az = 0; az < 360; az += 30) {
+        var a = az * Math.PI / 180;
+        ctx.beginPath();
+        ctx.moveTo(SIZE / 2, SIZE / 2);
+        ctx.lineTo(SIZE / 2 + SIZE / 2 * Math.sin(a), SIZE / 2 - SIZE / 2 * Math.cos(a));
+        ctx.stroke();
+      }
+
+      if (CONST.length > 0) {
+        ctx.strokeStyle = 'rgba(150,200,255,0.5)';
+        ctx.lineWidth = 1;
+        CONST.forEach(function (c) {
+          c.l.forEach(function (line) {
+            var st = false;
+            ctx.beginPath();
+            line.forEach(function (idx) {
+              var s = c.s[idx];
+              if (!s) return;
+              var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date);
+              if (p.alt < 0) { st = false; return; }
+              var pt = polar(p.alt, p.az);
+              if (pt.r > SIZE / 2) { st = false; return; }
+              if (!st) { ctx.moveTo(pt.x, pt.y); st = true; }
+              else ctx.lineTo(pt.x, pt.y);
+            });
+            ctx.stroke();
+          });
+        });
+      }
+
+      STARS_L.forEach(function (s) {
+        var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date);
+        if (p.alt < 0) return;
+        var pt = polar(p.alt, p.az);
+        if (pt.r > SIZE / 2) return;
+        var sz = Math.max(0.8, 2.5 - s.mag * 0.5);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
+      });
+
+      if (typeof Astronomy !== 'undefined') {
+        try {
+          var obs = new Astronomy.Observer(lat, lon, 0);
+          var time = new Astronomy.AstroTime(date);
+          ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].forEach(function (bn) {
+            var body = Astronomy.Body[bn];
+            var eq = Astronomy.Equator(body, time, obs, true, true);
+            var hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal');
+            if (hor.altitude < 0) return;
+            var pt = polar(hor.altitude, hor.azimuth);
+            if (pt.r > SIZE / 2) return;
+            var col = '#ffd700', sz = 4, lbl = bn;
+            if (bn === 'Sun') { col = '#ffe600'; sz = 6; lbl = 'Sole'; }
+            if (bn === 'Moon') { col = '#e2e8f0'; sz = 5; lbl = 'Luna'; }
+            ctx.save();
+            ctx.shadowColor = col; ctx.shadowBlur = 8;
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            if (SIZE > 200) {
+              ctx.fillStyle = col;
+              ctx.font = 'bold 8px Inter,sans-serif';
+              ctx.textAlign = 'left';
+              ctx.fillText(lbl, pt.x + 7, pt.y + 3);
+            }
+          });
+        } catch (e) {}
+      }
+
+      DSO_L.forEach(function (m) {
+        var p = Astro.altAz(m.ra * Math.PI / 180, m.dec * Math.PI / 180, lat, lon, date);
+        if (p.alt < 0) return;
+        var pt = polar(p.alt, p.az);
+        if (pt.r > SIZE / 2) return;
+        ctx.beginPath();
+        if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI * 2);
+        else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6);
+        else ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(139,211,255,0.85)';
+        ctx.fill();
+      });
+
+      /* Mirino telescopio */
+      try {
+        var astro = getAstroCoords();
+        var p = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
+        if (p.alt >= 0) {
+          var pt = polar(p.alt, p.az);
+          if (pt.r <= SIZE / 2) {
+            ctx.strokeStyle = '#ff4466';
+            ctx.shadowColor = '#ff4466';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 1.8;
+            var cr = 7 + Math.sin(Date.now() / 400) * 1.5;
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, cr, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pt.x - cr - 4, pt.y); ctx.lineTo(pt.x - cr + 2, pt.y);
+            ctx.moveTo(pt.x + cr - 2, pt.y); ctx.lineTo(pt.x + cr + 4, pt.y);
+            ctx.moveTo(pt.x, pt.y - cr - 4); ctx.lineTo(pt.x, pt.y - cr + 2);
+            ctx.moveTo(pt.x, pt.y + cr - 2); ctx.lineTo(pt.x, pt.y + cr + 4);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+        }
+      } catch (e) {}
+
       ctx.restore();
-      [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => { const r = SIZE/2 - (SIZE < 200 ? 10 : 12); ctx.fillStyle = '#d4af37'; ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.l, SIZE/2 + r*Math.sin(d.a*Math.PI/180), SIZE/2 - r*Math.cos(d.a*Math.PI/180)); });
-      
-      if (isMapOpen) rafId = requestAnimationFrame(drawPolar);
+
+      ['N', 'E', 'S', 'O'].forEach(function (lbl, i) {
+        var a = i * 90 * Math.PI / 180;
+        var r = SIZE / 2 - (SIZE < 200 ? 10 : 12);
+        ctx.fillStyle = '#d4af37';
+        ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lbl, SIZE / 2 + r * Math.sin(a), SIZE / 2 - r * Math.cos(a));
+      });
+
+      rafId = requestAnimationFrame(drawPolar);
     }
 
-    function startDrawPolar() { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(drawPolar); }
+    /* Drag + pinch */
+    var isDragging = false, lastX = 0, lastY = 0, touchDist = 0;
+    container.addEventListener('mousedown', function (e) {
+      if (e.target.tagName === 'BUTTON') return;
+      isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault();
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (!isDragging) return;
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      var r = container.getBoundingClientRect();
+      container.style.right = 'auto';
+      container.style.left = (r.left + dx) + 'px';
+      container.style.top = (r.top + dy) + 'px';
+      lastX = e.clientX; lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', function () { isDragging = false; });
+    container.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 1 && e.target.tagName !== 'BUTTON') {
+        isDragging = true;
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+    container.addEventListener('touchmove', function (e) {
+      if (isDragging && e.touches.length === 1) {
+        var dx = e.touches[0].clientX - lastX;
+        var dy = e.touches[0].clientY - lastY;
+        var r = container.getBoundingClientRect();
+        container.style.right = 'auto';
+        container.style.left = (r.left + dx) + 'px';
+        container.style.top = (r.top + dy) + 'px';
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2 && touchDist > 0) {
+        var dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        internalZoom = Math.max(0.5, Math.min(3, internalZoom + (touchDist - dist) * 0.005));
+        touchDist = dist;
+      }
+    }, { passive: true });
+    container.addEventListener('touchend', function () { isDragging = false; touchDist = 0; });
 
-    myContainer.addEventListener('touchstart', e => { if (e.touches.length === 1 && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } }, { passive: true });
-    myContainer.addEventListener('touchmove', e => { if (isDragging && e.touches.length === 1) { const dx = e.touches[0].clientX - lastX; const dy = e.touches[0].clientY - lastY; const r = myContainer.getBoundingClientRect(); myContainer.style.right = 'auto'; myContainer.style.left = (r.left + dx) + 'px'; myContainer.style.top = (r.top + dy) + 'px'; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } }, { passive: true });
-    myContainer.addEventListener('touchend', () => isDragging = false);
-    myContainer.addEventListener('mousedown', e => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); } });
-    window.addEventListener('mousemove', e => { if (isDragging) { const dx = e.clientX - lastX; const dy = e.clientY - lastY; const r = myContainer.getBoundingClientRect(); myContainer.style.right = 'auto'; myContainer.style.left = (r.left + dx) + 'px'; myContainer.style.top = (r.top + dy) + 'px'; lastX = e.clientX; lastY = e.clientY; } });
-    window.addEventListener('mouseup', () => isDragging = false);
+    console.log('[SAT] ✅ Mappa 100/75/50 pronta');
+  }
+  initMap();
 
-    if (typeof Astronomy === 'undefined') { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js'; document.head.appendChild(s); }
-  }, 1000);
-});
+  /* ---------- 3. Ritorno a Pianeta via messaggio ---------- */
+  window.addEventListener('message', function (e) {
+    if (e.data === 'show-master' || e.data === 'egastro-close-frame') {
+      var fc = document.getElementById('app-frame-container');
+      if (fc) {
+        fc.style.display = 'none';
+        var ifr = fc.querySelector('iframe');
+        if (ifr) ifr.src = 'about:blank';
+      }
+    }
+  });
+
+  console.log('[SAT v3] ✅ Attivo');
+})();
 </script>
-
 </body>
 </html>
