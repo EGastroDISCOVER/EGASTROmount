@@ -162,30 +162,6 @@ input:focus,select:focus{border-color:#d4af37;box-shadow:0 0 10px rgba(212,175,5
 .limits-section-title{font-family:'Orbitron',sans-serif;font-size:12px;color:#d4af37;letter-spacing:1px;text-transform:uppercase;margin-top:15px;padding-bottom:5px;border-bottom:1px solid rgba(212,175,55,0.3)}
 @media (max-width: 768px){body{display:block;height:100vh;height:100dvh;overflow:hidden}body::after{display:none}#canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}.top-bar{z-index:10;top:calc(4px + env(safe-area-inset-top,0px));left:6px;right:6px;gap:6px}.info-panel{padding:5px 8px;gap:4px}.connect-block{padding-right:6px;gap:4px}.dot{width:7px;height:7px}#connect-btn{padding:3px 8px!important;font-size:10px!important;height:22px}.link-btn-wrapper .link-label{font-size:6px;letter-spacing:0.2px}.link-btn{width:28px;height:28px;min-width:28px}.link-btn svg{width:12px;height:12px}.gps-pair{gap:2px}.gps-pair .link-btn{width:26px;height:26px;min-width:26px}.gps-pair .link-btn svg{width:11px;height:11px}.gps-pair .reset-mini{width:22px;height:22px;min-width:22px}.gps-pair .reset-mini svg{width:9px;height:9px}.top-telemetry-overlay{top:50px;left:8px;gap:2px}.top-telemetry-overlay .ct-item .k{font-size:7px;min-width:28px}.top-telemetry-overlay .ct-item .v{font-size:11px}.top-telemetry-overlay .ct-item .v.limit{font-size:8px}.top-right-buttons{gap:6px}.circle-btn{width:42px;height:42px;font-size:13px;border-radius:8px}.circle-btn svg{width:22px;height:22px}.dashboard{position:absolute;bottom:0;left:0;width:100%;z-index:10;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 160px;grid-template-rows:auto auto auto;gap:6px;background:rgba(10,14,20,0.98);max-height:70vh;overflow-y:auto}.dashboard.collapsed{height:80px;min-height:80px;padding:6px 10px;display:flex;flex-direction:row;justify-content:center}.mini-strip{padding-left:0;gap:3px}.mini-strip-row{gap:4px}.mini-strip-labels span{font-size:7px;letter-spacing:0.2px}.mini-btn{height:34px;border-radius:6px}.mini-btn svg{width:17px;height:17px}.status-section{grid-column:1;grid-row:1}.tracking-section{grid-column:1;grid-row:2}.position-section{grid-column:1;grid-row:3}.dpad-section{grid-column:2;grid-row:1/span 3}.dash-section{gap:5px}.dash-section h3{display:none}input,select{padding:5px 6px;font-size:10px;height:30px}.btn{padding:5px 6px;font-size:10px;height:30px}.btn-grid{grid-template-columns:repeat(4,1fr);gap:4px}.btn-grid .btn{padding:6px 2px;font-size:9px;height:30px}.slewing-indicator{font-size:10px;height:28px;padding:4px}.speed-display{font-size:10px;padding:4px}.d-pad-container{height:100%}.d-pad{max-width:160px;gap:4px}.d-btn svg{width:24px;height:24px}.stop-btn{font-size:11px}.modal-box input,.modal-box select{height:44px;padding:8px 10px;font-size:14px}.modal-box select{padding:10px 34px 10px 12px}.side-menu{width:280px}}
 @media (max-width: 900px) and (orientation: landscape){.dashboard{grid-template-columns:1fr 1.3fr 0.7fr auto;grid-template-rows:auto;min-height:140px;height:auto;max-height:none}.d-pad{max-width:140px}}
-/* Badge spostato sotto la telemetria (mobile-safe: zero impatto sulle icone destre) */
-#syncBadge {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  transform: none !important;
-  margin: 6px 0 0 0 !important;
-  padding: 3px 8px !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 180px !important;
-  font-size: 9px !important;
-  justify-content: flex-start !important;
-  align-self: flex-start !important;
-  pointer-events: auto !important;
-}
-#syncText {
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  max-width: 140px !important;
-  display: inline-block !important;
-}
 </style>
 <script>
 (function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V,LK='egastro_leader_v'+V;
@@ -1301,442 +1277,151 @@ document.addEventListener("DOMContentLoaded", () => {
   else ready();
 })();
 </script>
-<script>
-/* =========================================================
-   EGASTRO - PATCH DEFINITIVA PULITA (UI, Tracking, Mappa)
-   ========================================================= */
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    console.log("🚀 EGASTRO: Patch definitiva pulita applicata.");
+<script id="master-final4">
+(function(){
+  if (window.__master4) return;
+  window.__master4 = true;
 
-    // ==========================================
-    // 1. CSS (UI, Badge, Mappa, Tunnel)
-    // ==========================================
-    const styleUI = document.createElement('style');
-    styleUI.id = '__egaUI';
-    styleUI.innerHTML = `
-      /* --- FIX ICONE E BADGE --- */
-      .top-bar { flex-wrap: wrap; align-items: flex-start; }
-      .top-right-buttons { flex-shrink: 0 !important; }
-      
-      .info-panel {
-        flex-shrink: 1 !important;
-        min-width: 0 !important;
-        max-width: calc(100vw - 60px) !important;
-        flex-wrap: wrap !important;
-      }
-      
-      /* Riquadro chiuso per il blocco Connetti */
-      .connect-block {
-        width: 100px !important;
-        min-width: 100px !important;
-        max-width: 100px !important;
-        overflow: hidden !important;
-        border-right: none !important; /* Rimuove la barra verticale */
-        padding-right: 0 !important;
-      }
-      
-      /* Riquadro chiuso per il badge */
-      #syncBadge {
-        width: 100px !important;
-        max-width: 100px !important;
-        justify-content: center !important;
-        overflow: hidden !important;
-        padding: 2px 4px !important;
-        margin-top: 4px !important;
-      }
-      
-      /* Troncamento del testo del badge con i puntini */
-      #syncText {
-        display: inline-block !important;
-        max-width: 80px !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-        vertical-align: middle !important;
-      }
-      
-      #connect-btn { width: 100% !important; padding: 4px !important; }
+  var RAD = Math.PI/180, DEG = 180/Math.PI;
+  var FOLLOW_RATE_FAST = 8.0, TRACKING_RATES = { sidereal:7.2921e-5, solar:7.2722e-5, lunar:7.0237e-5 };
+  var DEFAULT_HOME_DEC = Math.PI/2;
 
-      /* --- STILI TUNNEL --- */
-      #app-switcher-toggle {
-        width: 26px !important; min-width: 26px !important; max-width: 26px !important; height: 96px !important;
-        padding: 6px 4px !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 3px !important;
-        font-family: 'Orbitron', sans-serif !important; writing-mode: vertical-rl !important; text-orientation: mixed !important;
-        line-height: 1 !important; color: #d4af37 !important; background: rgba(10, 18, 32, 0.95) !important;
-        border: 1px solid #d4af37 !important; border-left: none !important; border-radius: 0 8px 8px 0 !important;
-        cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important;
-        backdrop-filter: blur(10px) !important; transition: background 0.3s, color 0.3s !important;
-      }
-      #app-switcher-toggle:hover { background: #d4af37 !important; color: #000 !important; }
-      #app-switcher-container { transform: translateY(-50%) translateX(calc(-100% + 26px)) !important; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
-      #app-switcher-container.open { transform: translateY(-50%) translateX(0) !important; }
+  var LocalMS = {
+    ra:0, dec:DEFAULT_HOME_DEC, tRA:0, tDEC:DEFAULT_HOME_DEC,
+    homeRA:0, homeDEC:DEFAULT_HOME_DEC, parkRA:0, parkDEC:DEFAULT_HOME_DEC,
+    connected:false, isParked:false, slewMode:'idle', tracking:'off',
+    speedPerStep:0.02, speedLabel:'8x', simulated:false
+  };
 
-      /* --- STILI MAPPA ISOLATA --- */
-      .__polar-slider-wrap {
-        position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
-        width: 170px; min-width: 170px; display: flex; align-items: center; gap: 8px;
-        background: rgba(13,18,28,0.95); padding: 5px 10px;
-        border-radius: 12px; border: 1px solid #d4af37; z-index: 10;
-        box-shadow: 0 4px 12px rgba(0,0,0,.5);
-      }
-      .__polar-slider-wrap span { color: #d4af37; font-size: 10px; font-family: 'Orbitron', sans-serif; font-weight: bold; }
-      .__polar-slider-wrap input { flex: 1; height: 4px; -webkit-appearance: none; background: #334155; border-radius: 2px; outline: none; cursor: pointer; }
-      .__polar-slider-wrap input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #d4af37; cursor: pointer; box-shadow: 0 0 8px rgba(212,175,55,0.6); }
-      .__polar-zoom-btns { position: absolute; bottom: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
-      .__polar-zoom-btns button { width: 26px; height: 26px; background: rgba(13,18,28,.9); border: 1px solid rgba(212,175,55,.7); border-radius: 50%; color: #d4af37; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
-    `;
-    document.head.appendChild(styleUI);
+  function normRA(r){ r=r%(2*Math.PI); if(r<0) r+=2*Math.PI; if(r>=2*Math.PI) r-=2*Math.PI; return r; }
+  function angleDiff(a,b){ var d=(b-a)%(2*Math.PI); if(d>Math.PI) d-=2*Math.PI; if(d<=-Math.PI) d+=2*Math.PI; return d; }
+  function getLocalAstro(){ var d=LocalMS.dec%(2*Math.PI); if(d>Math.PI)d-=2*Math.PI; if(d<-Math.PI)d+=2*Math.PI; var da,off=0; if(d>Math.PI/2){da=Math.PI-d;off=Math.PI}else if(d<-Math.PI/2){da=-Math.PI-d;off=Math.PI}else da=d; return {ra:normRA(LocalMS.ra+off),dec:da}; }
 
-    // ==========================================
-    // 2. NASCONDE DEFINITIVAMENTE LA VECCHIA MAPPA
-    // ==========================================
-    const killStyle = document.createElement('style');
-    killStyle.innerHTML = `
-      #skyPolarBtn { display: none !important; visibility: hidden !important; pointer-events: none !important; }
-      #skyPolarContainer { display: none !important; visibility: hidden !important; opacity: 0 !important; }
-    `;
-    document.head.appendChild(killStyle);
+  function localGoto(raRad,decRad){ var rd=angleDiff(LocalMS.ra,raRad),dd=decRad-LocalMS.dec; while(dd>Math.PI)dd-=2*Math.PI; while(dd<-Math.PI)dd+=2*Math.PI; if(Math.sqrt(rd*rd+dd*dd)<0.001){LocalMS.slewMode='idle';return;} LocalMS.tRA=raRad; LocalMS.tDEC=decRad; LocalMS.slewMode='goto'; }
 
-    setInterval(() => {
-      const oldC = document.getElementById('skyPolarContainer');
-      if (oldC) oldC.style.display = 'none';
-      const oldBtn = document.getElementById('skyPolarBtn');
-      if (oldBtn) oldBtn.remove();
-    }, 200);
+  setInterval(function(){
+    if (LocalMS.slewMode==='goto'){
+      var rd=angleDiff(LocalMS.ra,LocalMS.tRA),dd=LocalMS.tDEC-LocalMS.dec,dist=Math.sqrt(rd*rd+dd*dd),step=FOLLOW_RATE_FAST*(1/60);
+      if(dist<0.005){ LocalMS.ra=LocalMS.tRA; LocalMS.dec=LocalMS.tDEC; LocalMS.slewMode=LocalMS.tracking!=='off'?'tracking':'idle'; return; }
+      var f=Math.min(1,step/dist); LocalMS.ra=normRA(LocalMS.ra+rd*f); LocalMS.dec=LocalMS.dec+dd*f;
+    } else if(LocalMS.slewMode==='tracking'){ var rate=TRACKING_RATES[LocalMS.tracking]||0; if(rate>0)LocalMS.ra=normRA(LocalMS.ra+rate/60); }
+  }, 16);
 
-    // ==========================================
-    // 3. TRACKING LOGIC (Sicura, senza override del D-Pad)
-    // ==========================================
-    const origStartGoto = window._startGoto;
-    window._startGoto = function(ra, dec, rate, skip, bypass) {
-      if (window._isHomeSlew) {
-        MS._pendingAutoTrack = false;
-        window._isHomeSlew = false;
-      } else {
-        MS._pendingAutoTrack = true;
-      }
-      return origStartGoto.apply(this, arguments);
+  window.__LocalMount = { MS:LocalMS, connected:function(){return LocalMS.connected;}, goto:localGoto,
+    stop:function(){ LocalMS.slewMode=LocalMS.tracking!=='off'?'tracking':'idle'; LocalMS.tRA=LocalMS.ra; LocalMS.tDEC=LocalMS.dec; },
+    setTracking:function(m){ LocalMS.tracking=m; LocalMS.slewMode=m==='off'?'idle':'tracking'; },
+    setSpeed:function(r,l){ LocalMS.speedPerStep=r; LocalMS.speedLabel=l; },
+    park:function(){ LocalMS.isParked=true; }, unpark:function(){ LocalMS.isParked=false; },
+    home:function(){ var h=getLocalAstro(); localGoto(h.ra,h.dec); },
+    setHome:function(){ var h=getLocalAstro(); LocalMS.homeRA=h.ra; LocalMS.homeDEC=h.dec; },
+    setPark:function(){ var h=getLocalAstro(); LocalMS.parkRA=h.ra; LocalMS.parkDEC=h.dec; }
+  };
+
+  function satAlive(){ return typeof SyncBus!=='undefined'&&SyncBus.isPeerAlive()&&SyncBus.getPeerId()==='mount'; }
+
+  function ready(){
+    if (typeof scopeState==='undefined'){ setTimeout(ready,150); return; }
+
+    window.scopeToggleConnect = function(){
+      if (satAlive()) SyncBus.send('cmd_connect',{on:!scopeState.connected});
+      else { if(LocalMS.connected){ LocalMS.connected=false; LocalMS.simulated=false; } else { LocalMS.simulated=true; LocalMS.connected=true; } updateBadge(); }
     };
 
-    const origGoHome = window.goHome;
-    window.goHome = function() {
-      window._isHomeSlew = true;
-      return origGoHome.apply(this, arguments);
+    window.masterGoto = window.scopeStepAction = window.scopeSlewToTarget = function(){
+      if(!scopeState.target) return;
+      if(satAlive()) SyncBus.send('cmd_goto',{ra:scopeState.target.ra,dec:scopeState.target.dec,name:scopeState.target.name||''});
+      else localGoto(scopeState.target.ra*RAD, scopeState.target.dec*RAD);
     };
 
-    setInterval(() => {
-      if (typeof MS === 'undefined') return;
-
-      // Gestione D-Pad: salva e spegne il tracking al movimento
-      if (MS.slewMode === 'manual') {
-        if (MS._trackingBeforeManual === undefined) {
-          MS._trackingBeforeManual = MS.tracking;
-          if (MS.tracking !== 'off') {
-            MS.tracking = 'off';
-            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-          }
-        }
-      } else {
-        // Rilasciato il D-Pad: ripristina il tracking
-        if (MS._trackingBeforeManual !== undefined) {
-          if (MS._trackingBeforeManual !== 'off') {
-            MS.tracking = MS._trackingBeforeManual;
-            if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
-            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-          }
-          MS._trackingBeforeManual = undefined;
-        }
-      }
-
-      // Gestione arrivo GOTO: accende il tracking
-      if (MS._pendingAutoTrack !== undefined) {
-        if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
-          if (MS._pendingAutoTrack === true && MS.tracking === 'off') {
-            MS.tracking = 'sidereal';
-            MS.slewMode = 'tracking';
-            const tm = document.getElementById('tracking-mode');
-            if (tm) tm.value = 'sidereal';
-            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-            if (typeof showToast === 'function') showToast('Tracking ON: siderale');
-          }
-          MS._pendingAutoTrack = undefined;
-        }
-      }
-    }, 100);
-
-    // ==========================================
-    // 4. NUOVA MAPPA ISOLATA (Spenta all'avvio)
-    // ==========================================
-    document.getElementById('__myPolarBtn')?.remove();
-    document.getElementById('__myPolarContainer')?.remove();
-
-    const isMobile = window.innerWidth < 600;
-    const BASE_SIZE = isMobile ? 250 : 340;
-    let scaleFactor = 1.0, zoom = 1.0;
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    let SIZE = BASE_SIZE, rafId = null, isDragging = false, lastX = 0, lastY = 0;
-    let isMapOpen = false;
-
-    const myContainer = document.createElement('div');
-    myContainer.id = '__myPolarContainer';
-    myContainer.style.cssText = `
-      position: fixed; right: 15px; top: 140px; z-index: 9000;
-      border-radius: 50%; filter: drop-shadow(0 8px 30px rgba(0,0,0,.75));
-      background: transparent; cursor: grab; display: none;
-    `;
-
-    const sliderWrap = document.createElement('div');
-    sliderWrap.className = '__polar-slider-wrap';
-    sliderWrap.innerHTML = `<span>SIZE</span><input type="range" min="0.45" max="1.0" step="0.05" value="1.0" id="__myPolarSizeSlider">`;
-    myContainer.appendChild(sliderWrap);
-
-    const cv = document.createElement('canvas');
-    cv.style.display = 'block'; cv.style.borderRadius = '50%';
-    myContainer.appendChild(cv);
-    const ctx = cv.getContext('2d');
-
-    const zoomBox = document.createElement('div');
-    zoomBox.className = '__polar-zoom-btns';
-    ['+','−'].forEach((s,i) => {
-      const b = document.createElement('button');
-      b.textContent = s;
-      b.onclick = e => { 
-        e.stopPropagation(); 
-        zoom = Math.max(0.5, Math.min(3, zoom + (i===0 ? 0.3 : -0.3))); 
-        if (isMapOpen) drawPolar(); 
-      };
-      zoomBox.appendChild(b);
-    });
-    myContainer.appendChild(zoomBox);
-    document.body.appendChild(myContainer);
-
-    const myToggle = document.createElement('div');
-    myToggle.id = '__myPolarBtn'; 
-    myToggle.className = 'circle-btn'; 
-    myToggle.title = 'Mappa Polare';
-    myToggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
-    myToggle.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
-    myToggle.onclick = () => {
-      isMapOpen = !isMapOpen;
-      myContainer.style.display = isMapOpen ? 'block' : 'none';
-      if (isMapOpen) { applySize(); startDrawPolar(); }
-      else if (rafId) cancelAnimationFrame(rafId);
+    window.scopeStopSlewing = window.scopeEmergencyStop = window.masterStop = function(){
+      if(satAlive()){ SyncBus.send('cmd_stop',{}); SyncBus.send('cmd_stop',{}); }
+      else window.__LocalMount.stop();
+      scopeState.tracking=false; var ms=document.getElementById('tracking-mode'); if(ms)ms.value='off';
+      var tb=document.getElementById('trackingOnBtn'); if(tb){tb.textContent='TRACKING ON';tb.classList.remove('highlight');}
     };
-    document.querySelector('.top-right-buttons').appendChild(myToggle);
 
-    function applySize() {
-      SIZE = Math.round(BASE_SIZE * scaleFactor);
-      myContainer.style.width = SIZE + 'px'; 
-      myContainer.style.height = SIZE + 'px';
-      cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
-      cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR);
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    }
-    applySize();
+    window.scopePark = function(){ if(satAlive())SyncBus.send('cmd_park',{}); else window.__LocalMount.park(); };
+    window.scopeUnpark = function(){ if(satAlive())SyncBus.send('cmd_unpark',{}); else window.__LocalMount.unpark(); };
+    window.scopeHome = function(){ if(satAlive())SyncBus.send('cmd_home',{}); else window.__LocalMount.home(); };
+    window.scopeSetHome = function(){ if(satAlive())SyncBus.send('cmd_set_home',{}); else window.__LocalMount.setHome(); };
+    window.scopeSetPark = function(){ if(satAlive())SyncBus.send('cmd_set_park',{}); else window.__LocalMount.setPark(); };
 
-    document.getElementById('__myPolarSizeSlider').addEventListener('input', (e) => { 
-      scaleFactor = parseFloat(e.target.value); 
-      applySize(); 
-      if (isMapOpen) drawPolar();
+    window.scopeToggleTracking = window.toggleTrackingOn = function(){
+      if(satAlive()) SyncBus.send('cmd_tracking',{on:scopeState.tracking==='off'});
+      else window.__LocalMount.setTracking(LocalMS.tracking==='off'?'sidereal':'off');
+    };
+
+    window.scopeChangeRate = function(dir){
+      var rates=[1,8,32,128], map={1:0.005,8:0.02,32:0.06,128:0.2};
+      var idx=rates.indexOf(scopeState.rate); if(idx===-1)idx=1;
+      idx=Math.max(0,Math.min(rates.length-1,idx+dir));
+      scopeState.rate=rates[idx];
+      var rd=document.getElementById('scopeRateDisplay'); if(rd)rd.innerText=rates[idx]+'X';
+      if(satAlive())SyncBus.send('cmd_speed',{rate:map[rates[idx]]});
+      else window.__LocalMount.setSpeed(map[rates[idx]],rates[idx]+'x');
+    };
+
+    var dirMap={n:'up',s:'down',e:'right',w:'left',nw:'up-left',ne:'up-right',sw:'down-left',se:'down-right'};
+    window.dPadStart = function(dir,btn){
+      var d=dirMap[dir]||dir; if(btn)btn.classList.add('active');
+      if(satAlive()){ SyncBus.send('cmd_manual_start',{dir:d}); if(!window.__dpTimer)window.__dpTimer=setInterval(function(){SyncBus.send('cmd_manual_start',{dir:d});},150); }
+      else { LocalMS.slewMode='manual'; var step=0.005; if(d.includes('up'))LocalMS.tDEC+=step; if(d.includes('down'))LocalMS.tDEC-=step; if(d.includes('left'))LocalMS.tRA-=step; if(d.includes('right'))LocalMS.tRA+=step; }
+    };
+    window.dPadStop = function(btn){
+      if(window.__dpTimer){clearInterval(window.__dpTimer);window.__dpTimer=null;}
+      if(btn)btn.classList.remove('active');
+      document.querySelectorAll('.d-btn').forEach(function(b){b.classList.remove('active');});
+      if(satAlive())SyncBus.send('cmd_manual_stop',{}); else window.__LocalMount.stop();
+    };
+
+    SyncBus.on('mount_state', function(d){
+      if(!d)return;
+      scopeState.connected=!!d.connected; scopeState.tracking=d.tracking&&d.tracking!=='off'; scopeState.isParked=!!d.isParked;
+      if(Number.isFinite(d.rate)){ var rm={0.005:1,0.02:8,0.06:32,0.2:128}; scopeState.rate=rm[d.rate]||8; var rd=document.getElementById('scopeRateDisplay'); if(rd)rd.innerText=scopeState.rate+'X'; }
+      var ov=document.getElementById('parkOverlay'); if(ov)ov.classList.toggle('open',!!d.isParked);
+      updateBadge();
     });
 
-    let CONST = [];
-    fetch('https://egastrodiscover.github.io/EGASTRO/constellations.json?t='+Date.now())
-      .then(r => r.json())
-      .then(d => {
-        if (d && d.features) {
-          CONST = d.features.map(f => {
-            const segs = f.geometry?.coordinates || [];
-            const stars = []; const map = new Map();
-            const add = (ra, dec) => {
-              const k = ra.toFixed(4)+','+dec.toFixed(4);
-              if (map.has(k)) return map.get(k);
-              const i = stars.length; stars.push({ra, dec, mag:3});
-              map.set(k, i); return i;
-            };
-            return { s: stars, l: segs.map(seg => seg.map(pt => add(pt[0], pt[1]))) };
-          });
-        }
-      }).catch(e => {});
-
-    const STARS = [
-      {n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},
-      {n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},
-      {n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},
-      {n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46}
-    ];
-    const DSO = [
-      {n:"M31",ra:10.68,dec:41.26,t:"G"},{n:"M42",ra:83.82,dec:-5.39,t:"N"},
-      {n:"M45",ra:56.75,dec:24.11,t:"C"},{n:"M13",ra:250.42,dec:36.46,t:"C"}
-    ];
-
-    function polar(alt, az) {
-      const r = (SIZE/2 - 5) * zoom * (90 - alt) / 90;
-      const azR = az * Math.PI / 180;
-      return { x: SIZE/2 + r * Math.sin(azR), y: SIZE/2 - r * Math.cos(azR), r };
-    }
-
-    function drawPolar() {
-      if (!isMapOpen) { rafId = null; return; }
-      
-      const lat = (typeof MS !== 'undefined' && MS.gpsLat) ? MS.gpsLat : 41.9; 
-      const lon = (typeof MS !== 'undefined' && MS.gpsLon) ? MS.gpsLon : 12.5; 
-      const date = new Date();
-      
-      ctx.clearRect(0, 0, SIZE, SIZE); 
-      ctx.save();
-      ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 2, 0, Math.PI*2); ctx.clip();
-      
-      const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2);
-      bg.addColorStop(0, 'rgba(22,32,68,0.60)'); 
-      bg.addColorStop(1, 'rgba(4,8,20,0.75)');
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
-      
-      ctx.strokeStyle = 'rgba(139,180,255,0.15)'; ctx.lineWidth = 0.8;
-      [30, 60].forEach(alt => {
-        const r = (SIZE/2 - 2) * zoom * (90 - alt) / 90;
-        if (r <= SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, r, 0, Math.PI*2); ctx.stroke(); }
-      });
-      for (let az = 0; az < 360; az += 30) {
-        const a = az * Math.PI / 180;
-        ctx.beginPath(); ctx.moveTo(SIZE/2, SIZE/2); 
-        ctx.lineTo(SIZE/2 + SIZE * Math.sin(a), SIZE/2 - SIZE * Math.cos(a)); ctx.stroke();
-      }
-      
-      STARS.forEach(s => {
-        const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
-        if (p.alt < 0) return;
-        const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.8, 2.5 - s.mag*0.5), 0, Math.PI*2);
-        ctx.fillStyle = '#fff'; ctx.fill();
-      });
-      
-      ctx.strokeStyle = 'rgba(150,180,255,0.3)'; ctx.lineWidth = 0.8;
-      CONST.forEach(c => {
-        c.l.forEach(line => {
-          let st = false; ctx.beginPath();
-          line.forEach(i => {
-            const s = c.s[i]; if (!s) return;
-            const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
-            if (p.alt < 0) { st = false; return; }
-            const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) { st = false; return; }
-            if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y);
-          });
-          ctx.stroke();
-        });
-      });
-      
-      DSO.forEach(m => {
-        const p = Astro.altAz(m.ra*Math.PI/180, m.dec*Math.PI/180, lat, lon, date);
-        if (p.alt < 0) return;
-        const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return;
-        ctx.beginPath();
-        if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI*2);
-        else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6);
-        else ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(139,211,255,0.85)'; ctx.fill();
-      });
-      
-      if (typeof Astronomy !== 'undefined') {
-        try {
-          const obs = new Astronomy.Observer(lat, lon, 0); 
-          const time = new Astronomy.AstroTime(date);
-          ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'].forEach(bodyName => {
-            const body = Astronomy.Body[bodyName];
-            const eq = Astronomy.Equator(body, time, obs, true, true);
-            const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal');
-            if (hor.altitude < 0) return;
-            const pt = polar(hor.altitude, hor.azimuth); if (pt.r > SIZE/2) return;
-            let color = '#ffd700', size = 4, label = bodyName;
-            if (bodyName === 'Sun') { color = '#ffe600'; size = 6; label = 'Sole'; }
-            if (bodyName === 'Moon') { color = '#e2e8f0'; size = 5; label = 'Luna'; }
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); 
-            ctx.fillStyle = color; ctx.fill();
-            if (SIZE > 250) { ctx.fillStyle = color; ctx.font = 'bold 9px Inter'; 
-              ctx.fillText(label, pt.x + 7, pt.y + 3); }
-          });
-        } catch(e) {}
-      }
-      
-      try {
-        if (typeof getAstroCoords === 'function') {
-          const astro = getAstroCoords(); 
-          const p = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
-          if (p.alt >= 0) {
-            const pt = polar(p.alt, p.az); 
-            if (pt.r <= SIZE/2) {
-              ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5;
-              ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke();
-              ctx.beginPath(); 
-              ctx.moveTo(pt.x-10, pt.y); ctx.lineTo(pt.x-4, pt.y); 
-              ctx.moveTo(pt.x+4, pt.y); ctx.lineTo(pt.x+10, pt.y); ctx.stroke();
-            }
-          }
-        }
-      } catch(e) {}
-      
-      ctx.restore();
-      
-      [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => {
-        const r = SIZE/2 - (SIZE < 200 ? 10 : 12);
-        ctx.fillStyle = '#d4af37'; 
-        ctx.font = `bold ${SIZE < 200 ? 9 : 11}px Orbitron`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(d.l, SIZE/2 + r*Math.sin(d.a*Math.PI/180), SIZE/2 - r*Math.cos(d.a*Math.PI/180));
-      });
-      
-      if (isMapOpen) rafId = requestAnimationFrame(drawPolar);
-    }
-
-    function startDrawPolar() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(drawPolar);
-    }
-
-    myContainer.addEventListener('touchstart', e => {
-      if (e.touches.length === 1 && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-        isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-      }
-    }, { passive: true });
-    myContainer.addEventListener('touchmove', e => {
-      if (isDragging && e.touches.length === 1) {
-        const dx = e.touches[0].clientX - lastX; 
-        const dy = e.touches[0].clientY - lastY;
-        const r = myContainer.getBoundingClientRect();
-        myContainer.style.right = 'auto'; 
-        myContainer.style.left = (r.left + dx) + 'px'; 
-        myContainer.style.top = (r.top + dy) + 'px';
-        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-      }
-    }, { passive: true });
-    myContainer.addEventListener('touchend', () => isDragging = false);
-
-    myContainer.addEventListener('mousedown', e => {
-      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-        isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault();
-      }
+    SyncBus.on('request_master_state', function(){
+      var lat=parseFloat((document.getElementById('lat')||{}).value)||41.9;
+      var lon=parseFloat((document.getElementById('lon')||{}).value)||12.5;
+      SyncBus.send('master_ready',{lat:lat,lon:lon});
     });
-    window.addEventListener('mousemove', e => {
-      if (isDragging) {
-        const dx = e.clientX - lastX; const dy = e.clientY - lastY;
-        const r = myContainer.getBoundingClientRect();
-        myContainer.style.right = 'auto'; 
-        myContainer.style.left = (r.left + dx) + 'px'; 
-        myContainer.style.top = (r.top + dy) + 'px';
-        lastX = e.clientX; lastY = e.clientY;
-      }
+
+    SyncBus.on('satellite_ready', function(){
+      var lat=parseFloat((document.getElementById('lat')||{}).value)||41.9;
+      var lon=parseFloat((document.getElementById('lon')||{}).value)||12.5;
+      setTimeout(function(){ SyncBus.send('master_ready',{lat:lat,lon:lon}); },200);
     });
-    window.addEventListener('mouseup', () => isDragging = false);
 
-    if (typeof Astronomy === 'undefined') {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js';
-      document.head.appendChild(s);
+    SyncBus.on('slew_arrived', function(d){
+      if(!d)return; scopeState.tracking=true; var ms=document.getElementById('tracking-mode'); if(ms)ms.value='sidereal';
+      var tb=document.getElementById('trackingOnBtn'); if(tb){tb.textContent='TRACKING OFF';tb.classList.add('highlight');}
+      if(typeof updateTrackingBtn==='function')updateTrackingBtn();
+    });
+
+    if(typeof SyncBus!=='undefined'){ var origSend=SyncBus.send.bind(SyncBus); SyncBus.send=function(t,d){ if(t==='focus_request')return; return origSend(t,d); }; }
+    window.addEventListener('message',function(e){ if(e.data==='show-master'){e.stopImmediatePropagation();} if(e.data==='hide-satellite-frame'){var fc=document.getElementById('app-frame-container');if(fc)fc.style.display='none';} },true);
+
+    var td=document.getElementById('btn-goto-telescope');
+    if(td){ td.onclick=function(e){ e.preventDefault(); var fc=document.getElementById('app-frame-container'),fr=document.getElementById('app-frame'); if(!fc||!fr)return; var src=fr.getAttribute('src')||''; if(src.indexOf('EGASTROmount')>=0){fc.style.display='block';}else{fr.src='https://egastrodiscover.github.io/EGASTROmount/';fc.style.display='block';} }; }
+
+    setInterval(function(){ if(typeof MS==='undefined'||satAlive())return; MS.ra=LocalMS.ra; MS.dec=LocalMS.dec; MS.tRA=LocalMS.tRA; MS.tDEC=LocalMS.tDEC; MS.slewMode=LocalMS.slewMode; MS.tracking=LocalMS.tracking; MS.isParked=LocalMS.isParked; MS.connected=LocalMS.connected; },30);
+
+    function updateBadge(){
+      var b=document.getElementById('syncBadge'); if(!b)return;
+      var dot=b.querySelector('span:first-child'); var txt=b.querySelector('span:last-child');
+      if(!dot||!txt)return;
+      if(satAlive()){ txt.textContent='SYNC OK'; dot.style.color='#4ade80'; b.style.borderColor='#4ade80'; }
+      else { txt.textContent='STAND-ALONE'; dot.style.color='#8bd3ff'; b.style.borderColor='#8bd3ff'; }
     }
+    setInterval(updateBadge, 1000);
+    updateBadge();
 
-  }, 1000);
-});
-</script>
-</body>
+    console.log('[MASTER] ✅ COMPLETE4 attivo');
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+</script></body>
 </html>
