@@ -1348,20 +1348,19 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 })();
-</script>
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TUNNEL UNIFICATO v1 — incollare IDENTICO in ENTRAMBI i file       -->
+<!-- TUNNEL V2 — incollare IDENTICO in ENTRAMBI i file, sopra </body>  -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<script id="egastro-tunnel-v1">
+<script id="egastro-tunnel-v2">
 (function () {
   'use strict';
-  if (window.__tunnelUnifiedV1) return;
-  window.__tunnelUnifiedV1 = true;
+  if (window.__tunnelV2) return;
+  window.__tunnelV2 = true;
 
   var meta = document.querySelector('meta[name="app-id"]');
   var MY_APP = meta && meta.content ? String(meta.content).toLowerCase() : '';
   if (MY_APP !== 'observatory' && MY_APP !== 'mount') {
-    console.warn('[TUNNEL] app-id non valido, tunnel disabilitato');
+    console.warn('[TUNNEL v2] app-id non valido:', MY_APP, '- tunnel disabilitato');
     return;
   }
 
@@ -1378,18 +1377,35 @@ document.addEventListener("DOMContentLoaded", () => {
   var IN_FRAME = false;
   try { IN_FRAME = window.self !== window.top; } catch (e) { IN_FRAME = true; }
 
-  // Pulizia vecchi tunnel
-  ['app-switcher-container','app-switcher-menu','app-switcher-toggle',
-   'planet-menu-ultimate','app-frame-container','app-frame',
-   'btn-goto-dome','btn-goto-telescope'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (el) el.remove();
-  });
-  document.querySelectorAll('.app-switch-btn').forEach(function (el) { el.remove(); });
+  // ─── Cleanup CONTINUO dei vecchi menu (funziona anche se il vecchio codice resta) ───
+  var OLD_IDS = ['app-switcher-container','app-switcher-menu','app-switcher-toggle',
+                 'planet-menu-ultimate','app-frame-container','app-frame',
+                 'btn-goto-dome','btn-goto-telescope'];
+  function cleanupOld() {
+    OLD_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.remove(); console.log('[TUNNEL v2] rimosso vecchio:', id); }
+    });
+  }
+  cleanupOld();
+  setInterval(cleanupOld, 800);
 
-  if (!document.getElementById('__tunnelV1CSS')) {
+  try {
+    var obs = new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        m.addedNodes.forEach(function (n) {
+          if (!n || n.nodeType !== 1) return;
+          if (n.id && OLD_IDS.indexOf(n.id) !== -1) { n.remove(); }
+        });
+      });
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) {}
+
+  // ─── CSS ───
+  if (!document.getElementById('__tunnelV2CSS')) {
     var style = document.createElement('style');
-    style.id = '__tunnelV1CSS';
+    style.id = '__tunnelV2CSS';
     style.textContent =
       '#tunnel-menu{position:fixed!important;left:0!important;top:50%!important;' +
       'transform:translateY(-50%) translateX(calc(-100% + 26px))!important;' +
@@ -1429,11 +1445,26 @@ document.addEventListener("DOMContentLoaded", () => {
       'display:flex!important;align-items:center!important;justify-content:center!important}' +
       '#tunnel-toggle:hover{background:#d4af37!important;color:#000!important}' +
       '#tunnel-frame-container{position:fixed!important;inset:0!important;' +
-      'z-index:2147483645!important;background:#000!important;display:none!important}' +
-      '#tunnel-frame{width:100%!important;height:100%!important;border:none!important}';
+      'z-index:2147483645!important;background:#05070a!important;display:none!important}' +
+      '#tunnel-frame{width:100%!important;height:100%!important;border:none!important}' +
+      '#tunnel-loading{position:fixed!important;inset:0!important;' +
+      'z-index:2147483646!important;background:#05070a!important;' +
+      'display:none!important;align-items:center!important;justify-content:center!important;' +
+      'color:#d4af37!important;font-family:Orbitron,sans-serif!important;font-size:15px!important;' +
+      'flex-direction:column!important;gap:16px!important;padding:20px!important}' +
+      '#tunnel-loading.show{display:flex!important}' +
+      '#tunnel-loading .spinner{width:48px!important;height:48px!important;' +
+      'border:3px solid rgba(212,175,55,.2)!important;border-top-color:#d4af37!important;' +
+      'border-radius:50%!important;animation:tunnel-spin 1s linear infinite!important}' +
+      '@keyframes tunnel-spin{to{transform:rotate(360deg)}}' +
+      '#tunnel-fallback-btn{padding:10px 20px!important;background:#d4af37!important;' +
+      'color:#000!important;border:none!important;border-radius:8px!important;' +
+      'cursor:pointer!important;font-family:Orbitron,sans-serif!important;' +
+      'font-weight:700!important;font-size:13px!important;margin-top:8px!important}';
     document.head.appendChild(style);
   }
 
+  // ─── DOM ───
   var menu = document.createElement('div');
   menu.id = 'tunnel-menu';
 
@@ -1463,6 +1494,11 @@ document.addEventListener("DOMContentLoaded", () => {
   menu.appendChild(panel);
   menu.appendChild(toggle);
 
+  var loading = document.createElement('div');
+  loading.id = 'tunnel-loading';
+  loading.innerHTML = '<div class="spinner"></div>' +
+    '<div id="tunnel-loading-text">Caricamento ' + APPS[OTHER].name + '...</div>';
+
   var frameContainer = document.createElement('div');
   frameContainer.id = 'tunnel-frame-container';
   var frame = document.createElement('iframe');
@@ -1471,8 +1507,10 @@ document.addEventListener("DOMContentLoaded", () => {
   frameContainer.appendChild(frame);
 
   document.body.appendChild(menu);
+  document.body.appendChild(loading);
   document.body.appendChild(frameContainer);
 
+  // ─── Eventi ───
   toggle.addEventListener('click', function (e) {
     e.preventDefault(); e.stopPropagation();
     menu.classList.toggle('open');
@@ -1489,14 +1527,59 @@ document.addEventListener("DOMContentLoaded", () => {
     menu.classList.remove('open');
   });
 
+  var frameLoaded = false;
+  var loadingTimeout = null;
+
+  frame.addEventListener('load', function () {
+    frameLoaded = true;
+    if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
+    loading.classList.remove('show');
+    console.log('[TUNNEL v2] iframe loaded:', frame.src);
+  });
+
   function showFrame() {
-    if (!frame.src || frame.src === 'about:blank') frame.src = APPS[OTHER].url;
+    frameLoaded = false;
+    loading.classList.add('show');
+    var txt = document.getElementById('tunnel-loading-text');
+    if (txt) txt.textContent = 'Caricamento ' + APPS[OTHER].name + '...';
+    if (!frame.src || frame.src === 'about:blank') {
+      var sep = APPS[OTHER].url.indexOf('?') === -1 ? '?' : '&';
+      frame.src = APPS[OTHER].url + sep + 'tunnel=1&t=' + Date.now();
+    }
     frameContainer.style.display = 'block';
     menu.style.display = 'none';
+
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+    loadingTimeout = setTimeout(function () {
+      if (!frameLoaded) {
+        console.warn('[TUNNEL v2] iframe timeout dopo 10s');
+        var t = document.getElementById('tunnel-loading-text');
+        if (t) {
+          t.innerHTML = 'Impossibile caricare <b>' + APPS[OTHER].name + '</b> nell\'iframe.<br>' +
+            '<span style="color:#f87171;font-size:12px;font-family:Inter">Il browser o il server potrebbero bloccarlo.</span>';
+          var oldBtn = document.getElementById('tunnel-fallback-btn');
+          if (!oldBtn) {
+            var fb = document.createElement('button');
+            fb.id = 'tunnel-fallback-btn';
+            fb.textContent = 'Apri in nuova finestra';
+            fb.onclick = function () {
+              window.open(APPS[OTHER].url, '_blank');
+              hideFrame();
+            };
+            t.parentNode.insertBefore(fb, t.nextSibling);
+          }
+        }
+      }
+    }, 10000);
   }
+
   function hideFrame() {
     frameContainer.style.display = 'none';
+    loading.classList.remove('show');
     menu.style.display = '';
+    if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
+    var fb = document.getElementById('tunnel-fallback-btn');
+    if (fb) fb.remove();
   }
 
   otherBtn.addEventListener('click', function (e) {
@@ -1536,8 +1619,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   } catch (err) {}
 
-  window.__tunnel = { myApp: MY_APP, other: OTHER, openOther: showFrame, close: hideFrame, inFrame: IN_FRAME };
-  console.log('[TUNNEL v1] ✅ Ready · App:', MY_APP, '· Other:', OTHER, '· InFrame:', IN_FRAME);
+  window.__tunnel = {
+    myApp: MY_APP, other: OTHER, openOther: showFrame, close: hideFrame, inFrame: IN_FRAME,
+    debug: function () {
+      console.log('=== TUNNEL DEBUG ===');
+      console.log('  MY_APP:', MY_APP, '(dovrebbe essere "' + MY_APP + '")');
+      console.log('  OTHER:', OTHER);
+      console.log('  IN_FRAME:', IN_FRAME);
+      console.log('  menu presente:', !!document.getElementById('tunnel-menu'));
+      console.log('  btn corrente:', currentBtn.className);
+      console.log('  btn altro:', otherBtn.className);
+      console.log('  frame.src:', frame.src);
+      console.log('  frame display:', frameContainer.style.display);
+      console.log('  Frame caricato?', frameLoaded);
+      console.log('  Vecchi residui:');
+      OLD_IDS.forEach(function (id) { console.log('    ', id + ':', !!document.getElementById(id)); });
+    }
+  };
+
+  console.log('[TUNNEL v2] ✅ Ready · App:', MY_APP, '· Other:', OTHER, '· InFrame:', IN_FRAME);
 })();
 </script>
 </body>
