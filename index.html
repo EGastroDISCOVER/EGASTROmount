@@ -771,9 +771,40 @@ window.addEventListener('load',()=>{
   }
   #app-switcher-toggle:hover { background: #d4af37 !important; color: #000 !important; }
   .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
-  .app-btn-telescope { border: 2px solid #d4af37; background: #0a1220; color: #d4af37; pointer-events: none; opacity: 0.35; }
-  .app-btn-dome { border: 2px solid #8bd3ff; background: #0a1220; color: #8bd3ff; box-shadow: 0 0 10px rgba(139, 211, 255, 0.3); }
-  .app-btn-dome:hover { background: #8bd3ff; color: #000; transform: scale(1.1); }
+ /* ✅ APP CORRENTE = TELESCOPIO (Mount) — evidenziato + badge verde "sei qui" */
+.app-btn-telescope {
+  border: 2px solid #d4af37;
+  background: #0a1220;
+  color: #d4af37;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.55);
+  cursor: pointer;
+  position: relative;
+}
+.app-btn-telescope::after {
+  content: '✓';
+  position: absolute;
+  bottom: -3px; right: -3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #4ade80;
+  color: #000;
+  font-size: 9px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+/* ✅ APP DESTINAZIONE = DOME (Observatory) — cliccabile per tornare */
+.app-btn-dome {
+  border: 2px solid #8bd3ff;
+  background: #0a1220;
+  color: #8bd3ff;
+  box-shadow: 0 0 10px rgba(139, 211, 255, 0.3);
+}
+.app-btn-dome:hover {
+  background: #8bd3ff;
+  color: #000;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(139, 211, 255, 0.6);
+}
   .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
 </style>
 
