@@ -1708,25 +1708,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 </script>
-  <script>
+ <script>
 /* =========================================================
-   EGASTRO PATCH DEFINITIVA (UI, Tracking, Mappa, Tunnel)
+   EGASTRO - PATCH DEFINITIVA E UNIFICATA
    ========================================================= */
 window.addEventListener('load', () => {
+  // Ritardo di 1 secondo per dare il tempo all'app originale di inizializzarsi
   setTimeout(() => {
-    console.log("🚀 Applicazione Patch Definitiva in corso...");
+    console.log("🚀 Applicazione Patch Definitiva (UI, Tracking, Mappa, Tunnel)...");
 
     // ==========================================
-    // 1. UI E LAYOUT (Riquadri chiusi, no bordi)
+    // 1. CSS UNIFICATO (UI chiusa, Tunnel, Mappa trasparente)
     // ==========================================
     const styleUI = document.createElement('style');
     styleUI.id = '__egaUI';
     styleUI.innerHTML = `
-      /* Blocca le icone a destra e impedisce l'uscita dallo schermo */
+      /* --- FIX ICONE E BADGE --- */
       .top-bar { flex-wrap: wrap; align-items: flex-start; }
       .top-right-buttons { flex-shrink: 0 !important; }
       
-      /* Impedisce al pannello di espandersi troppo */
       .info-panel {
         flex-shrink: 1 !important;
         min-width: 0 !important;
@@ -1734,13 +1734,13 @@ window.addEventListener('load', () => {
         flex-wrap: wrap !important;
       }
       
-      /* Riquadro chiuso per Connetti */
+      /* Riquadro chiuso per il blocco Connetti (larghezza fissa, niente bordi) */
       .connect-block {
         width: 100px !important;
         min-width: 100px !important;
         max-width: 100px !important;
         overflow: hidden !important;
-        border-right: none !important; /* Rimuove la barra verticale */
+        border-right: none !important;
         padding-right: 0 !important;
       }
       
@@ -1754,7 +1754,7 @@ window.addEventListener('load', () => {
         margin-top: 4px !important;
       }
       
-      /* Troncamento del testo con i puntini */
+      /* Troncamento del testo del badge con i puntini */
       #syncText {
         display: inline-block !important;
         max-width: 80px !important;
@@ -1764,11 +1764,21 @@ window.addEventListener('load', () => {
         vertical-align: middle !important;
       }
       
-      /* Adatta il tasto Connetti al riquadro */
-      #connect-btn {
-        width: 100% !important;
-        padding: 4px !important;
+      #connect-btn { width: 100% !important; padding: 4px !important; }
+
+      /* --- STILI TUNNEL --- */
+      #app-switcher-toggle {
+        width: 26px !important; min-width: 26px !important; max-width: 26px !important; height: 96px !important;
+        padding: 6px 4px !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 3px !important;
+        font-family: 'Orbitron', sans-serif !important; writing-mode: vertical-rl !important; text-orientation: mixed !important;
+        line-height: 1 !important; color: #d4af37 !important; background: rgba(10, 18, 32, 0.95) !important;
+        border: 1px solid #d4af37 !important; border-left: none !important; border-radius: 0 8px 8px 0 !important;
+        cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important;
+        backdrop-filter: blur(10px) !important; transition: background 0.3s, color 0.3s !important;
       }
+      #app-switcher-toggle:hover { background: #d4af37 !important; color: #000 !important; }
+      #app-switcher-container { transform: translateY(-50%) translateX(calc(-100% + 26px)) !important; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
+      #app-switcher-container.open { transform: translateY(-50%) translateX(0) !important; }
 
       /* --- STILI MAPPA POLARE --- */
       #skyPolarContainer {
@@ -1790,50 +1800,36 @@ window.addEventListener('load', () => {
       .polar-zoom-btns { position: absolute; bottom: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
       .polar-zoom-btns button { width: 26px; height: 26px; background: rgba(13,18,28,.9); border: 1px solid rgba(212,175,55,.7); border-radius: 50%; color: #d4af37; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
 
-      /* --- STILI TUNNEL --- */
-      #app-switcher-toggle {
-        width: 26px !important; min-width: 26px !important; max-width: 26px !important; height: 96px !important;
-        padding: 6px 4px !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 3px !important;
-        font-family: 'Orbitron', sans-serif !important; writing-mode: vertical-rl !important; text-orientation: mixed !important;
-        line-height: 1 !important; color: #d4af37 !important; background: rgba(10, 18, 32, 0.95) !important;
-        border: 1px solid #d4af37 !important; border-left: none !important; border-radius: 0 8px 8px 0 !important;
-        cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important;
-        backdrop-filter: blur(10px) !important; transition: background 0.3s, color 0.3s !important;
-      }
-      #app-switcher-toggle:hover { background: #d4af37 !important; color: #000 !important; }
-      #app-switcher-container { transform: translateY(-50%) translateX(calc(-100% + 26px)) !important; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
-      #app-switcher-container.open { transform: translateY(-50%) translateX(0) !important; }
-      
-      /* Nasconde la vecchia icona mappa per sempre */
-      #skyPolarBtn { display: none !important; }
+      /* Nasconde definitivamente la vecchia icona mappa */
+      #skyPolarBtn { display: none !important; visibility: hidden !important; }
     `;
     document.head.appendChild(styleUI);
 
     // ==========================================
-    // 2. TUNNEL E SWITCHER
+    // 2. TUNNEL
     // ==========================================
-    const toggle = document.getElementById('app-switcher-toggle');
-    const sc = document.getElementById('app-switcher-container');
-    if (toggle && sc) {
-      toggle.textContent = 'TUNNEL';
-      toggle.title = 'Apri menu app';
-      toggle.onclick = function(e) {
+    const tunnelToggle = document.getElementById('app-switcher-toggle');
+    const tunnelContainer = document.getElementById('app-switcher-container');
+    if (tunnelToggle && tunnelContainer) {
+      tunnelToggle.textContent = 'TUNNEL';
+      tunnelToggle.title = 'Apri menu app';
+      tunnelToggle.onclick = function(e) {
         e.preventDefault(); e.stopPropagation();
-        sc.classList.toggle('open');
+        tunnelContainer.classList.toggle('open');
       };
       document.addEventListener('click', function(e) {
-        if (!sc.contains(e.target)) sc.classList.remove('open');
+        if (!tunnelContainer.contains(e.target)) tunnelContainer.classList.remove('open');
       });
       const mo = new MutationObserver(() => {
-        if (toggle.textContent !== 'TUNNEL') toggle.textContent = 'TUNNEL';
+        if (tunnelToggle.textContent !== 'TUNNEL') tunnelToggle.textContent = 'TUNNEL';
       });
-      mo.observe(toggle, { childList: true, characterData: true, subtree: true });
+      mo.observe(tunnelToggle, { childList: true, characterData: true, subtree: true });
     }
 
     // ==========================================
     // 3. LOGICA DI TRACKING AVANZATA
     // ==========================================
-    // A. Salva lo stato prima del D-Pad e spegne il tracking
+    // A. D-Pad Start (Spegne tracking, salva stato)
     const origDPadStart = window.dPadStart;
     window.dPadStart = function(dir, btn) {
       if (typeof MS !== 'undefined') {
@@ -1847,7 +1843,7 @@ window.addEventListener('load', () => {
       }
     };
 
-    // B. Ripristina il tracking al rilascio del D-Pad
+    // B. D-Pad Stop (Ripristina tracking)
     const origDPadStop = window.dPadStop;
     window.dPadStop = function(btn) {
       if (origDPadStop) origDPadStop(btn);
@@ -1859,7 +1855,7 @@ window.addEventListener('load', () => {
       }
     };
 
-    // C. Intercetta GOTO e HOME per flag automatico
+    // C. Intercetta GOTO e HOME
     const origStartGoto = window._startGoto;
     window._startGoto = function(ra, dec, rate, skipFlip, bypass, autoTrack = true) {
       if (typeof MS !== 'undefined') MS._pendingAutoTrack = autoTrack;
@@ -1872,7 +1868,7 @@ window.addEventListener('load', () => {
       if (typeof MS !== 'undefined') MS._pendingAutoTrack = false;
     };
 
-    // D. Monitoraggio Arrivo GOTO per attivare tracking
+    // D. Monitoraggio Arrivo GOTO (Accende tracking)
     setInterval(() => {
       if (typeof MS !== 'undefined' && MS._pendingAutoTrack !== undefined) {
         if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
@@ -1890,7 +1886,7 @@ window.addEventListener('load', () => {
     }, 200);
 
     // ==========================================
-    // 4. MAPPA POLARE (Spenta di default, attivabile)
+    // 4. MAPPA POLARE (Spenta all'avvio)
     // ==========================================
     document.getElementById('skyPolarBtn')?.remove(); 
     document.getElementById('skyPolarContainer')?.remove();
@@ -2091,7 +2087,7 @@ window.addEventListener('load', () => {
       document.head.appendChild(s);
     }
 
-    // Trascinamento
+    // Trascinamento Mappa
     container.addEventListener('touchstart', e => {
       if (e.touches.length === 1 && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
         isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
@@ -2123,7 +2119,7 @@ window.addEventListener('load', () => {
     window.addEventListener('mouseup', () => isDragging = false);
 
     console.log("✅ TUTTE LE PATCH (UI, Tracking, Mappa, Tunnel) APPLICATE CON SUCCESSO!");
-  }, 1000); // Attende 1 secondo che l'app principale sia carica
+  }, 1000); 
 });
 </script>
 </body>
