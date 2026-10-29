@@ -1541,17 +1541,14 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 <script>
 (function(){
-  console.log("✅ EGASTRO: Layout e Mappa v3 caricati in modo definitivo.");
+  console.log("✅ EGASTRO: Layout e Mappa v3 (inattiva di default + trasparente).");
 
   // ==========================================
   // 1. UCCIDI LA VECCHIA ICONA (Per sempre)
   // ==========================================
-  // Questo CSS la nasconde anche se il codice originale prova a crearla
   const killCSS = document.createElement('style');
   killCSS.innerHTML = '#skyPolarBtn { display: none !important; visibility: hidden !important; pointer-events: none !important; }';
   document.head.appendChild(killCSS);
-
-  // Rimuove fisicamente l'icona se già presente
   document.getElementById('skyPolarBtn')?.remove();
 
   // ==========================================
@@ -1661,19 +1658,23 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomBox.appendChild(b);
   });
   container.appendChild(zoomBox);
-  document.body.appendChild(container);
 
-  // ICONA MAPPA DORATA (L'unica che rimarrà)
+  // NON aggiungiamo il container al body qui! (Inattiva di default)
+
+  // ICONA MAPPA DORATA
   const toggle = document.createElement('div');
   toggle.id = 'polarToggleBtn'; toggle.className = 'circle-btn'; toggle.title = 'Mappa Polare';
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
   toggle.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
+  
   toggle.onclick = () => {
     const el = document.getElementById('skyPolarContainer');
     if (el) { 
+      // Se è visibile, la nascondiamo e fermiamo il loop
       if (rafId) cancelAnimationFrame(rafId); 
       el.remove(); 
     } else { 
+      // Se è nascosta, la mostriamo e avviamo il loop
       document.body.appendChild(container); 
       startDraw(); 
     }
@@ -1733,9 +1734,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const lat = MS.gpsLat || 41.9; const lon = MS.gpsLon || 12.5; const date = new Date();
       ctx.clearRect(0, 0, SIZE, SIZE); ctx.save();
       ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 2, 0, Math.PI*2); ctx.clip();
+      
+      // SFONDO PIÙ TRASPARENTE (Da 0.92/0.97 a 0.60/0.75)
       const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2);
-      bg.addColorStop(0, 'rgba(22,32,68,0.92)'); bg.addColorStop(1, 'rgba(4,8,20,0.97)');
+      bg.addColorStop(0, 'rgba(22,32,68,0.60)'); 
+      bg.addColorStop(1, 'rgba(4,8,20,0.75)');
       ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
+
       ctx.strokeStyle = 'rgba(139,180,255,0.15)'; ctx.lineWidth = 0.8;
       [30, 60].forEach(alt => {
         const r = (SIZE/2 - 2) * zoom * (90 - alt) / 90;
@@ -1815,11 +1820,12 @@ document.addEventListener("DOMContentLoaded", () => {
     draw();
   }
 
+  // Carica Astronomy ma NON avvia il disegno finché non si clicca l'icona
   if (typeof Astronomy === 'undefined') {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js';
-    s.onload = startDraw; document.head.appendChild(s);
-  } else { startDraw(); }
+    document.head.appendChild(s);
+  }
 
   // TRASCINAMENTO TOUCH
   container.addEventListener('touchstart', e => {
