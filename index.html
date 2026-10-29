@@ -808,7 +808,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnDome) {
     btnDome.onclick = function(e) {
       e.preventDefault();
-      if (window.parent !== window) { window.parent.postMessage('show-master', '*'); return; }
+      if (window.parent !== window) { window.parent.postMessage('hide-satellite-frame', '*');
+ return; }
       const fc = document.getElementById('app-frame-container');
       const fr = document.getElementById('app-frame');
       if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
