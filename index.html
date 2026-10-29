@@ -1131,7 +1131,19 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   }, true);
 })();
 </script>
-</body>  -->
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function(){
+    let b=document.createElement('button');
+    b.style.cssText='position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:9999;width:52px;height:52px;border-radius:0 12px 12px 0;background:#0a1220;border:2px solid #d4af37;border-left:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#d4af37;padding:0;box-shadow:0 0 15px rgba(212,175,55,.5)';
+    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+    b.onclick=function(){ 
+      if(window.parent!==window){ window.parent.postMessage('hide-satellite-frame','*'); }
+      else { window.location.href='https://egastrodiscover.github.io/EGASTRO/'; } 
+    };
+    document.body.appendChild(b);
+  });
+  </script></body>  -->
 
 
 </body>
