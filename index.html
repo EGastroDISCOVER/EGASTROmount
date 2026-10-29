@@ -1885,82 +1885,109 @@ window.addEventListener('load', () => {
       }
     }, 200);
 
+        // ==========================================
+    // 4. MAPPA POLARE (ISOLATA - ID UNIVOCI)
     // ==========================================
-    // 4. MAPPA POLARE (Spenta all'avvio)
-    // ==========================================
-    document.getElementById('skyPolarBtn')?.remove(); 
+    
+    // 4.1 Nascondi definitivamente l'icona e il container originali
+    document.getElementById('skyPolarBtn')?.remove();
     document.getElementById('skyPolarContainer')?.remove();
-    document.getElementById('polarToggleBtn')?.remove(); 
+    
+    const killOldMapCSS = document.createElement('style');
+    killOldMapCSS.innerHTML = `
+      #skyPolarBtn { display: none !important; }
+      #skyPolarContainer:not(#__myPolarContainer) { display: none !important; }
+    `;
+    document.head.appendChild(killOldMapCSS);
 
+    // 4.2 Crea la NOSTRA mappa con ID univoci
     const isMobile = window.innerWidth < 600;
     const BASE_SIZE = isMobile ? 250 : 340;
     let scaleFactor = 1.0, zoom = 1.0;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
     let SIZE = BASE_SIZE, rafId = null, isDragging = false, lastX = 0, lastY = 0;
+    let isMapOpen = false;
 
-    const container = document.createElement('div');
-    container.id = 'skyPolarContainer';
-    container.style.touchAction = 'none';
+    // Container principale
+    const myContainer = document.createElement('div');
+    myContainer.id = '__myPolarContainer';
+    myContainer.style.cssText = `
+      position: fixed; right: 15px; top: 140px; z-index: 9000;
+      border-radius: 50%; filter: drop-shadow(0 8px 30px rgba(0,0,0,.75));
+      background: transparent; cursor: grab;
+      display: none; /* Nascosta di default */
+    `;
 
+    // Slider per la dimensione
     const sliderWrap = document.createElement('div');
     sliderWrap.className = 'polar-slider-wrap';
-    sliderWrap.innerHTML = `<span>SIZE</span><input type="range" min="0.45" max="1.0" step="0.05" value="1.0" id="polarSizeSlider">`;
-    container.appendChild(sliderWrap);
+    sliderWrap.innerHTML = `<span>SIZE</span><input type="range" min="0.45" max="1.0" step="0.05" value="1.0" id="__myPolarSizeSlider">`;
+    myContainer.appendChild(sliderWrap);
 
+    // Canvas
     const cv = document.createElement('canvas');
     cv.style.display = 'block'; cv.style.borderRadius = '50%';
-    container.appendChild(cv);
+    myContainer.appendChild(cv);
     const ctx = cv.getContext('2d');
 
+    // Pulsanti zoom
     const zoomBox = document.createElement('div');
     zoomBox.className = 'polar-zoom-btns';
     ['+','−'].forEach((s,i) => {
       const b = document.createElement('button');
       b.textContent = s;
-      b.onclick = e => { e.stopPropagation(); zoom = Math.max(0.5, Math.min(3, zoom + (i===0 ? 0.3 : -0.3))); };
+      b.onclick = e => { 
+        e.stopPropagation(); 
+        zoom = Math.max(0.5, Math.min(3, zoom + (i===0 ? 0.3 : -0.3))); 
+        if (isMapOpen) drawPolar(); // Ridisegna subito
+      };
       zoomBox.appendChild(b);
     });
-    container.appendChild(zoomBox);
+    myContainer.appendChild(zoomBox);
 
-    const mapToggle = document.createElement('div');
-    mapToggle.id = 'polarToggleBtn'; mapToggle.className = 'circle-btn'; mapToggle.title = 'Mappa Polare';
-    mapToggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
-    mapToggle.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
+    // Aggiungi il container al body (nascosto)
+    document.body.appendChild(myContainer);
+
+    // 4.3 Pulsante per aprire/chiudere la NOSTRA mappa
+    const myToggle = document.createElement('div');
+    myToggle.id = '__myPolarBtn'; 
+    myToggle.className = 'circle-btn'; 
+    myToggle.title = 'Mappa Polare';
+    myToggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
+    myToggle.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
     
-    mapToggle.onclick = () => {
-      const el = document.getElementById('skyPolarContainer');
-      if (el) { 
-        if (rafId) cancelAnimationFrame(rafId); 
-        el.remove(); 
-      } else { 
-        document.body.appendChild(container); 
-        startDraw(); 
+    myToggle.onclick = () => {
+      isMapOpen = !isMapOpen;
+      myContainer.style.display = isMapOpen ? 'block' : 'none';
+      if (isMapOpen) {
+        applySize();
+        startDrawPolar();
+      } else {
+        if (rafId) cancelAnimationFrame(rafId);
       }
     };
-    document.querySelector('.top-right-buttons').appendChild(mapToggle);
+    document.querySelector('.top-right-buttons').appendChild(myToggle);
 
+    // 4.4 Funzioni di supporto per la NOSTRA mappa
     function applySize() {
       SIZE = Math.round(BASE_SIZE * scaleFactor);
-      container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px';
-      cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
-      cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR);
+      myContainer.style.width = SIZE + 'px'; 
+      myContainer.style.height = SIZE + 'px';
+      cv.style.width = SIZE + 'px'; 
+      cv.style.height = SIZE + 'px';
+      cv.width = Math.floor(SIZE * DPR); 
+      cv.height = Math.floor(SIZE * DPR);
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
-    applySize();
-    document.getElementById('polarSizeSlider').addEventListener('input', (e) => { scaleFactor = parseFloat(e.target.value); applySize(); });
 
-    const STARS = [
-      {n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},
-      {n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},
-      {n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},
-      {n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46}
-    ];
-    const DSO = [
-      {n:"M31",ra:10.68,dec:41.26,t:"G"},{n:"M42",ra:83.82,dec:-5.39,t:"N"},
-      {n:"M45",ra:56.75,dec:24.11,t:"C"},{n:"M13",ra:250.42,dec:36.46,t:"C"}
-    ];
+    document.getElementById('__myPolarSizeSlider').addEventListener('input', (e) => { 
+      scaleFactor = parseFloat(e.target.value); 
+      applySize(); 
+      if (isMapOpen) drawPolar();
+    });
+
+    // Costellazioni (fetch)
     let CONST = [];
-
     fetch('https://egastrodiscover.github.io/EGASTRO/constellations.json?t='+Date.now())
       .then(r => r.json())
       .then(d => {
@@ -1979,144 +2006,214 @@ window.addEventListener('load', () => {
         }
       }).catch(e => {});
 
+    // Proiezione
     function polar(alt, az) {
       const r = (SIZE/2 - 5) * zoom * (90 - alt) / 90;
       const azR = az * Math.PI / 180;
       return { x: SIZE/2 + r * Math.sin(azR), y: SIZE/2 - r * Math.cos(azR), r };
     }
 
-    function startDraw() {
-      if (rafId) cancelAnimationFrame(rafId);
-      function draw() {
-        if (!document.body.contains(container)) { rafId = null; return; }
-        const lat = (typeof MS !== 'undefined' && MS.gpsLat) ? MS.gpsLat : 41.9; 
-        const lon = (typeof MS !== 'undefined' && MS.gpsLon) ? MS.gpsLon : 12.5; 
-        const date = new Date();
-        ctx.clearRect(0, 0, SIZE, SIZE); ctx.save();
-        ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 2, 0, Math.PI*2); ctx.clip();
-        
-        const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2);
-        bg.addColorStop(0, 'rgba(22,32,68,0.60)'); 
-        bg.addColorStop(1, 'rgba(4,8,20,0.75)');
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
+    // Stelle e DSO
+    const STARS = [
+      {n:"Polaris",ra:37.95,dec:89.26,mag:1.98},{n:"Kochab",ra:222.68,dec:74.16,mag:2.08},
+      {n:"Dubhe",ra:165.93,dec:61.75,mag:1.79},{n:"Merak",ra:165.46,dec:56.38,mag:2.37},
+      {n:"Vega",ra:279.23,dec:38.78,mag:0.03},{n:"Deneb",ra:310.36,dec:45.28,mag:1.25},
+      {n:"Arturo",ra:213.92,dec:19.18,mag:-0.05},{n:"Sirio",ra:101.29,dec:-16.72,mag:-1.46}
+    ];
+    const DSO = [
+      {n:"M31",ra:10.68,dec:41.26,t:"G"},{n:"M42",ra:83.82,dec:-5.39,t:"N"},
+      {n:"M45",ra:56.75,dec:24.11,t:"C"},{n:"M13",ra:250.42,dec:36.46,t:"C"}
+    ];
 
-        ctx.strokeStyle = 'rgba(139,180,255,0.15)'; ctx.lineWidth = 0.8;
-        [30, 60].forEach(alt => {
-          const r = (SIZE/2 - 2) * zoom * (90 - alt) / 90;
-          if (r <= SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, r, 0, Math.PI*2); ctx.stroke(); }
-        });
-        for (let az = 0; az < 360; az += 30) {
-          const a = az * Math.PI / 180;
-          ctx.beginPath(); ctx.moveTo(SIZE/2, SIZE/2); ctx.lineTo(SIZE/2 + SIZE * Math.sin(a), SIZE/2 - SIZE * Math.cos(a)); ctx.stroke();
-        }
-        STARS.forEach(s => {
-          const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
-          if (p.alt < 0) return;
-          const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return;
-          ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.8, 2.5 - s.mag*0.5), 0, Math.PI*2);
-          ctx.fillStyle = '#fff'; ctx.fill();
-        });
-        ctx.strokeStyle = 'rgba(150,180,255,0.3)'; ctx.lineWidth = 0.8;
-        CONST.forEach(c => {
-          c.l.forEach(line => {
-            let st = false; ctx.beginPath();
-            line.forEach(i => {
-              const s = c.s[i]; if (!s) return;
-              const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
-              if (p.alt < 0) { st = false; return; }
-              const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) { st = false; return; }
-              if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y);
-            });
-            ctx.stroke();
+    // Funzione di disegno
+    function drawPolar() {
+      if (!isMapOpen) { rafId = null; return; }
+      
+      const lat = (typeof MS !== 'undefined' && MS.gpsLat) ? MS.gpsLat : 41.9; 
+      const lon = (typeof MS !== 'undefined' && MS.gpsLon) ? MS.gpsLon : 12.5; 
+      const date = new Date();
+      
+      ctx.clearRect(0, 0, SIZE, SIZE); 
+      ctx.save();
+      ctx.beginPath(); 
+      ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 2, 0, Math.PI*2); 
+      ctx.clip();
+      
+      // Sfondo trasparente
+      const bg = ctx.createRadialGradient(SIZE/2, SIZE/2, 4, SIZE/2, SIZE/2, SIZE/2);
+      bg.addColorStop(0, 'rgba(22,32,68,0.60)'); 
+      bg.addColorStop(1, 'rgba(4,8,20,0.75)');
+      ctx.fillStyle = bg; 
+      ctx.fillRect(0, 0, SIZE, SIZE);
+
+      // Griglia
+      ctx.strokeStyle = 'rgba(139,180,255,0.15)'; ctx.lineWidth = 0.8;
+      [30, 60].forEach(alt => {
+        const r = (SIZE/2 - 2) * zoom * (90 - alt) / 90;
+        if (r <= SIZE/2) { ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, r, 0, Math.PI*2); ctx.stroke(); }
+      });
+      for (let az = 0; az < 360; az += 30) {
+        const a = az * Math.PI / 180;
+        ctx.beginPath(); 
+        ctx.moveTo(SIZE/2, SIZE/2); 
+        ctx.lineTo(SIZE/2 + SIZE * Math.sin(a), SIZE/2 - SIZE * Math.cos(a)); 
+        ctx.stroke();
+      }
+      
+      // Stelle
+      STARS.forEach(s => {
+        const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
+        if (p.alt < 0) return;
+        const pt = polar(p.alt, p.az); 
+        if (pt.r > SIZE/2) return;
+        ctx.beginPath(); 
+        ctx.arc(pt.x, pt.y, Math.max(0.8, 2.5 - s.mag*0.5), 0, Math.PI*2);
+        ctx.fillStyle = '#fff'; 
+        ctx.fill();
+      });
+      
+      // Costellazioni
+      ctx.strokeStyle = 'rgba(150,180,255,0.3)'; ctx.lineWidth = 0.8;
+      CONST.forEach(c => {
+        c.l.forEach(line => {
+          let st = false; ctx.beginPath();
+          line.forEach(i => {
+            const s = c.s[i]; if (!s) return;
+            const p = Astro.altAz(s.ra*Math.PI/180, s.dec*Math.PI/180, lat, lon, date);
+            if (p.alt < 0) { st = false; return; }
+            const pt = polar(p.alt, p.az); 
+            if (pt.r > SIZE/2) { st = false; return; }
+            if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y);
           });
+          ctx.stroke();
         });
-        DSO.forEach(m => {
-          const p = Astro.altAz(m.ra*Math.PI/180, m.dec*Math.PI/180, lat, lon, date);
-          if (p.alt < 0) return;
-          const pt = polar(p.alt, p.az); if (pt.r > SIZE/2) return;
-          ctx.beginPath();
-          if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI*2);
-          else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6);
-          else ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2);
-          ctx.fillStyle = 'rgba(139,211,255,0.85)'; ctx.fill();
-        });
-        if (typeof Astronomy !== 'undefined') {
-          try {
-            const obs = new Astronomy.Observer(lat, lon, 0); const time = new Astronomy.AstroTime(date);
-            ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'].forEach(bodyName => {
-              const body = Astronomy.Body[bodyName];
-              const eq = Astronomy.Equator(body, time, obs, true, true);
-              const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal');
-              if (hor.altitude < 0) return;
-              const pt = polar(hor.altitude, hor.azimuth); if (pt.r > SIZE/2) return;
-              let color = '#ffd700', size = 4, label = bodyName;
-              if (bodyName === 'Sun') { color = '#ffe600'; size = 6; label = 'Sole'; }
-              if (bodyName === 'Moon') { color = '#e2e8f0'; size = 5; label = 'Luna'; }
-              ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
-              if (SIZE > 250) { ctx.fillStyle = color; ctx.font = 'bold 9px Inter'; ctx.fillText(label, pt.x + 7, pt.y + 3); }
-            });
-          } catch(e) {}
-        }
+      });
+      
+      // DSO
+      DSO.forEach(m => {
+        const p = Astro.altAz(m.ra*Math.PI/180, m.dec*Math.PI/180, lat, lon, date);
+        if (p.alt < 0) return;
+        const pt = polar(p.alt, p.az); 
+        if (pt.r > SIZE/2) return;
+        ctx.beginPath();
+        if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI*2);
+        else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6);
+        else ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(139,211,255,0.85)'; 
+        ctx.fill();
+      });
+      
+      // Pianeti
+      if (typeof Astronomy !== 'undefined') {
         try {
-          if (typeof getAstroCoords === 'function') {
-            const astro = getAstroCoords(); const p = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
-            if (p.alt >= 0) {
-              const pt = polar(p.alt, p.az); if (pt.r <= SIZE/2) {
-                ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(pt.x-10, pt.y); ctx.lineTo(pt.x-4, pt.y); ctx.moveTo(pt.x+4, pt.y); ctx.lineTo(pt.x+10, pt.y); ctx.stroke();
-              }
+          const obs = new Astronomy.Observer(lat, lon, 0); 
+          const time = new Astronomy.AstroTime(date);
+          ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'].forEach(bodyName => {
+            const body = Astronomy.Body[bodyName];
+            const eq = Astronomy.Equator(body, time, obs, true, true);
+            const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal');
+            if (hor.altitude < 0) return;
+            const pt = polar(hor.altitude, hor.azimuth); 
+            if (pt.r > SIZE/2) return;
+            let color = '#ffd700', size = 4, label = bodyName;
+            if (bodyName === 'Sun') { color = '#ffe600'; size = 6; label = 'Sole'; }
+            if (bodyName === 'Moon') { color = '#e2e8f0'; size = 5; label = 'Luna'; }
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, Math.PI*2); 
+            ctx.fillStyle = color; ctx.fill();
+            if (SIZE > 250) { 
+              ctx.fillStyle = color; ctx.font = 'bold 9px Inter'; 
+              ctx.fillText(label, pt.x + 7, pt.y + 3); 
+            }
+          });
+        } catch(e) {}
+      }
+      
+      // Mirino telescopio
+      try {
+        if (typeof getAstroCoords === 'function') {
+          const astro = getAstroCoords(); 
+          const p = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
+          if (p.alt >= 0) {
+            const pt = polar(p.alt, p.az); 
+            if (pt.r <= SIZE/2) {
+              ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.stroke();
+              ctx.beginPath(); 
+              ctx.moveTo(pt.x-10, pt.y); ctx.lineTo(pt.x-4, pt.y); 
+              ctx.moveTo(pt.x+4, pt.y); ctx.lineTo(pt.x+10, pt.y); 
+              ctx.stroke();
             }
           }
-        } catch(e) {}
-        ctx.restore();
-        [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => {
-          const r = SIZE/2 - (SIZE < 200 ? 10 : 12);
-          ctx.fillStyle = '#d4af37'; ctx.font = `bold ${SIZE < 200 ? 9 : 11}px Orbitron`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(d.l, SIZE/2 + r*Math.sin(d.a*Math.PI/180), SIZE/2 - r*Math.cos(d.a*Math.PI/180));
-        });
-        rafId = requestAnimationFrame(draw);
+        }
+      } catch(e) {}
+      
+      ctx.restore();
+      
+      // Punti cardinali
+      [{l:'N',a:0},{l:'E',a:90},{l:'S',a:180},{l:'O',a:270}].forEach(d => {
+        const r = SIZE/2 - (SIZE < 200 ? 10 : 12);
+        ctx.fillStyle = '#d4af37'; 
+        ctx.font = `bold ${SIZE < 200 ? 9 : 11}px Orbitron`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(d.l, SIZE/2 + r*Math.sin(d.a*Math.PI/180), SIZE/2 - r*Math.cos(d.a*Math.PI/180));
+      });
+      
+      // Loop
+      if (isMapOpen) {
+        rafId = requestAnimationFrame(drawPolar);
       }
-      draw();
     }
 
-    if (typeof Astronomy === 'undefined') {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js';
-      document.head.appendChild(s);
+    function startDrawPolar() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(drawPolar);
     }
 
-    // Trascinamento Mappa
-    container.addEventListener('touchstart', e => {
+    // 4.5 Drag (solo sul nostro container)
+    myContainer.addEventListener('touchstart', e => {
       if (e.touches.length === 1 && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
         isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
       }
     }, { passive: true });
-    container.addEventListener('touchmove', e => {
+    
+    myContainer.addEventListener('touchmove', e => {
       if (isDragging && e.touches.length === 1) {
-        const dx = e.touches[0].clientX - lastX; const dy = e.touches[0].clientY - lastY;
-        const r = container.getBoundingClientRect();
-        container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px';
-        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        const dx = e.touches[0].clientX - lastX; 
+        const dy = e.touches[0].clientY - lastY;
+        const r = myContainer.getBoundingClientRect();
+        myContainer.style.right = 'auto'; 
+        myContainer.style.left = (r.left + dx) + 'px'; 
+        myContainer.style.top = (r.top + dy) + 'px';
+        lastX = e.touches[0].clientX; 
+        lastY = e.touches[0].clientY;
       }
     }, { passive: true });
-    container.addEventListener('touchend', () => isDragging = false);
+    
+    myContainer.addEventListener('touchend', () => isDragging = false);
 
-    container.addEventListener('mousedown', e => {
+    myContainer.addEventListener('mousedown', e => {
       if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
         isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault();
       }
     });
+    
     window.addEventListener('mousemove', e => {
       if (isDragging) {
-        const dx = e.clientX - lastX; const dy = e.clientY - lastY;
-        const r = container.getBoundingClientRect();
-        container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px';
-        lastX = e.clientX; lastY = e.clientY;
+        const dx = e.clientX - lastX; 
+        const dy = e.clientY - lastY;
+        const r = myContainer.getBoundingClientRect();
+        myContainer.style.right = 'auto'; 
+        myContainer.style.left = (r.left + dx) + 'px'; 
+        myContainer.style.top = (r.top + dy) + 'px';
+        lastX = e.clientX; 
+        lastY = e.clientY;
       }
     });
+    
     window.addEventListener('mouseup', () => isDragging = false);
+
+    // Inizializza dimensione
+    applySize();
 
     console.log("✅ TUTTE LE PATCH (UI, Tracking, Mappa, Tunnel) APPLICATE CON SUCCESSO!");
   }, 1000); 
