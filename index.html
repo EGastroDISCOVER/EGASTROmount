@@ -1617,5 +1617,96 @@ document.addEventListener("DOMContentLoaded", () => {
 
 })();
 </script>
+  <script>
+(function(){
+  if (window.__tunnelTabApplied) return;
+  window.__tunnelTabApplied = true;
+
+  function applyTunnelTab() {
+    const toggle = document.getElementById('app-switcher-toggle');
+    const container = document.getElementById('app-switcher-container');
+    if (!toggle || !container) return setTimeout(applyTunnelTab, 200);
+
+    // 1. Inietta il CSS per la scritta verticale
+    if (!document.getElementById('__tunnelTabCSS')) {
+      const style = document.createElement('style');
+      style.id = '__tunnelTabCSS';
+      style.textContent = `
+        #app-switcher-toggle {
+          width: 26px !important;
+          min-width: 26px !important;
+          max-width: 26px !important;
+          height: 96px !important;
+          padding: 6px 4px !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
+          letter-spacing: 3px !important;
+          font-family: 'Orbitron', sans-serif !important;
+          writing-mode: vertical-rl !important;
+          text-orientation: mixed !important;
+          line-height: 1 !important;
+          color: #d4af37 !important;
+          background: rgba(10, 18, 32, 0.95) !important;
+          border: 1px solid #d4af37 !important;
+          border-left: none !important;
+          border-radius: 0 8px 8px 0 !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          backdrop-filter: blur(10px) !important;
+          transition: background 0.3s, color 0.3s !important;
+        }
+        #app-switcher-toggle:hover {
+          background: #d4af37 !important;
+          color: #000 !important;
+        }
+        #app-switcher-container {
+          transform: translateY(-50%) translateX(calc(-100% + 26px)) !important;
+          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+        #app-switcher-container.open {
+          transform: translateY(-50%) translateX(0) !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // 2. Imposta il testo e il comportamento
+    toggle.textContent = 'TUNNEL';
+    toggle.title = 'Apri menu app';
+
+    // Gestione del click (apre/chiude senza cambiare il testo)
+    toggle.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      container.classList.toggle('open');
+    };
+    
+    // Chiude se si clicca fuori
+    document.addEventListener('click', function(e) {
+      if (!container.contains(e.target)) {
+        container.classList.remove('open');
+      }
+    });
+
+    // 3. Guardiano: impedisce al codice originale di rimettere le frecce
+    const mo = new MutationObserver(() => {
+      if (toggle.textContent !== 'TUNNEL') {
+        toggle.textContent = 'TUNNEL';
+      }
+    });
+    mo.observe(toggle, { childList: true, characterData: true, subtree: true });
+
+    console.log("✅ Tasto TUNNEL attivato");
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyTunnelTab);
+  } else {
+    applyTunnelTab();
+  }
+})();
+</script>
 </body>
 </html>
