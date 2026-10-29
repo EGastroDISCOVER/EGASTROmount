@@ -1541,17 +1541,23 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 <script>
 (function(){
- (function(){
   console.clear();
-  console.log("🧹 Ripristino layout + Mappa v3, rimozione penultima icona...");
+  console.log("🧹 Ripristino layout + Mappa v3, rimozione TUTTE le vecchie icone mappa...");
 
   // ==========================================
-  // 1. PULIZIA (Rimuove la vecchia icona inutile e i residui)
+  // 1. PULIZIA TOTALE (Rimuove qualsiasi icona mappa esistente)
   // ==========================================
-  document.getElementById('skyPolarBtn')?.remove(); // <--- ELIMINA LA PENULTIMA ICONA
+  document.getElementById('skyPolarBtn')?.remove();
+  document.getElementById('polarToggleBtn')?.remove();
   document.getElementById('__polarMapFixCSS')?.remove();
   document.getElementById('skyPolarContainer')?.remove();
-  document.getElementById('polarToggleBtn')?.remove(); 
+
+  // Rimuove qualsiasi bottone nella colonna destra che abbia "Mappa Polare" come titolo
+  document.querySelectorAll('.top-right-buttons .circle-btn').forEach(btn => {
+    if (btn.title && btn.title.includes('Mappa Polare')) {
+      btn.remove();
+    }
+  });
 
   // ==========================================
   // 2. LAYOUT (Connetti sopra, Badge a sinistra sotto)
@@ -1848,8 +1854,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   window.addEventListener('mouseup', () => isDragging = false);
 
-  console.log("✅ Penultima icona rimossa. Layout e Mappa v3 attivi.");
-})();
+  console.log("✅ Pulizia icone completata. Rimane solo la Mappa v3.");
 })();
 </script>
 </body>
