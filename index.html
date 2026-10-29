@@ -736,910 +736,119 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
-<!-- MENU A SCOMPARSA (TUNNEL) -->
-<div id="app-switcher-container">
-  <div id="app-switcher-menu">
-    <a class="app-switch-btn app-btn-dome" id="btn-goto-dome" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-    </a>
-    <a class="app-switch-btn app-btn-telescope" id="btn-goto-telescope" href="javascript:void(0);">
-      <svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>
-    </a>
-  </div>
-  <button id="app-switcher-toggle" title="Apri menu app">TUNNEL</button>
-</div>
 
-<!-- FINESTRA PER L'APP MASTER -->
-<div id="app-frame-container" style="display:none; position:fixed; inset:0; z-index:9999999; background:#000;">
-  <iframe id="app-frame" style="width:100%; height:100%; border:none;"></iframe>
-</div>
 
-<style>
-  #app-switcher-container { position: fixed; top: 50%; left: 0; transform: translateY(-50%) translateX(calc(-100% + 26px)); z-index: 999999; display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  #app-switcher-container.open { transform: translateY(-50%) translateX(0); }
-  #app-switcher-menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 14px 8px; display: flex; flex-direction: column; gap: 12px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
-  #app-switcher-toggle {
-    width: 26px !important; height: 82px !important;
-    writing-mode: vertical-rl !important; text-orientation: mixed !important;
-    font-size: 11px !important; font-weight: 800 !important; letter-spacing: 3px !important;
-    font-family: 'Orbitron', sans-serif !important;
-    color: #d4af37 !important; background: rgba(10, 18, 32, 0.95) !important;
-    border: 1px solid #d4af37 !important; border-left: none !important;
-    border-radius: 0 8px 8px 0 !important;
-    cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important;
-    backdrop-filter: blur(10px) !important; transition: background 0.3s, color 0.3s !important;
-  }
-  #app-switcher-toggle:hover { background: #d4af37 !important; color: #000 !important; }
-  .app-switch-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; transition: all 0.3s; position: relative; pointer-events: auto !important; }
- /* ✅ APP CORRENTE = TELESCOPIO (Mount) — evidenziato + badge verde "sei qui" */
-.app-btn-telescope {
-  border: 2px solid #d4af37;
-  background: #0a1220;
-  color: #d4af37;
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.55);
-  cursor: pointer;
-  position: relative;
-}
-.app-btn-telescope::after {
-  content: '✓';
-  position: absolute;
-  bottom: -3px; right: -3px;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: #4ade80;
-  color: #000;
-  font-size: 9px; font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
-  line-height: 1;
-}
-/* ✅ APP DESTINAZIONE = DOME (Observatory) — cliccabile per tornare */
-.app-btn-dome {
-  border: 2px solid #8bd3ff;
-  background: #0a1220;
-  color: #8bd3ff;
-  box-shadow: 0 0 10px rgba(139, 211, 255, 0.3);
-}
-.app-btn-dome:hover {
-  background: #8bd3ff;
-  color: #000;
-  transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(139, 211, 255, 0.6);
-}
-  .app-switch-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
-</style>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  // 1. Gestione Popup e Iframe
-  if (window.self !== window.top) {
-    setTimeout(() => { const m = document.getElementById('welcome-modal'); if(m) m.style.display='none'; }, 100);
-    window.showWelcomeModal = function() {};
-  }
-  window.addEventListener('message', e => {
-    if (e.data === 'egastro-close-frame' || e.data === 'show-master') {
-      const fc = document.getElementById('app-frame-container');
-      if (fc) fc.style.display = 'none';
-    }
-  });
 
-  // 2. MENU SWITCHER (TUNNEL) - Testo fisso, nessun cambio
-  const sc = document.getElementById('app-switcher-container');
-  const tg = document.getElementById('app-switcher-toggle');
-  if (sc && tg) {
-    tg.onclick = function(e) { 
-      e.preventDefault(); e.stopPropagation(); 
-      sc.classList.toggle('open'); 
-    };
-    document.addEventListener('click', e => { 
-      if (!sc.contains(e.target)) sc.classList.remove('open'); 
-    });
-  }
-  
-  const btnDome = document.getElementById('btn-goto-dome');
-  if (btnDome) {
-    btnDome.onclick = function(e) {
-      e.preventDefault();
-      if (window.parent !== window) { window.parent.postMessage('hide-satellite-frame', '*');
- return; }
-      const fc = document.getElementById('app-frame-container');
-      const fr = document.getElementById('app-frame');
-      if (fc && fr) { fr.src = 'https://egastrodiscover.github.io/EGASTRO/'; fc.style.display = 'block'; }
-    };
-  }
-});
-</script>
+
+
+
+
+
 
 <!-- SCRIPT MAPPA ISOLATA E TRACKING SICURO -->
 
 
 
-<script>
-/* ============ SATELLITE — TRACKING + MAPPA v3 ============ */
-(function () {
-  'use strict';
-  if (window.__sV3) return; window.__sV3 = true;
 
-  /* ---------- 1. TRACKING sicuro (non tocca D-Pad) ---------- */
-  function initTracking() {
-    if (typeof MS === 'undefined') { setTimeout(initTracking, 100); return; }
 
-    var origStartGoto = window._startGoto;
-    window._startGoto = function (ra, dec, rate, skip, bypass) {
-      if (window._isHomeSlew) { MS._pendingAutoTrack = false; window._isHomeSlew = false; }
-      else { MS._pendingAutoTrack = true; }
-      return origStartGoto.apply(this, arguments);
-    };
-    var origGoHome = window.goHome;
-    window.goHome = function () { window._isHomeSlew = true; return origGoHome.apply(this, arguments); };
 
-    setInterval(function () {
-      if (typeof MS === 'undefined') return;
-      if (MS.slewMode === 'manual') {
-        if (MS._trackingBeforeManual === undefined) {
-          MS._trackingBeforeManual = MS.tracking;
-          if (MS.tracking !== 'off') { MS.tracking = 'off'; if (typeof updateTrackingBtn === 'function') updateTrackingBtn(); }
-        }
-      } else {
-        if (MS._trackingBeforeManual !== undefined) {
-          if (MS._trackingBeforeManual !== 'off') {
-            MS.tracking = MS._trackingBeforeManual;
-            if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
-            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-          }
-          MS._trackingBeforeManual = undefined;
-        }
-      }
-      if (MS._pendingAutoTrack !== undefined) {
-        if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
-          if (MS._pendingAutoTrack === true && MS.tracking === 'off') {
-            MS.tracking = 'sidereal'; MS.slewMode = 'tracking';
-            var tm = document.getElementById('tracking-mode');
-            if (tm) tm.value = 'sidereal';
-            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-            if (typeof showToast === 'function') showToast('Tracking ON: siderale');
-          }
-          MS._pendingAutoTrack = undefined;
-        }
-      }
-    }, 100);
-  }
-  initTracking();
 
-  /* ---------- 2. MAPPA POLARE 100/75/50 ---------- */
-  function initMap() {
-    if (typeof Astro === 'undefined' || typeof getAstroCoords !== 'function') {
-      setTimeout(initMap, 200); return;
-    }
+<!-- TUNNEL V2 — incollare IDENTICO in ENTRAMBI i file, sopra <script id="__oneBtnScript">
+(function(){
+'use strict';
+if (window.__oneButton) return;
+window.__oneButton = true;
 
-    var CONST_URL = 'https://egastrodiscover.github.io/EGASTRO/constellations.json';
-    var isMobile = window.innerWidth < 600;
-    var BASE = isMobile ? 260 : 340;
-    var SIZES = { 100: 1.0, 75: 0.75, 50: 0.5 };
-    var currentSize = 100;
-    var scaleFactor = SIZES[100];
-    var internalZoom = 1.0;
-    var SIZE = Math.round(BASE * scaleFactor);
-    var DPR = Math.min(window.devicePixelRatio || 1, 2);
-    var isOpen = false;
-    var rafId = null;
+var URLS = { observatory: 'https://egastrodiscover.github.io/EGASTRO/', mount: 'https://egastrodiscover.github.io/EGASTROmount/' };
+var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+var SVG_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
 
-    /* Container */
-    var container = document.createElement('div');
-    container.id = '__myPolarContainer';
-    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));background:transparent;display:none;cursor:grab;';
+var OLD_IDS = ['tunnel-menu','tunnel-panel','tunnel-toggle','tunnel-frame-container','app-switcher-container','app-switcher-menu','app-switcher-toggle','planet-menu-ultimate','app-frame-container','app-frame','btn-goto-dome','btn-goto-telescope'];
 
-    /* Selettore 100/75/50 */
-    var sizeSel = document.createElement('div');
-    sizeSel.id = '__myPolarSizeSel';
-    sizeSel.style.cssText = 'position:absolute;top:-38px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(13,18,28,0.95);padding:4px 6px;border-radius:14px;border:1px solid #d4af37;z-index:10;backdrop-filter:blur(10px);';
-    ['100', '75', '50'].forEach(function (sz) {
-      var b = document.createElement('button');
-      b.textContent = sz;
-      b.dataset.sz = sz;
-      b.style.cssText = 'background:transparent;border:1px solid #6b778c;color:#6b778c;padding:3px 10px;border-radius:10px;cursor:pointer;font-family:Orbitron,sans-serif;font-weight:700;font-size:10px;';
-      b.onclick = function (e) {
-        e.stopPropagation();
-        currentSize = parseInt(sz, 10);
-        scaleFactor = SIZES[currentSize];
-        SIZE = Math.round(BASE * scaleFactor);
-        container.style.width = SIZE + 'px';
-        container.style.height = SIZE + 'px';
-        cv.style.width = SIZE + 'px';
-        cv.style.height = SIZE + 'px';
-        cv.width = Math.floor(SIZE * DPR);
-        cv.height = Math.floor(SIZE * DPR);
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        updateBtnState();
-        if (isOpen) drawPolar();
-      };
-      sizeSel.appendChild(b);
-    });
-    container.appendChild(sizeSel);
-
-    function updateBtnState() {
-      sizeSel.querySelectorAll('button').forEach(function (b) {
-        var on = parseInt(b.dataset.sz, 10) === currentSize;
-        b.style.background = on ? '#d4af37' : 'transparent';
-        b.style.color = on ? '#000' : '#6b778c';
-        b.style.borderColor = on ? '#d4af37' : '#6b778c';
-      });
-    }
-
-    /* Canvas */
-    var cv = document.createElement('canvas');
-    cv.style.cssText = 'display:block;border-radius:50%;';
-    container.appendChild(cv);
-    var ctx = cv.getContext('2d');
-
-    /* Zoom +/- */
-    var zoomBox = document.createElement('div');
-    zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
-    ['+', '−'].forEach(function (s, i) {
-      var b = document.createElement('button');
-      b.textContent = s;
-      b.style.cssText = 'width:26px;height:26px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;padding:0;';
-      b.onclick = function (e) {
-        e.stopPropagation();
-        internalZoom = Math.max(0.5, Math.min(3, internalZoom + (i === 0 ? 0.3 : -0.3)));
-        if (isOpen) drawPolar();
-      };
-      zoomBox.appendChild(b);
-    });
-    container.appendChild(zoomBox);
-    document.body.appendChild(container);
-
-    container.style.width = SIZE + 'px';
-    container.style.height = SIZE + 'px';
-    cv.style.width = SIZE + 'px';
-    cv.style.height = SIZE + 'px';
-    cv.width = Math.floor(SIZE * DPR);
-    cv.height = Math.floor(SIZE * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    updateBtnState();
-
-    /* Toggle button */
-    var toggleBtn = document.createElement('div');
-    toggleBtn.id = '__myPolarBtn';
-    toggleBtn.className = 'circle-btn';
-    toggleBtn.title = 'Mappa Polare';
-    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
-    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
-    toggleBtn.onclick = function () {
-      isOpen = !isOpen;
-      container.style.display = isOpen ? 'block' : 'none';
-      if (isOpen) { if (!rafId) drawPolar(); }
-      else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
-    };
-    var topRight = document.querySelector('.top-right-buttons');
-    if (topRight) topRight.appendChild(toggleBtn);
-    else document.body.appendChild(toggleBtn);
-
-    /* Carica costellazioni */
-    var CONST = [];
-    fetch(CONST_URL + '?t=' + Date.now())
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d || !d.features) return;
-        CONST = d.features.map(function (f) {
-          var segs = (f.geometry && f.geometry.coordinates) || [];
-          var stars = [], map = {};
-          var add = function (ra, dec) {
-            if (!isFinite(ra) || !isFinite(dec)) return -1;
-            var k = ra.toFixed(4) + ',' + dec.toFixed(4);
-            if (map[k] !== undefined) return map[k];
-            var i = stars.length; stars.push({ ra: ra, dec: dec }); map[k] = i; return i;
-          };
-          return {
-            name: (f.properties && f.properties.name) || f.id,
-            s: stars,
-            l: segs.map(function (seg) {
-              if (!Array.isArray(seg)) return [];
-              return seg.map(function (pt) {
-                if (!Array.isArray(pt) || pt.length < 2) return -1;
-                return add(pt[0], pt[1]);
-              }).filter(function (i) { return i >= 0; });
-            }).filter(function (l) { return l.length >= 2; })
-          };
-        }).filter(function (c) { return c.l.length > 0; });
-        if (isOpen) drawPolar();
-      })
-      .catch(function (e) { console.warn('[SAT] const:', e.message); });
-
-    var STARS_L = [
-      { n: "Polaris", ra: 37.95, dec: 89.26, mag: 1.98 },
-      { n: "Kochab", ra: 222.68, dec: 74.16, mag: 2.08 },
-      { n: "Dubhe", ra: 165.93, dec: 61.75, mag: 1.79 },
-      { n: "Merak", ra: 165.46, dec: 56.38, mag: 2.37 },
-      { n: "Vega", ra: 279.23, dec: 38.78, mag: 0.03 },
-      { n: "Deneb", ra: 310.36, dec: 45.28, mag: 1.25 },
-      { n: "Arturo", ra: 213.92, dec: 19.18, mag: -0.05 },
-      { n: "Sirio", ra: 101.29, dec: -16.72, mag: -1.46 }
-    ];
-    var DSO_L = [
-      { n: "M31", ra: 10.68, dec: 41.26, t: "G" },
-      { n: "M42", ra: 83.82, dec: -5.39, t: "N" },
-      { n: "M45", ra: 56.75, dec: 24.11, t: "C" },
-      { n: "M13", ra: 250.42, dec: 36.46, t: "C" }
-    ];
-
-    function polar(alt, az) {
-      var r = (SIZE / 2 - 6) * internalZoom * (90 - alt) / 90;
-      var azR = az * Math.PI / 180;
-      return { x: SIZE / 2 + r * Math.sin(azR), y: SIZE / 2 - r * Math.cos(azR), r: r };
-    }
-
-    function drawMilkyWay(date, lat, lon) {
-      var ngpRa = 192.86, ngpDec = 27.13;
-      var seed = 777;
-      var rand = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-      ctx.save();
-      for (var i = 0; i < 600; i++) {
-        var l = rand() * 360, b = (rand() - 0.5) * 20;
-        var bR = b * Math.PI / 180, lR = l * Math.PI / 180;
-        var sinDec = Math.sin(ngpDec * Math.PI / 180) * Math.sin(bR) + Math.cos(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR);
-        var dec = Math.asin(sinDec) * 180 / Math.PI;
-        var yv = Math.cos(bR) * Math.sin(lR);
-        var xv = Math.cos(ngpDec * Math.PI / 180) * Math.sin(bR) - Math.sin(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR);
-        var ra = ((ngpRa + Math.atan2(yv, xv) * 180 / Math.PI) % 360 + 360) % 360;
-        var p = Astro.altAz(ra * Math.PI / 180, dec * Math.PI / 180, lat, lon, date);
-        if (p.alt < 0) continue;
-        var pt = polar(p.alt, p.az);
-        if (pt.r > SIZE / 2) continue;
-        var sz = 3 + rand() * 8, al = 0.05 + rand() * 0.08;
-        ctx.fillStyle = (i % 3 === 0) ? 'rgba(200,170,180,' + al + ')' : 'rgba(160,200,255,' + al + ')';
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    function drawPolar() {
-      if (!isOpen) { rafId = null; return; }
-      var lat = (typeof MS !== 'undefined' && MS.gpsLat) || 41.9;
-      var lon = (typeof MS !== 'undefined' && MS.gpsLon) || 12.5;
-      var date = new Date();
-
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 2, 0, Math.PI * 2);
-      ctx.clip();
-
-      var bg = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 4, SIZE / 2, SIZE / 2, SIZE / 2);
-      bg.addColorStop(0, 'rgba(22,32,68,0.35)');
-      bg.addColorStop(1, 'rgba(4,8,20,0.5)');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, SIZE, SIZE);
-
-      drawMilkyWay(date, lat, lon);
-
-      ctx.strokeStyle = 'rgba(139,180,255,0.18)';
-      ctx.lineWidth = 0.8;
-      [30, 60].forEach(function (alt) {
-        var r = (SIZE / 2 - 2) * internalZoom * (90 - alt) / 90;
-        if (r > 0 && r < SIZE / 2) { ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, r, 0, Math.PI * 2); ctx.stroke(); }
-      });
-      for (var az = 0; az < 360; az += 30) {
-        var a = az * Math.PI / 180;
-        ctx.beginPath();
-        ctx.moveTo(SIZE / 2, SIZE / 2);
-        ctx.lineTo(SIZE / 2 + SIZE / 2 * Math.sin(a), SIZE / 2 - SIZE / 2 * Math.cos(a));
-        ctx.stroke();
-      }
-
-      if (CONST.length > 0) {
-        ctx.strokeStyle = 'rgba(150,200,255,0.5)';
-        ctx.lineWidth = 1;
-        CONST.forEach(function (c) {
-          c.l.forEach(function (line) {
-            var st = false;
-            ctx.beginPath();
-            line.forEach(function (idx) {
-              var s = c.s[idx];
-              if (!s) return;
-              var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date);
-              if (p.alt < 0) { st = false; return; }
-              var pt = polar(p.alt, p.az);
-              if (pt.r > SIZE / 2) { st = false; return; }
-              if (!st) { ctx.moveTo(pt.x, pt.y); st = true; }
-              else ctx.lineTo(pt.x, pt.y);
-            });
-            ctx.stroke();
-          });
-        });
-      }
-
-      STARS_L.forEach(function (s) {
-        var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date);
-        if (p.alt < 0) return;
-        var pt = polar(p.alt, p.az);
-        if (pt.r > SIZE / 2) return;
-        var sz = Math.max(0.8, 2.5 - s.mag * 0.5);
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
-      });
-
-      if (typeof Astronomy !== 'undefined') {
-        try {
-          var obs = new Astronomy.Observer(lat, lon, 0);
-          var time = new Astronomy.AstroTime(date);
-          ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].forEach(function (bn) {
-            var body = Astronomy.Body[bn];
-            var eq = Astronomy.Equator(body, time, obs, true, true);
-            var hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal');
-            if (hor.altitude < 0) return;
-            var pt = polar(hor.altitude, hor.azimuth);
-            if (pt.r > SIZE / 2) return;
-            var col = '#ffd700', sz = 4, lbl = bn;
-            if (bn === 'Sun') { col = '#ffe600'; sz = 6; lbl = 'Sole'; }
-            if (bn === 'Moon') { col = '#e2e8f0'; sz = 5; lbl = 'Luna'; }
-            ctx.save();
-            ctx.shadowColor = col; ctx.shadowBlur = 8;
-            ctx.fillStyle = col;
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-            if (SIZE > 200) {
-              ctx.fillStyle = col;
-              ctx.font = 'bold 8px Inter,sans-serif';
-              ctx.textAlign = 'left';
-              ctx.fillText(lbl, pt.x + 7, pt.y + 3);
-            }
-          });
-        } catch (e) {}
-      }
-
-      DSO_L.forEach(function (m) {
-        var p = Astro.altAz(m.ra * Math.PI / 180, m.dec * Math.PI / 180, lat, lon, date);
-        if (p.alt < 0) return;
-        var pt = polar(p.alt, p.az);
-        if (pt.r > SIZE / 2) return;
-        ctx.beginPath();
-        if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI * 2);
-        else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6);
-        else ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(139,211,255,0.85)';
-        ctx.fill();
-      });
-
-      /* Mirino telescopio */
-      try {
-        var astro = getAstroCoords();
-        var p = Astro.altAz(astro.ra, astro.dec, lat, lon, date);
-        if (p.alt >= 0) {
-          var pt = polar(p.alt, p.az);
-          if (pt.r <= SIZE / 2) {
-            ctx.strokeStyle = '#ff4466';
-            ctx.shadowColor = '#ff4466';
-            ctx.shadowBlur = 10;
-            ctx.lineWidth = 1.8;
-            var cr = 7 + Math.sin(Date.now() / 400) * 1.5;
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, cr, 0, Math.PI * 2); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pt.x - cr - 4, pt.y); ctx.lineTo(pt.x - cr + 2, pt.y);
-            ctx.moveTo(pt.x + cr - 2, pt.y); ctx.lineTo(pt.x + cr + 4, pt.y);
-            ctx.moveTo(pt.x, pt.y - cr - 4); ctx.lineTo(pt.x, pt.y - cr + 2);
-            ctx.moveTo(pt.x, pt.y + cr - 2); ctx.lineTo(pt.x, pt.y + cr + 4);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-          }
-        }
-      } catch (e) {}
-
-      ctx.restore();
-
-      ['N', 'E', 'S', 'O'].forEach(function (lbl, i) {
-        var a = i * 90 * Math.PI / 180;
-        var r = SIZE / 2 - (SIZE < 200 ? 10 : 12);
-        ctx.fillStyle = '#d4af37';
-        ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron,sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(lbl, SIZE / 2 + r * Math.sin(a), SIZE / 2 - r * Math.cos(a));
-      });
-
-      rafId = requestAnimationFrame(drawPolar);
-    }
-
-    /* Drag + pinch */
-    var isDragging = false, lastX = 0, lastY = 0, touchDist = 0;
-    container.addEventListener('mousedown', function (e) {
-      if (e.target.tagName === 'BUTTON') return;
-      isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault();
-    });
-    window.addEventListener('mousemove', function (e) {
-      if (!isDragging) return;
-      var dx = e.clientX - lastX, dy = e.clientY - lastY;
-      var r = container.getBoundingClientRect();
-      container.style.right = 'auto';
-      container.style.left = (r.left + dx) + 'px';
-      container.style.top = (r.top + dy) + 'px';
-      lastX = e.clientX; lastY = e.clientY;
-    });
-    window.addEventListener('mouseup', function () { isDragging = false; });
-    container.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 1 && e.target.tagName !== 'BUTTON') {
-        isDragging = true;
-        lastX = e.touches[0].clientX;
-        lastY = e.touches[0].clientY;
-      } else if (e.touches.length === 2) {
-        touchDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-      }
-    }, { passive: true });
-    container.addEventListener('touchmove', function (e) {
-      if (isDragging && e.touches.length === 1) {
-        var dx = e.touches[0].clientX - lastX;
-        var dy = e.touches[0].clientY - lastY;
-        var r = container.getBoundingClientRect();
-        container.style.right = 'auto';
-        container.style.left = (r.left + dx) + 'px';
-        container.style.top = (r.top + dy) + 'px';
-        lastX = e.touches[0].clientX;
-        lastY = e.touches[0].clientY;
-      } else if (e.touches.length === 2 && touchDist > 0) {
-        var dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        internalZoom = Math.max(0.5, Math.min(3, internalZoom + (touchDist - dist) * 0.005));
-        touchDist = dist;
-      }
-    }, { passive: true });
-    container.addEventListener('touchend', function () { isDragging = false; touchDist = 0; });
-
-    console.log('[SAT] ✅ Mappa 100/75/50 pronta');
-  }
-  initMap();
-
-  /* ---------- 3. Ritorno a Pianeta via messaggio ---------- */
-  window.addEventListener('message', function (e) {
-    if (e.data === 'show-master' || e.data === 'egastro-close-frame') {
-      var fc = document.getElementById('app-frame-container');
-      if (fc) {
-        fc.style.display = 'none';
-        var ifr = fc.querySelector('iframe');
-        if (ifr) ifr.src = 'about:blank';
-      }
-    }
-  });
-
-  console.log('[SAT v3] ✅ Attivo');
-})();
-</script>
-
-<script>
-(function() {
-  // --- FIX PULSANTE RITORNO (DOME) ---
-  const dome = document.getElementById('btn-goto-dome');
-  if (dome) {
-    const newDome = dome.cloneNode(true);
-    dome.parentNode.replaceChild(newDome, dome);
-    newDome.onclick = e => { e.preventDefault(); window.parent.postMessage('hide-satellite-frame', '*'); };
-  }
-
-  // --- NUOVA LOGICA DI CONNESSIONE (ASCOM ALPACA HTTP) ---
-  if (typeof Protocols !== 'undefined') {
-    Protocols.ascom = {
-      base: '',
-      async connect(cfg, onOk, onErr) {
-        this.base = `http://${cfg.ip}:${cfg.port}/api/v1/telescope/0`;
-        try {
-          const res = await fetch(`${this.base}/connected`, { 
-            method: 'PUT', 
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ Connected: true }) 
-          });
-          if (res.ok) onOk(); else onErr(new Error('HTTP ' + res.status));
-        } catch (e) { onErr(e); }
-      },
-      async sendGoto(raHours, decDeg) {
-        await fetch(`${this.base}/slewtocoordinates`, { 
-          method: 'PUT', 
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ RightAscension: raHours, Declination: decDeg }) 
-        });
-      },
-      async sync(ra, dec) { await fetch(`${this.base}/synctocoordinates`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ RightAscension: ra, Declination: dec }) }); },
-      async stop() { await fetch(`${this.base}/abortslew`, { method: 'PUT' }); },
-      async park() { await fetch(`${this.base}/park`, { method: 'PUT' }); },
-      async unpark() { await fetch(`${this.base}/unpark`, { method: 'PUT' }); },
-      async tracking(on) { await fetch(`${this.base}/tracking`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ Tracking: on }) }); }
-    };
-  }
-})();
-</script>
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TUNNEL V2 — incollare IDENTICO in ENTRAMBI i file, sopra </body>  -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<script id="egastro-tunnel-v2">
-(function () {
-  'use strict';
-  if (window.__tunnelV2) return;
-  window.__tunnelV2 = true;
-
-  var meta = document.querySelector('meta[name="app-id"]');
-  var MY_APP = meta && meta.content ? String(meta.content).toLowerCase() : '';
-  if (MY_APP !== 'observatory' && MY_APP !== 'mount') {
-    console.warn('[TUNNEL v2] app-id non valido:', MY_APP, '- tunnel disabilitato');
-    return;
-  }
-
-  var APPS = {
-    observatory: { name: 'Observatory', url: 'https://egastrodiscover.github.io/EGASTRO/' },
-    mount:       { name: 'Mount',       url: 'https://egastrodiscover.github.io/EGASTROmount/' }
-  };
-  var OTHER = MY_APP === 'mount' ? 'observatory' : 'mount';
-
-  var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
-  var SVG_TELESCOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
-  function svgFor(appId) { return appId === 'mount' ? SVG_TELESCOPE : SVG_DOME; }
-
-  var IN_FRAME = false;
-  try { IN_FRAME = window.self !== window.top; } catch (e) { IN_FRAME = true; }
-
-  // ─── Cleanup CONTINUO dei vecchi menu (funziona anche se il vecchio codice resta) ───
-  var OLD_IDS = ['app-switcher-container','app-switcher-menu','app-switcher-toggle',
-                 'planet-menu-ultimate','app-frame-container','app-frame',
-                 'btn-goto-dome','btn-goto-telescope'];
-  function cleanupOld() {
-    OLD_IDS.forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) { el.remove(); console.log('[TUNNEL v2] rimosso vecchio:', id); }
-    });
-  }
-  cleanupOld();
-  setInterval(cleanupOld, 800);
-
+// Override getElementById: ritorna null per ID vecchi (blocca script vecchi)
+var _origGEBI = document.getElementById.bind(document);
+document.getElementById = function(id) {
+  if (OLD_IDS.indexOf(id) !== -1) return null;
+  return _origGEBI(id);
+};
+// Override setInterval: blocca callback che contengono marker tunnel
+var _origSI = window.setInterval;
+window.setInterval = function(fn, ms) {
   try {
-    var obs = new MutationObserver(function (muts) {
-      muts.forEach(function (m) {
-        m.addedNodes.forEach(function (n) {
-          if (!n || n.nodeType !== 1) return;
-          if (n.id && OLD_IDS.indexOf(n.id) !== -1) { n.remove(); }
-        });
-      });
-    });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-  } catch (e) {}
+    var src = (typeof fn === 'function') ? fn.toString() : String(fn);
+    if (src.indexOf('app-switcher') !== -1 || src.indexOf('planet-menu-ultimate') !== -1) {
+      return 0;
+    }
+  } catch(e) {}
+  return _origSI.apply(this, arguments);
+};
 
-  // ─── CSS ───
-  if (!document.getElementById('__tunnelV2CSS')) {
-    var style = document.createElement('style');
-    style.id = '__tunnelV2CSS';
-    style.textContent =
-      '#tunnel-menu{position:fixed!important;left:0!important;top:50%!important;' +
-      'transform:translateY(-50%) translateX(calc(-100% + 26px))!important;' +
-      'z-index:2147483647!important;display:flex!important;align-items:center!important;' +
-      'transition:transform .4s cubic-bezier(.34,1.56,.64,1)!important}' +
-      '#tunnel-menu.open{transform:translateY(-50%) translateX(0)!important}' +
-      '#tunnel-panel{background:rgba(10,18,32,.95)!important;' +
-      'border:1px solid rgba(212,175,55,.4)!important;border-left:none!important;' +
-      'border-radius:0 12px 12px 0!important;padding:14px 8px!important;' +
-      'display:flex!important;flex-direction:column!important;gap:12px!important;' +
-      'backdrop-filter:blur(15px)!important;box-shadow:2px 0 10px rgba(0,0,0,.5)!important}' +
-      '.tunnel-app-btn{width:40px!important;height:40px!important;border-radius:50%!important;' +
-      'display:flex!important;align-items:center!important;justify-content:center!important;' +
-      'cursor:pointer!important;transition:all .3s!important;position:relative!important;' +
-      'padding:0!important;background:#0a1220!important}' +
-      '.tunnel-app-btn svg{width:20px!important;height:20px!important;stroke:currentColor!important;' +
-      'fill:none!important;stroke-width:2!important;pointer-events:none!important}' +
-      '.tunnel-app-btn.tunnel-current{border:2px solid #d4af37!important;color:#d4af37!important;' +
-      'box-shadow:0 0 15px rgba(212,175,55,.55),inset 0 0 8px rgba(212,175,55,.15)!important;' +
-      'cursor:default!important}' +
-      '.tunnel-app-btn.tunnel-current::after{content:"\2713"!important;position:absolute!important;' +
-      'bottom:-2px!important;right:-2px!important;width:15px!important;height:15px!important;' +
-      'border-radius:50%!important;background:#4ade80!important;color:#000!important;' +
-      'font-size:10px!important;font-weight:900!important;display:flex!important;' +
-      'align-items:center!important;justify-content:center!important;line-height:1!important;' +
-      'border:1.5px solid #0a1220!important}' +
-      '.tunnel-app-btn.tunnel-other{border:2px solid #8bd3ff!important;color:#8bd3ff!important}' +
-      '.tunnel-app-btn.tunnel-other:hover{background:#8bd3ff!important;color:#000!important;' +
-      'transform:scale(1.1)!important;box-shadow:0 0 20px rgba(139,211,255,.6)!important}' +
-      '#tunnel-toggle{width:26px!important;height:82px!important;' +
-      'writing-mode:vertical-rl!important;text-orientation:mixed!important;' +
-      'font-size:11px!important;font-weight:800!important;letter-spacing:3px!important;' +
-      'font-family:Orbitron,sans-serif!important;color:#d4af37!important;' +
-      'background:rgba(10,18,32,.95)!important;border:1px solid #d4af37!important;' +
-      'border-left:none!important;border-radius:0 8px 8px 0!important;' +
-      'cursor:pointer!important;backdrop-filter:blur(10px)!important;padding:0!important;' +
-      'display:flex!important;align-items:center!important;justify-content:center!important}' +
-      '#tunnel-toggle:hover{background:#d4af37!important;color:#000!important}' +
-      '#tunnel-frame-container{position:fixed!important;inset:0!important;' +
-      'z-index:2147483645!important;background:#05070a!important;display:none!important}' +
-      '#tunnel-frame{width:100%!important;height:100%!important;border:none!important}' +
-      '#tunnel-loading{position:fixed!important;inset:0!important;' +
-      'z-index:2147483646!important;background:#05070a!important;' +
-      'display:none!important;align-items:center!important;justify-content:center!important;' +
-      'color:#d4af37!important;font-family:Orbitron,sans-serif!important;font-size:15px!important;' +
-      'flex-direction:column!important;gap:16px!important;padding:20px!important}' +
-      '#tunnel-loading.show{display:flex!important}' +
-      '#tunnel-loading .spinner{width:48px!important;height:48px!important;' +
-      'border:3px solid rgba(212,175,55,.2)!important;border-top-color:#d4af37!important;' +
-      'border-radius:50%!important;animation:tunnel-spin 1s linear infinite!important}' +
-      '@keyframes tunnel-spin{to{transform:rotate(360deg)}}' +
-      '#tunnel-fallback-btn{padding:10px 20px!important;background:#d4af37!important;' +
-      'color:#000!important;border:none!important;border-radius:8px!important;' +
-      'cursor:pointer!important;font-family:Orbitron,sans-serif!important;' +
-      'font-weight:700!important;font-size:13px!important;margin-top:8px!important}';
-    document.head.appendChild(style);
+function cleanup() {
+  OLD_IDS.forEach(function(id){ var e = _origGEBI(id); if (e) e.remove(); });
+  document.querySelectorAll('.app-switch-btn,.tab').forEach(function(e){ e.remove(); });
+}
+
+function buildOne(win, doc, myApp) {
+  var iconToShow = myApp === 'mount' ? SVG_DOME : SVG_TEL;
+  var title = myApp === 'mount' ? 'Torna al Pianeta' : 'Vai al Telescopio';
+  cleanup();
+  var ob = _origGEBI('__oneBtn'); if (ob) ob.remove();
+  var of = _origGEBI('__oneFrame'); if (of) of.remove();
+  if (!_origGEBI('__oneCSS')) {
+    var st = doc.createElement('style'); st.id = '__oneCSS';
+    st.textContent = '#__oneBtn{position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:52px!important;height:52px!important;border-radius:0 12px 12px 0!important;background:rgba(10,18,32,.95)!important;border:2px solid #d4af37!important;border-left:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 0 20px rgba(212,175,55,.5)!important;color:#d4af37!important;padding:0!important}#__oneBtn:hover{background:#d4af37!important;color:#000!important}#__oneBtn svg{width:24px!important;height:24px!important;pointer-events:none!important}#__oneFrame{position:fixed!important;inset:0!important;z-index:2147483645!important;background:#05070a!important;display:none!important}#__oneFrame iframe{width:100%!important;height:100%!important;border:none!important}';
+    doc.head.appendChild(st);
   }
-
-  // ─── DOM ───
-  var menu = document.createElement('div');
-  menu.id = 'tunnel-menu';
-
-  var panel = document.createElement('div');
-  panel.id = 'tunnel-panel';
-
-  var currentBtn = document.createElement('button');
-  currentBtn.type = 'button';
-  currentBtn.className = 'tunnel-app-btn tunnel-current';
-  currentBtn.title = APPS[MY_APP].name + ' (sei qui)';
-  currentBtn.innerHTML = svgFor(MY_APP);
-
-  var otherBtn = document.createElement('button');
-  otherBtn.type = 'button';
-  otherBtn.className = 'tunnel-app-btn tunnel-other';
-  otherBtn.title = 'Apri ' + APPS[OTHER].name;
-  otherBtn.innerHTML = svgFor(OTHER);
-
-  panel.appendChild(currentBtn);
-  panel.appendChild(otherBtn);
-
-  var toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.id = 'tunnel-toggle';
-  toggle.textContent = 'TUNNEL';
-
-  menu.appendChild(panel);
-  menu.appendChild(toggle);
-
-  var loading = document.createElement('div');
-  loading.id = 'tunnel-loading';
-  loading.innerHTML = '<div class="spinner"></div>' +
-    '<div id="tunnel-loading-text">Caricamento ' + APPS[OTHER].name + '...</div>';
-
-  var frameContainer = document.createElement('div');
-  frameContainer.id = 'tunnel-frame-container';
-  var frame = document.createElement('iframe');
-  frame.id = 'tunnel-frame';
-  frame.setAttribute('allow', 'geolocation; camera; microphone; fullscreen; clipboard-read; clipboard-write');
-  frameContainer.appendChild(frame);
-
-  document.body.appendChild(menu);
-  document.body.appendChild(loading);
-  document.body.appendChild(frameContainer);
-
-  // ─── Eventi ───
-  toggle.addEventListener('click', function (e) {
+  var btn = doc.createElement('button'); btn.id = '__oneBtn'; btn.title = title; btn.innerHTML = iconToShow; doc.body.appendChild(btn);
+  var fc = doc.createElement('div'); fc.id = '__oneFrame';
+  var fr = doc.createElement('iframe'); fr.setAttribute('allow','geolocation; camera; microphone; fullscreen'); fc.appendChild(fr); doc.body.appendChild(fc);
+  btn.onclick = function(e){
     e.preventDefault(); e.stopPropagation();
-    menu.classList.toggle('open');
-  });
-
-  document.addEventListener('click', function (e) {
-    if (menu.classList.contains('open') && !menu.contains(e.target)) {
-      menu.classList.remove('open');
-    }
-  }, true);
-
-  currentBtn.addEventListener('click', function (e) {
-    e.preventDefault(); e.stopPropagation();
-    menu.classList.remove('open');
-  });
-
-  var frameLoaded = false;
-  var loadingTimeout = null;
-
-  frame.addEventListener('load', function () {
-    frameLoaded = true;
-    if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
-    loading.classList.remove('show');
-    console.log('[TUNNEL v2] iframe loaded:', frame.src);
-  });
-
-  function showFrame() {
-    frameLoaded = false;
-    loading.classList.add('show');
-    var txt = document.getElementById('tunnel-loading-text');
-    if (txt) txt.textContent = 'Caricamento ' + APPS[OTHER].name + '...';
-    if (!frame.src || frame.src === 'about:blank') {
-      var sep = APPS[OTHER].url.indexOf('?') === -1 ? '?' : '&';
-      frame.src = APPS[OTHER].url + sep + 'tunnel=1&t=' + Date.now();
-    }
-    frameContainer.style.display = 'block';
-    menu.style.display = 'none';
-
-    if (loadingTimeout) clearTimeout(loadingTimeout);
-    loadingTimeout = setTimeout(function () {
-      if (!frameLoaded) {
-        console.warn('[TUNNEL v2] iframe timeout dopo 10s');
-        var t = document.getElementById('tunnel-loading-text');
-        if (t) {
-          t.innerHTML = 'Impossibile caricare <b>' + APPS[OTHER].name + '</b> nell\'iframe.<br>' +
-            '<span style="color:#f87171;font-size:12px;font-family:Inter">Il browser o il server potrebbero bloccarlo.</span>';
-          var oldBtn = document.getElementById('tunnel-fallback-btn');
-          if (!oldBtn) {
-            var fb = document.createElement('button');
-            fb.id = 'tunnel-fallback-btn';
-            fb.textContent = 'Apri in nuova finestra';
-            fb.onclick = function () {
-              window.open(APPS[OTHER].url, '_blank');
-              hideFrame();
-            };
-            t.parentNode.insertBefore(fb, t.nextSibling);
-          }
-        }
+    if (myApp === 'mount') {
+      if (win.self !== win.top) { try { win.parent.postMessage({type:'one-back'},'*'); } catch(err){} }
+      else { win.location.href = URLS.observatory; }
+    } else {
+      if (!fr.src || fr.src === 'about:blank') {
+        var sep = URLS.mount.indexOf('?') === -1 ? '?' : '&';
+        fr.src = URLS.mount + sep + 't=' + Date.now();
+        fr.addEventListener('load', function(){ setTimeout(function(){ try { if (fr.contentDocument && fr.contentDocument.body) buildOne(fr.contentWindow, fr.contentDocument, 'mount'); } catch(e){} }, 300); }, {once:true});
       }
-    }, 10000);
-  }
-
-  function hideFrame() {
-    frameContainer.style.display = 'none';
-    loading.classList.remove('show');
-    menu.style.display = '';
-    if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
-    var fb = document.getElementById('tunnel-fallback-btn');
-    if (fb) fb.remove();
-  }
-
-  otherBtn.addEventListener('click', function (e) {
-    e.preventDefault(); e.stopPropagation();
-    menu.classList.remove('open');
-
-    if (IN_FRAME) {
-      try { window.parent.postMessage({ type: 'tunnel-switch', target: OTHER }, '*'); } catch (err) {}
-      try {
-        if (window.SyncBus && typeof window.SyncBus.send === 'function') {
-          window.SyncBus.send('tunnel_switch', { target: OTHER });
-        }
-      } catch (err) {}
-      return;
-    }
-    showFrame();
-  });
-
-  window.addEventListener('message', function (e) {
-    var d = e.data;
-    if (!d) return;
-    if (typeof d === 'object' && d.type === 'tunnel-switch' && d.target === MY_APP) {
-      if (frameContainer.style.display !== 'none') hideFrame();
-      return;
-    }
-    if (d === 'hide-satellite-frame' || d === 'show-master' || d === 'egastro-close-frame') {
-      if (frameContainer.style.display !== 'none') hideFrame();
-    }
-  });
-
-  try {
-    if (window.SyncBus && typeof window.SyncBus.on === 'function') {
-      window.SyncBus.on('tunnel_switch', function (d) {
-        if (!d || d.target !== MY_APP) return;
-        if (frameContainer.style.display !== 'none') hideFrame();
-      });
-    }
-  } catch (err) {}
-
-  window.__tunnel = {
-    myApp: MY_APP, other: OTHER, openOther: showFrame, close: hideFrame, inFrame: IN_FRAME,
-    debug: function () {
-      console.log('=== TUNNEL DEBUG ===');
-      console.log('  MY_APP:', MY_APP, '(dovrebbe essere "' + MY_APP + '")');
-      console.log('  OTHER:', OTHER);
-      console.log('  IN_FRAME:', IN_FRAME);
-      console.log('  menu presente:', !!document.getElementById('tunnel-menu'));
-      console.log('  btn corrente:', currentBtn.className);
-      console.log('  btn altro:', otherBtn.className);
-      console.log('  frame.src:', frame.src);
-      console.log('  frame display:', frameContainer.style.display);
-      console.log('  Frame caricato?', frameLoaded);
-      console.log('  Vecchi residui:');
-      OLD_IDS.forEach(function (id) { console.log('    ', id + ':', !!document.getElementById(id)); });
+      fc.style.display = 'block'; btn.style.display = 'none';
     }
   };
+  win.addEventListener('message', function(e){ if (e.data === 'one-back') { fc.style.display='none'; btn.style.display=''; } });
+}
 
-  console.log('[TUNNEL v2] ✅ Ready · App:', MY_APP, '· Other:', OTHER, '· InFrame:', IN_FRAME);
+var detected = (_origGEBI && document.querySelector('meta[name="app-id"]')?.content === 'mount') ? 'mount' : 'observatory';
+
+function init() {
+  if (!document.body) { setTimeout(init, 50); return; }
+  buildOne(window, document, detected);
+  _origSI.call(window, function(){
+    cleanup();
+    var btn = _origGEBI('__oneBtn');
+    if (!btn) { buildOne(window, document, detected); return; }
+    var correct = detected === 'mount' ? SVG_DOME : SVG_TEL;
+    if (btn.innerHTML !== correct) btn.innerHTML = correct;
+    btn.style.display = '';
+  }, 100);
+  try {
+    new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+          if (n && n.nodeType === 1 && n.id && OLD_IDS.indexOf(n.id) !== -1) n.remove();
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  } catch(e) {}
+}
+init();
+console.log('[ONE-BTN-BLINDATO] Ready:', detected);
 })();
 </script>
+</body>  -->
+
+
 </body>
 </html>
