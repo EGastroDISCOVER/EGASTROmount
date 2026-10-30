@@ -736,195 +736,15 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+<!-- PULSANTE TUNNEL (Ritorno al Pianeta) -->
+<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
+  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:74px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-shadow:0 0 15px rgba(212,175,55,0.5); padding:0;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+    <span style="font-family:'Orbitron'; font-size:10px; font-weight:900;">TUNNEL</span>
+  </button>
+</div>
 
-
-
-
-
-
-
-
-
-
-<!-- SCRIPT MAPPA ISOLATA E TRACKING SICURO -->
-
-
-
-
-
-
-
-<!-- TUNNEL V2 — incollare IDENTICO in ENTRAMBI i file, sopra <script id="__oneBtnScript">
-(function(){
-'use strict';
-if (window.__oneButton) return;
-window.__oneButton = true;
-
-var URLS = { observatory: 'https://egastrodiscover.github.io/EGASTRO/', mount: 'https://egastrodiscover.github.io/EGASTROmount/' };
-var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
-var SVG_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
-
-var OLD_IDS = ['tunnel-menu','tunnel-panel','tunnel-toggle','tunnel-frame-container','app-switcher-container','app-switcher-menu','app-switcher-toggle','planet-menu-ultimate','app-frame-container','app-frame','btn-goto-dome','btn-goto-telescope'];
-
-// Override getElementById: ritorna null per ID vecchi (blocca script vecchi)
-var _origGEBI = document.getElementById.bind(document);
-document.getElementById = function(id) {
-  if (OLD_IDS.indexOf(id) !== -1) return null;
-  return _origGEBI(id);
-};
-// Override setInterval: blocca callback che contengono marker tunnel
-var _origSI = window.setInterval;
-window.setInterval = function(fn, ms) {
-  try {
-    var src = (typeof fn === 'function') ? fn.toString() : String(fn);
-    if (src.indexOf('app-switcher') !== -1 || src.indexOf('planet-menu-ultimate') !== -1) {
-      return 0;
-    }
-  } catch(e) {}
-  return _origSI.apply(this, arguments);
-};
-
-function cleanup() {
-  OLD_IDS.forEach(function(id){ var e = _origGEBI(id); if (e) e.remove(); });
-  document.querySelectorAll('.app-switch-btn,.tab').forEach(function(e){ e.remove(); });
-}
-
-function buildOne(win, doc, myApp) {
-  var iconToShow = myApp === 'mount' ? SVG_DOME : SVG_TEL;
-  var title = myApp === 'mount' ? 'Torna al Pianeta' : 'Vai al Telescopio';
-  cleanup();
-  var ob = _origGEBI('__oneBtn'); if (ob) ob.remove();
-  var of = _origGEBI('__oneFrame'); if (of) of.remove();
-  if (!_origGEBI('__oneCSS')) {
-    var st = doc.createElement('style'); st.id = '__oneCSS';
-    st.textContent = '#__oneBtn{position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:52px!important;height:52px!important;border-radius:0 12px 12px 0!important;background:rgba(10,18,32,.95)!important;border:2px solid #d4af37!important;border-left:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 0 20px rgba(212,175,55,.5)!important;color:#d4af37!important;padding:0!important}#__oneBtn:hover{background:#d4af37!important;color:#000!important}#__oneBtn svg{width:24px!important;height:24px!important;pointer-events:none!important}#__oneFrame{position:fixed!important;inset:0!important;z-index:2147483645!important;background:#05070a!important;display:none!important}#__oneFrame iframe{width:100%!important;height:100%!important;border:none!important}';
-    doc.head.appendChild(st);
-  }
-  var btn = doc.createElement('button'); btn.id = '__oneBtn'; btn.title = title; btn.innerHTML = iconToShow; doc.body.appendChild(btn);
-  var fc = doc.createElement('div'); fc.id = '__oneFrame';
-  var fr = doc.createElement('iframe'); fr.setAttribute('allow','geolocation; camera; microphone; fullscreen'); fc.appendChild(fr); doc.body.appendChild(fc);
-  btn.onclick = function(e){
-    e.preventDefault(); e.stopPropagation();
-    if (myApp === 'mount') {
-      if (win.self !== win.top) { try { win.parent.postMessage({type:'one-back'},'*'); } catch(err){} }
-      else { win.location.href = URLS.observatory; }
-    } else {
-      if (!fr.src || fr.src === 'about:blank') {
-        var sep = URLS.mount.indexOf('?') === -1 ? '?' : '&';
-        fr.src = URLS.mount + sep + 't=' + Date.now();
-        fr.addEventListener('load', function(){ setTimeout(function(){ try { if (fr.contentDocument && fr.contentDocument.body) buildOne(fr.contentWindow, fr.contentDocument, 'mount'); } catch(e){} }, 300); }, {once:true});
-      }
-      fc.style.display = 'block'; btn.style.display = 'none';
-    }
-  };
-  win.addEventListener('message', function(e){ if (e.data === 'one-back') { fc.style.display='none'; btn.style.display=''; } });
-}
-
-var detected = (_origGEBI && document.querySelector('meta[name="app-id"]')?.content === 'mount') ? 'mount' : 'observatory';
-
-function init() {
-  if (!document.body) { setTimeout(init, 50); return; }
-  buildOne(window, document, detected);
-  _origSI.call(window, function(){
-    cleanup();
-    var btn = _origGEBI('__oneBtn');
-    if (!btn) { buildOne(window, document, detected); return; }
-    var correct = detected === 'mount' ? SVG_DOME : SVG_TEL;
-    if (btn.innerHTML !== correct) btn.innerHTML = correct;
-    btn.style.display = '';
-  }, 100);
-  try {
-    new MutationObserver(function(muts){
-      muts.forEach(function(m){
-        m.addedNodes.forEach(function(n){
-          if (n && n.nodeType === 1 && n.id && OLD_IDS.indexOf(n.id) !== -1) n.remove();
-        });
-      });
-    }).observe(document.body, { childList: true, subtree: true });
-  } catch(e) {}
-}
-init();
-console.log('[ONE-BTN-BLINDATO] Ready:', detected);
-})();
-</script>
-<script id="__oneBtnScript">
-(function(){
-'use strict';
-if (window.__oneButton) return;
-window.__oneButton = true;
-var URLS = { observatory: 'https://egastrodiscover.github.io/EGASTRO/', mount: 'https://egastrodiscover.github.io/EGASTROmount/' };
-var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
-var SVG_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
-var OLD_IDS = ['tunnel-menu','tunnel-panel','tunnel-toggle','tunnel-frame-container','app-switcher-container','app-switcher-menu','app-switcher-toggle','planet-menu-ultimate','app-frame-container','app-frame','btn-goto-dome','btn-goto-telescope'];
-var _origGEBI = document.getElementById.bind(document);
-document.getElementById = function(id) { if (OLD_IDS.indexOf(id) !== -1) return null; return _origGEBI(id); };
-var _origSI = window.setInterval;
-window.setInterval = function(fn, ms) {
-  try { var src = (typeof fn === 'function') ? fn.toString() : String(fn); if (src.indexOf('app-switcher') !== -1 || src.indexOf('planet-menu-ultimate') !== -1 || src.indexOf('showFrame') !== -1) return 0; } catch(e) {}
-  return _origSI.apply(this, arguments);
-};
-function cleanup() {
-  OLD_IDS.forEach(function(id){ var e = _origGEBI(id); if (e) e.remove(); });
-  document.querySelectorAll('.app-switch-btn,.tab').forEach(function(e){ e.remove(); });
-  var badIframes = document.querySelectorAll('iframe');
-  badIframes.forEach(function(f){
-    var id = f.id || '';
-    if (id !== '__oneFrameInner' && id !== '__oneIframe') {
-      var p = f.parentElement;
-      if (p && p.id === '__oneFrame') return;
-      f.remove();
-    }
-  });
-}
-function buildOne(win, doc, myApp) {
-  var iconToShow = myApp === 'mount' ? SVG_DOME : SVG_TEL;
-  var title = myApp === 'mount' ? 'Torna al Pianeta' : 'Vai al Telescopio';
-  cleanup();
-  var ob = _origGEBI('__oneBtn'); if (ob) ob.remove();
-  var of = _origGEBI('__oneFrame'); if (of) of.remove();
-  if (!_origGEBI('__oneCSS')) {
-    var st = doc.createElement('style'); st.id = '__oneCSS';
-    st.textContent = '#__oneBtn{position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:52px!important;height:52px!important;border-radius:0 12px 12px 0!important;background:rgba(10,18,32,.95)!important;border:2px solid #d4af37!important;border-left:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 0 20px rgba(212,175,55,.5)!important;color:#d4af37!important;padding:0!important}#__oneBtn:hover{background:#d4af37!important;color:#000!important}#__oneBtn svg{width:24px!important;height:24px!important;pointer-events:none!important}#__oneFrame{position:fixed!important;inset:0!important;z-index:2147483645!important;background:#05070a!important;display:none!important}#__oneFrame iframe{width:100%!important;height:100%!important;border:none!important}';
-    doc.head.appendChild(st);
-  }
-  var btn = doc.createElement('button'); btn.id = '__oneBtn'; btn.title = title; btn.innerHTML = iconToShow; doc.body.appendChild(btn);
-  var fc = doc.createElement('div'); fc.id = '__oneFrame';
-  var fr = doc.createElement('iframe'); fr.id = '__oneIframe'; fr.setAttribute('allow','geolocation; camera; microphone; fullscreen'); fc.appendChild(fr); doc.body.appendChild(fc);
-  btn.onclick = function(e){
-    e.preventDefault(); e.stopPropagation();
-    if (myApp === 'mount') {
-      if (win.self !== win.top) { try { win.parent.postMessage({type:'one-back'},'*'); } catch(err){} }
-      else { win.location.href = URLS.observatory; }
-    } else {
-      if (!fr.src || fr.src === 'about:blank') {
-        var sep = URLS.mount.indexOf('?') === -1 ? '?' : '&';
-        fr.src = URLS.mount + sep + 't=' + Date.now();
-        fr.addEventListener('load', function(){ setTimeout(function(){ try { if (fr.contentDocument && fr.contentDocument.body) buildOne(fr.contentWindow, fr.contentDocument, 'mount'); } catch(e){} }, 300); }, {once:true});
-      }
-      fc.style.display = 'block'; btn.style.display = 'none';
-    }
-  };
-  win.addEventListener('message', function(e){ if (e.data === 'one-back') { fc.style.display='none'; btn.style.display=''; } });
-}
-var detected = (document.querySelector('meta[name="app-id"]')?.content === 'mount') ? 'mount' : 'observatory';
-function init() {
-  if (!document.body) { setTimeout(init, 50); return; }
-  buildOne(window, document, detected);
-  _origSI.call(window, function(){
-    cleanup();
-    var btn = _origGEBI('__oneBtn');
-    if (!btn) { buildOne(window, document, detected); return; }
-    var correct = detected === 'mount' ? SVG_DOME : SVG_TEL;
-    if (btn.innerHTML !== correct) btn.innerHTML = correct;
-    btn.style.display = '';
-  }, 100);
-  try { new MutationObserver(function(muts){ muts.forEach(function(m){ m.addedNodes.forEach(function(n){ if (n && n.nodeType === 1 && n.id && OLD_IDS.indexOf(n.id) !== -1) n.remove(); if (n && n.tagName === 'IFRAME' && n.id !== '__oneIframe') { var p = n.parentElement; if (!p || p.id !== '__oneFrame') n.remove(); } }); }); }).observe(document.body, { childList: true, subtree: true }); } catch(e) {}
-}
-init();
-console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
-})();
-</script>
-
+<!-- SCRIPT MAPPA POLARE COMPLETA -->
 <script id="satellite-mappa-v3">
 (function () {
   'use strict';
@@ -971,6 +791,7 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
     }, 100);
   }
   initTracking();
+  
   function initMap() {
     if (typeof Astro === 'undefined' || typeof getAstroCoords !== 'function') {
       setTimeout(initMap, 200); return;
@@ -989,6 +810,7 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
     var container = document.createElement('div');
     container.id = '__myPolarContainer';
     container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));background:transparent;display:none;cursor:grab;';
+    
     var sizeSel = document.createElement('div');
     sizeSel.id = '__myPolarSizeSel';
     sizeSel.style.cssText = 'position:absolute;top:-38px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(13,18,28,0.95);padding:4px 6px;border-radius:14px;border:1px solid #d4af37;z-index:10;backdrop-filter:blur(10px);';
@@ -1013,6 +835,7 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
         b.style.borderColor = on ? '#d4af37' : '#6b778c';
       });
     }
+    
     var cv = document.createElement('canvas'); cv.style.cssText = 'display:block;border-radius:50%;'; container.appendChild(cv);
     var ctx = cv.getContext('2d');
     var zoomBox = document.createElement('div');
@@ -1024,14 +847,23 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
       zoomBox.appendChild(b);
     });
     container.appendChild(zoomBox); document.body.appendChild(container);
+    
     container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px'; cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
     cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateBtnState();
+    
     var toggleBtn = document.createElement('div');
     toggleBtn.id = '__myPolarBtn'; toggleBtn.className = 'circle-btn'; toggleBtn.title = 'Mappa Polare';
     toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
-    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
-    toggleBtn.onclick = function () { isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; if (isOpen) { if (!rafId) drawPolar(); } else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } } };
-    var topRight = document.querySelector('.top-right-buttons'); if (topRight) topRight.appendChild(toggleBtn); else document.body.appendChild(toggleBtn);
+    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;cursor:pointer;';
+    toggleBtn.onclick = function () { 
+      isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; 
+      if (isOpen) { if (!rafId) drawPolar(); } 
+      else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } } 
+    };
+    
+    var topRight = document.querySelector('.top-right-buttons'); 
+    if (topRight) topRight.appendChild(toggleBtn); else document.body.appendChild(toggleBtn);
+    
     var CONST = [];
     fetch(CONST_URL + '?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
       if (!d || !d.features) return;
@@ -1042,10 +874,13 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
       }).filter(function (c) { return c.l.length > 0; });
       if (isOpen) drawPolar();
     }).catch(function (e) {});
+    
     var STARS_L = [{ n: "Polaris", ra: 37.95, dec: 89.26, mag: 1.98 },{ n: "Kochab", ra: 222.68, dec: 74.16, mag: 2.08 },{ n: "Dubhe", ra: 165.93, dec: 61.75, mag: 1.79 },{ n: "Merak", ra: 165.46, dec: 56.38, mag: 2.37 },{ n: "Vega", ra: 279.23, dec: 38.78, mag: 0.03 },{ n: "Deneb", ra: 310.36, dec: 45.28, mag: 1.25 },{ n: "Arturo", ra: 213.92, dec: 19.18, mag: -0.05 },{ n: "Sirio", ra: 101.29, dec: -16.72, mag: -1.46 }];
     var DSO_L = [{ n: "M31", ra: 10.68, dec: 41.26, t: "G" },{ n: "M42", ra: 83.82, dec: -5.39, t: "N" },{ n: "M45", ra: 56.75, dec: 24.11, t: "C" },{ n: "M13", ra: 250.42, dec: 36.46, t: "C" }];
+    
     function polar(alt, az) { var r = (SIZE / 2 - 6) * internalZoom * (90 - alt) / 90; var azR = az * Math.PI / 180; return { x: SIZE / 2 + r * Math.sin(azR), y: SIZE / 2 - r * Math.cos(azR), r: r }; }
     function drawMilkyWay(date, lat, lon) { var ngpRa = 192.86, ngpDec = 27.13; var seed = 777; var rand = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; ctx.save(); for (var i = 0; i < 600; i++) { var l = rand() * 360, b = (rand() - 0.5) * 20; var bR = b * Math.PI / 180, lR = l * Math.PI / 180; var sinDec = Math.sin(ngpDec * Math.PI / 180) * Math.sin(bR) + Math.cos(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var dec = Math.asin(sinDec) * 180 / Math.PI; var yv = Math.cos(bR) * Math.sin(lR); var xv = Math.cos(ngpDec * Math.PI / 180) * Math.sin(bR) - Math.sin(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var ra = ((ngpRa + Math.atan2(yv, xv) * 180 / Math.PI) % 360 + 360) % 360; var p = Astro.altAz(ra * Math.PI / 180, dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) continue; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) continue; var sz = 3 + rand() * 8, al = 0.05 + rand() * 0.08; ctx.fillStyle = (i % 3 === 0) ? 'rgba(200,170,180,' + al + ')' : 'rgba(160,200,255,' + al + ')'; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+    
     function drawPolar() {
       if (!isOpen) { rafId = null; return; }
       var lat = (typeof MS !== 'undefined' && MS.gpsLat) || 41.9; var lon = (typeof MS !== 'undefined' && MS.gpsLon) || 12.5; var date = new Date();
@@ -1064,6 +899,7 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
       ['N', 'E', 'S', 'O'].forEach(function (lbl, i) { var a = i * 90 * Math.PI / 180; var r = SIZE / 2 - (SIZE < 200 ? 10 : 12); ctx.fillStyle = '#d4af37'; ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, SIZE / 2 + r * Math.sin(a), SIZE / 2 - r * Math.cos(a)); });
       rafId = requestAnimationFrame(drawPolar);
     }
+    
     var isDragging = false, lastX = 0, lastY = 0, touchDist = 0;
     container.addEventListener('mousedown', function (e) { if (e.target.tagName === 'BUTTON') return; isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
     window.addEventListener('mousemove', function (e) { if (!isDragging) return; var dx = e.clientX - lastX, dy = e.clientY - lastY; var r = container.getBoundingClientRect(); container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px'; lastX = e.clientX; lastY = e.clientY; });
@@ -1077,125 +913,5 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
 })();
 </script>
 
-<script id="satellite-tunnel-v1">
-(function() {
-  if (window.__tunnelV1) return; window.__tunnelV1 = true;
-  var styleHide = document.createElement("style"); 
-  styleHide.textContent = "#app-switcher-container, #app-switcher-menu, #app-switcher-toggle { display: none !important; }"; 
-  document.head.appendChild(styleHide);
-  var host = document.createElement("div"); 
-  host.id = "tunnel-host";
-  host.style.cssText = "position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 2147483647;"; 
-  document.body.appendChild(host);
-  var shadow = host.attachShadow({ mode: "open" });
-  
-  shadow.innerHTML = `
-    <style>
-      .container { display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translateX(calc(-100% + 26px)); }
-      .container.open { transform: translateX(0); }
-      .menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 14px 8px; display: flex; flex-direction: column; gap: 12px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
-      .toggle { width: 26px; height: 82px; writing-mode: vertical-rl; text-orientation: mixed; font-size: 11px; font-weight: 800; letter-spacing: 3px; font-family: "Orbitron", sans-serif; color: #d4af37; background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
-      .icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; }
-      .icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
-      .active { border: 2px solid #d4af37 !important; background: #0a1220 !important; color: #d4af37 !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; opacity: 1 !important; pointer-events: auto !important; }
-      .inactive { border: 2px solid #8bd3ff !important; background: #0a1220 !important; color: #8bd3ff !important; opacity: 0.35 !important; pointer-events: none !important; }
-    </style>
-    <div class="container" id="box">
-      <div class="menu">
-        <div class="icon inactive" id="tel"><svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg></div>
-        <div class="icon active" id="dome"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg></div>
-      </div>
-      <button class="toggle" id="btn">TUNNEL</button>
-    </div>
-  `;
-
-  var box = shadow.getElementById("box"); 
-  var btn = shadow.getElementById("btn"); 
-  var tel = shadow.getElementById("tel"); 
-  var dome = shadow.getElementById("dome");
-  
-  btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); box.classList.toggle("open"); };
-  tel.onclick = function(e) { e.preventDefault(); e.stopPropagation(); };
-  dome.onclick = function(e) {
-    e.preventDefault(); e.stopPropagation(); box.classList.remove("open");
-    if (window.parent !== window) { window.parent.postMessage("hide-satellite-frame", "*"); }
-    else { window.location.href = "https://egastrodiscover.github.io/EGASTRO/"; }
-  };
-  window.addEventListener("message", function(e) {
-    if (e.data === "hide-satellite-frame" || e.data === "show-master") {
-      var fc = document.getElementById("app-frame-container"); if (fc) fc.style.display = "none";
-      if (box) box.classList.remove("open"); 
-      if (dome) dome.className = "icon inactive"; 
-      if (tel) tel.className = "icon active";
-    }
-  }, true);
-})();
-</script>
-
-  <script>
-  document.addEventListener('DOMContentLoaded', function(){
-    let b=document.createElement('button');
-    b.style.cssText='position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:9999;width:52px;height:52px;border-radius:0 12px 12px 0;background:#0a1220;border:2px solid #d4af37;border-left:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#d4af37;padding:0;box-shadow:0 0 15px rgba(212,175,55,.5)';
-    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
-    b.onclick=function(){ 
-      if(window.parent!==window){ window.parent.postMessage('hide-satellite-frame','*'); }
-      else { window.location.href='https://egastrodiscover.github.io/EGASTRO/'; } 
-    };
-    document.body.appendChild(b);
-  });
-  </script></body>  -->
-
-<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
-  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-  </button>
-</div>
-  <!-- MAPPA E SINCRO DEFINITIVI -->
-<script>
-// 1. SINCRONIZZAZIONE (SyncBus)
-(function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V;var A='mount',I=A+'-'+Math.random().toString(36).slice(2,8),bc=null;try{bc=new BroadcastChannel(C)}catch(e){}var ls=new Map(),pr={alive:!1,id:null,lastSeen:0};function mm(t,d){return{v:V,type:t,data:d||null,from:A,instance:I,ts:Date.now()}}function dis(m){if(!m||!m.type||!m.from||m.from===A)return;pr.alive=!0;pr.id=m.from;pr.lastSeen=Date.now();if(m.type==='ping'){snd('pong');return}if(m.type==='hello'){setTimeout(function(){snd('hello')},50);return}var h=ls.get(m.type);if(h)h.forEach(function(f){try{f(m.data,m)}catch(e){}})}function snd(t,d){if(bc){try{bc.postMessage(mm(t,d))}catch(e){}}else{try{localStorage.setItem(L,JSON.stringify(mm(t,d)))}catch(e){}}}function on(t,f){if(!ls.has(t))ls.set(t,[]);ls.get(t).push(f)}if(bc)bc.onmessage=function(e){dis(e.data)};else g.addEventListener('storage',function(e){if(e.key===L&&e.newValue){try{dis(JSON.parse(e.newValue))}catch(e){}}});setInterval(function(){snd('ping')},2000);g.SyncBus={send:snd,on:on,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id}}})(window);
-
-// 2. RICEZIONE COMANDI DAL PIANETA
-if (window.SyncBus) {
-  SyncBus.on('cmd_goto', function(d) { if (typeof _startGoto === 'function') _startGoto(d.ra*Math.PI/180, d.dec*Math.PI/180); });
-  SyncBus.on('cmd_stop', function() { if (typeof stopMotion === 'function') stopMotion(); });
-  SyncBus.on('cmd_park', function() { if (typeof parkMount === 'function') parkMount(); });
-  SyncBus.on('cmd_unpark', function() { if (typeof unparkMount === 'function') unparkMount(); });
-  SyncBus.on('cmd_home', function() { if (typeof goHome === 'function') goHome(); });
-  SyncBus.on('cmd_tracking', function(d) { if (d && d.on !== (typeof MS !== 'undefined' && MS.tracking !== 'off') && typeof toggleTrackingOn === 'function') toggleTrackingOn(); });
-  setInterval(function(){ if(SyncBus.isPeerAlive()){ try{SyncBus.send('mount_state', {__isState: true, connected: MS.connected, tracking: MS.tracking, isParked: MS.isParked});}catch(e){} } }, 250);
-}
-
-// 3. MAPPA POLARE CON BOTTONE
-(function(){ if(window.__sV3)return; window.__sV3=true;
-  function initMap(){
-    if(typeof Astro==='undefined'){ setTimeout(initMap,200); return; }
-    let container = document.createElement('div');
-    container.id = '__myPolarContainer';
-    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;background:#05070a;display:none;width:340px;height:340px;border:2px solid #d4af37;box-shadow:0 0 20px rgba(0,0,0,0.8)';
-    let cv = document.createElement('canvas');
-    cv.style.cssText = 'display:block;border-radius:50%;width:100%;height:100%';
-    container.appendChild(cv); document.body.appendChild(container);
-    let btn = document.createElement('div');
-    btn.id = '__myPolarBtn'; btn.className = 'circle-btn'; btn.title = 'Mappa Polare';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>';
-    btn.style.cssText = 'border-color:#d4af37;color:#d4af37;cursor:pointer;';
-    let topRight = document.querySelector('.top-right-buttons');
-    if(topRight) topRight.appendChild(btn); else document.body.appendChild(btn);
-    let isOpen = false;
-    btn.onclick = function(){ isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; if(isOpen) draw(); };
-    function draw(){
-      if(!isOpen) return;
-      let ctx = cv.getContext('2d'); let SIZE = 340; cv.width = SIZE*2; cv.height = SIZE*2; ctx.scale(2,2);
-      ctx.fillStyle='#000'; ctx.fillRect(0,0,SIZE,SIZE);
-      ctx.strokeStyle='#d4af37'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,SIZE/2-10,0,Math.PI*2); ctx.stroke();
-      for(let i=0;i<100;i++){ ctx.fillStyle='rgba(255,255,255,'+(0.3+Math.random()*0.7)+')'; ctx.beginPath(); ctx.arc(SIZE/2+(Math.random()-0.5)*(SIZE-40), SIZE/2+(Math.random()-0.5)*(SIZE-40), Math.random()*1.5, 0, Math.PI*2); ctx.fill(); }
-      ctx.fillStyle='#d4af37'; ctx.font='14px Orbitron'; ctx.textAlign='center'; ctx.fillText('MAPPA POLARE', SIZE/2, SIZE/2);
-      requestAnimationFrame(draw);
-    }
-  }
-  initMap();
-})();
-</script>
 </body>
 </html>
