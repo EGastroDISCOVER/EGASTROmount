@@ -198,6 +198,148 @@ g.addEventListener('focus',function(){snd('hello')});
 g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
 </script>
+
+ /* ============================================================
+   SATELLITE — Listener comandi dal Pianeta + pannello standalone
+   ============================================================ */
+(function(){
+  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
+
+  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
+  EGCore.onCommand('connect', (cfg) => {
+    if (window.__READONLY__) return;
+    console.log('[SAT] Comando connect da Pianeta:', cfg);
+    applyConnectionFromMaster(cfg);
+  });
+
+  EGCore.onCommand('goto', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof _startGoto === 'function') {
+      const raRad = data.ra * EGCore.DEG_TO_RAD;
+      const decRad = data.dec * EGCore.DEG_TO_RAD;
+      _startGoto(raRad, decRad);
+      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
+    }
+  });
+
+  EGCore.onCommand('stop', () => {
+    if (window.__READONLY__) return;
+    if (typeof stopMotion === 'function') stopMotion();
+  });
+
+  EGCore.onCommand('park', () => {
+    if (window.__READONLY__) return;
+    if (typeof parkMount === 'function') parkMount();
+  });
+
+  EGCore.onCommand('unpark', () => {
+    if (window.__READONLY__) return;
+    if (typeof unparkMount === 'function') unparkMount();
+  });
+
+  EGCore.onCommand('home', () => {
+    if (window.__READONLY__) return;
+    if (typeof goHome === 'function') goHome();
+  });
+
+  EGCore.onCommand('speed', (data) => {
+    if (window.__READONLY__ || !data) return;
+    const sp = EGCore.getSpeed(data.key);
+    if (typeof MS !== 'undefined') {
+      MS.speedPerStep = sp.degPerSec / 60; // approssimazione per step 60ms
+      MS.speedLabel = sp.label;
+      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+    }
+  });
+
+  EGCore.onCommand('rate', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.tracking = data.mode || 'sidereal';
+      const tm = document.getElementById('tracking-mode');
+      if (tm) tm.value = MS.tracking;
+      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+    }
+  });
+
+  EGCore.onCommand('limits', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.minAlt = data.minAlt ?? MS.minAlt;
+      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
+      MS.haMin  = data.haMin  ?? MS.haMin;
+      MS.haMax  = data.haMax  ?? MS.haMax;
+      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
+      if (typeof saveFullState === 'function') saveFullState();
+    }
+  });
+
+  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
+  function publishMountState() {
+    if (window.__READONLY__) return;
+    if (typeof MS === 'undefined' || !MS.connected) return;
+    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+    // Converti RA meccanica in astro
+    let astroRa = MS.ra, astroDec = MS.dec;
+    if (typeof getAstroCoords === 'function') {
+      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
+    }
+    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
+    EGCore.pushState({
+      connected: MS.connected,
+      isParked: MS.isParked,
+      tracking: MS.tracking,
+      slewMode: MS.slewMode,
+      ra: astroRa * EGCore.RAD_TO_DEG,
+      dec: astroDec * EGCore.RAD_TO_DEG,
+      alt: pos.alt,
+      az: pos.az,
+      speed: MS.speedLabel,
+      mountType: MS.mountType,
+      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
+    });
+  }
+  setInterval(publishMountState, 300);
+
+  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
+  function applyConnectionFromMaster(cfg) {
+    if (!cfg || !cfg.type) return;
+    if (cfg.type === 'sim') {
+      MS.simulated = true;
+      MS.connected = true;
+      MS.wifiEnabled = false;
+      MS.btEnabled = false;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof finishConnect === 'function') finishConnect();
+      if (window.showToast) showToast('SIM attivato da Pianeta');
+      return;
+    }
+    // WiFi / BT: prova la connessione
+    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
+    if (!proto) return;
+    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
+    try {
+      proto.connect(protoCfg,
+        () => {
+          MS.connected = true;
+          MS.wifiEnabled = cfg.type === 'wifi';
+          MS.btEnabled = cfg.type === 'bt';
+          MS.simulated = false;
+          if (typeof updateLinkButtons === 'function') updateLinkButtons();
+          if (typeof finishConnect === 'function') finishConnect();
+          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
+        },
+        (err) => {
+          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
+        }
+      );
+    } catch(e) {
+      if (window.showToast) showToast('Errore connessione', true);
+    }
+  }
+  window.applyConnectionFromMaster = applyConnectionFromMaster;
+})(); 
   
 <style id="mobile-fix">
 @media (max-width: 768px) {
