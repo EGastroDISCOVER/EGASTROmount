@@ -1713,5 +1713,40 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
     console.log(`[UnifiedTunnel] Attivo su: ${MY_APP}`);
 })();
 </script>
+
+<!-- __syncGPSMount — Tappa 1: legge GPS/coordinate da localStorage -->
+<script id="__syncGPSMount">
+(function(){
+  "use strict";
+  if (window.__syncGPSMount) return;
+  window.__syncGPSMount = true;
+  var KEY = "egastro_sync_obs";
+  var lastLat = null, lastLon = null;
+  function consume(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (!s || !s.ts) return;
+      if (Date.now() - s.ts > 15000) return;
+      if (!s.coords || !Number.isFinite(s.coords.lat) || !Number.isFinite(s.coords.lon)) return;
+      if (lastLat === s.coords.lat && lastLon === s.coords.lon) return;
+      lastLat = s.coords.lat;
+      lastLon = s.coords.lon;
+      if (typeof MS !== "undefined" && MS) {
+        MS.gpsLat = s.coords.lat;
+        MS.gpsLon = s.coords.lon;
+        MS.gpsActive = true;
+        if (typeof updateTelemetry === "function") updateTelemetry();
+        if (typeof updateLinkButtons === "function") updateLinkButtons();
+        console.log("[Sync GPS] mount riceve coords:", s.coords.lat.toFixed(4), s.coords.lon.toFixed(4));
+      }
+    } catch(e) {}
+  }
+  setInterval(consume, 1000);
+  consume();
+  console.log("[Sync GPS] Mount receiving attivo");
+})();
+</script>
 </body>
 </html>
