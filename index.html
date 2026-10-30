@@ -1318,5 +1318,187 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   initMap();
 })();
 </script>
+  <!-- SCRIPT TUNNEL UNIFICATO - INCOLLARE IN ENTRAMBI I FILE, PRIMA DI </body> -->
+<script id="unified-tunnel-sync">
+(function() {
+    'use strict';
+    if (window.UnifiedTunnel) return;
+    window.UnifiedTunnel = true;
+
+    // === 1. CONFIGURAZIONE ===
+    const MY_APP = document.querySelector('meta[name="app-id"]')?.content || 'observatory';
+    const OTHER_APP_URL = {
+        'observatory': 'https://egastrodiscover.github.io/EGASTROmount/',
+        'mount': 'https://egastrodiscover.github.io/EGASTRO/'
+    }[MY_APP];
+
+    // === 2. CREAZIONE DEL CANALE DI COMUNICAZIONE ===
+    const channel = new BroadcastChannel('egastro_unified_sync');
+
+    // === 3. GESTIONE DELL'IFRAME DEL TUNNEL ===
+    function createTunnel() {
+        const tunnelBtn = document.createElement('button');
+        tunnelBtn.id = 'unified-tunnel-btn';
+        tunnelBtn.style.cssText = `
+            position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+            z-index: 2147483647; width: 52px; height: 52px;
+            border-radius: 0 12px 12px 0; background: rgba(10,18,32,.95);
+            border: 2px solid #d4af37; border-left: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(212,175,55,.5); color: #d4af37;
+            font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+        `;
+        tunnelBtn.innerHTML = MY_APP === 'mount' ? 'DOME' : 'TEL';
+        tunnelBtn.onclick = () => toggleIframe();
+
+        const iframeContainer = document.createElement('div');
+        iframeContainer.id = 'unified-tunnel-frame';
+        iframeContainer.style.cssText = `
+            position: fixed; inset: 0; z-index: 2147483645;
+            background: #05070a; display: none;
+        `;
+        const iframe = document.createElement('iframe');
+        iframe.id = 'unified-tunnel-iframe';
+        iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+        iframe.setAttribute('allow', 'geolocation; camera; microphone; fullscreen');
+
+        // Passa il testimone dell'app corrente all'altra
+        iframe.onload = () => {
+            try {
+                iframe.contentWindow.postMessage({
+                    type: 'tunnel-hello',
+                    from: MY_APP,
+                    payload: getSyncState()
+                }, '*');
+            } catch(e) {}
+        };
+
+        iframeContainer.appendChild(iframe);
+        document.body.appendChild(tunnelBtn);
+        document.body.appendChild(iframeContainer);
+
+        // Ascolta i messaggi dall'iframe
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'tunnel-hello') {
+                // L'altra app è pronta, invia lo stato corrente
+                sendStateToPeer(event.data.from);
+            }
+            if (event.data === 'close-tunnel') {
+                iframeContainer.style.display = 'none';
+                tunnelBtn.style.display = 'flex';
+            }
+        });
+    }
+
+    function toggleIframe() {
+        const container = document.getElementById('unified-tunnel-frame');
+        const iframe = document.getElementById('unified-tunnel-iframe');
+        const btn = document.getElementById('unified-tunnel-btn');
+
+        if (container.style.display === 'none') {
+            if (!iframe.src) {
+                iframe.src = OTHER_APP_URL + '?t=' + Date.now();
+            }
+            container.style.display = 'block';
+            btn.style.display = 'none';
+        } else {
+            container.style.display = 'none';
+            btn.style.display = 'flex';
+        }
+    }
+
+    // === 4. SINCRONIZZAZIONE DELLO STATO ===
+    function getSyncState() {
+        // Questa funzione deve essere adattata per leggere lo stato rilevante da entrambe le app
+        if (MY_APP === 'observatory') {
+            return {
+                target: window.state?.target || null,
+                coordinates: { lat: window.state?.lat, lon: window.state?.lon },
+                telescopeTarget: JSON.parse(localStorage.getItem('egastro_telescope_target') || 'null')
+            };
+        } else { // mount
+            return {
+                mount: window.MS ? {
+                    connected: MS.connected,
+                    tracking: MS.tracking,
+                    isParked: MS.isParked,
+                    ra: MS.ra,
+                    dec: MS.dec,
+                    slewMode: MS.slewMode,
+                    speed: MS.speedLabel
+                } : null,
+                gps: { lat: window.MS?.gpsLat, lon: window.MS?.gpsLon }
+            };
+        }
+    }
+
+    function sendStateToPeer(peerApp) {
+        const state = getSyncState();
+        channel.postMessage({ type: 'state-update', from: MY_APP, state: state });
+        // Invia anche all'iframe se presente
+        const iframe = document.getElementById('unified-tunnel-iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'state-update', from: MY_APP, state: state }, '*');
+        }
+    }
+
+    // Ascolta gli aggiornamenti di stato dal canale
+    channel.onmessage = (event) => {
+        if (event.data.from === MY_APP) return;
+        applyPeerState(event.data.state);
+    };
+
+    // Ascolta gli aggiornamenti dall'iframe (per la comunicazione diretta)
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'state-update') {
+            applyPeerState(event.data.state);
+        }
+    });
+
+    function applyPeerState(peerState) {
+        if (!peerState) return;
+
+        if (MY_APP === 'observatory') {
+            // L'Osservatorio riceve lo stato della Montatura
+            if (peerState.mount) {
+                // Aggiorna l'interfaccia dell'Osservatorio con lo stato della montatura
+                const badge = document.getElementById('syncBadge');
+                if (badge) {
+                    badge.style.borderColor = peerState.mount.connected ? '#4ade80' : '#f87171';
+                    document.getElementById('syncText').textContent = peerState.mount.connected ? 'MOUNT CONNESSO' : 'MOUNT OFFLINE';
+                }
+                // Qui puoi aggiornare altri elementi UI dell'Osservatorio
+            }
+            if (peerState.gps && peerState.gps.lat) {
+                // Sincronizza le coordinate GPS
+                document.getElementById('lat').value = peerState.gps.lat.toFixed(4);
+                document.getElementById('lon').value = peerState.gps.lon.toFixed(4);
+                if (typeof updateAll === 'function') updateAll();
+            }
+        } else { // mount
+            // La Montatura riceve lo stato dell'Osservatorio (es. target selezionato)
+            if (peerState.target && peerState.target.ra) {
+                // Prepara un GOTO automatico? O semplicemente mostra il target?
+                // Per ora, logghiamo
+                if (typeof showToast === 'function') showToast(`Target ricevuto: ${peerState.target.n || 'Sconosciuto'}`);
+            }
+        }
+    }
+
+    // === 5. AVVIO ===
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', createTunnel);
+    } else {
+        createTunnel();
+    }
+
+    // Invio periodico dello stato (heartbeat)
+    setInterval(() => {
+        sendStateToPeer(MY_APP === 'observatory' ? 'mount' : 'observatory');
+    }, 2000);
+
+    console.log(`[UnifiedTunnel] Attivo su: ${MY_APP}`);
+})();
+</script>
 </body>
 </html>
