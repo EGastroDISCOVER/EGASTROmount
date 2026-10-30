@@ -1706,114 +1706,145 @@ if (window.EGCore) {
     };
   }
 })();
-  /* ============================================================
-   SATELLITE — Pannello connessione (standalone)
+<script>
+/* ============================================================
+   SATELLITE — Listener comandi dal Pianeta + pannello standalone
    ============================================================ */
-let __connPanelOpen = false;
+(function(){
+  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
 
-function openConnectionPanel() {
-  let panel = document.getElementById('__connPanel');
-  if (panel) { panel.remove(); return; }
-  panel = document.createElement('div');
-  panel.id = '__connPanel';
-  panel.style.cssText = `
-    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    z-index:99999; width:min(92vw,440px); background:#0d121c;
-    border:2px solid #d4af37; border-radius:16px; padding:20px;
-    box-shadow:0 0 60px rgba(212,175,55,0.35); color:#c9d1e3;
-    font-family:'Inter',sans-serif;
-  `;
-  panel.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3 style="font-family:'Orbitron'; color:#d4af37; font-size:16px; letter-spacing:1px;">🔌 Connetti Montatura</h3>
-      <button id="__connClose" style="background:none;border:none;color:#6b778c;font-size:22px;cursor:pointer;line-height:1;">×</button>
-    </div>
-    <div style="display:flex; gap:6px; margin-bottom:14px;">
-      <button class="__connTab" data-tab="wifi" style="flex:1; padding:8px; border-radius:8px; border:1px solid #d4af37; background:#d4af37; color:#000; font-weight:700; cursor:pointer; font-size:12px;">📶 WiFi</button>
-      <button class="__connTab" data-tab="bt" style="flex:1; padding:8px; border-radius:8px; border:1px solid #334155; background:#151b26; color:#cbd5e1; font-weight:700; cursor:pointer; font-size:12px;">📡 BT</button>
-      <button class="__connTab" data-tab="sim" style="flex:1; padding:8px; border-radius:8px; border:1px solid #334155; background:#151b26; color:#cbd5e1; font-weight:700; cursor:pointer; font-size:12px;">🧪 Sim</button>
-    </div>
-    <div id="__connBody"></div>
-    <div id="__connStatus" style="margin-top:12px; font-size:11px; color:#8a9bb5; text-align:center;"></div>
-  `;
-  document.body.appendChild(panel);
-  panel.querySelector('#__connClose').onclick = () => panel.remove();
-  panel.querySelectorAll('.__connTab').forEach(tab => {
-    tab.onclick = () => {
-      panel.querySelectorAll('.__connTab').forEach(t => {
-        t.style.background = '#151b26'; t.style.color = '#cbd5e1'; t.style.borderColor = '#334155';
-      });
-      tab.style.background = '#d4af37'; tab.style.color = '#000'; tab.style.borderColor = '#d4af37';
-      renderConnTabSat(tab.dataset.tab, panel);
-    };
+  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
+  EGCore.onCommand('connect', (cfg) => {
+    if (window.__READONLY__) return;
+    console.log('[SAT] Comando connect da Pianeta:', cfg);
+    applyConnectionFromMaster(cfg);
   });
-  renderConnTabSat('wifi', panel);
-}
 
-function renderConnTabSat(type, panel) {
-  const body = panel.querySelector('#__connBody');
-  const saved = JSON.parse(localStorage.getItem('eg:connConfig') || '{}');
-  if (type === 'wifi') {
-    body.innerHTML = `
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Protocollo</label>
-      <select id="__wifiProto" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
-        <option value="onstep">OnStep / LX200</option>
-        <option value="ascom_alpaca">ASCOM Alpaca</option>
-        <option value="synscan">SynScan UDP</option>
-      </select>
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">IP</label>
-      <input id="__wifiIp" type="text" value="${saved.wifiIp || '192.168.4.1'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Porta</label>
-      <input id="__wifiPort" type="number" value="${saved.wifiPort || 9998}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Bridge WS</label>
-      <input id="__wifiBridge" type="text" value="${saved.wifiBridge || 'ws://localhost:8080'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:14px;font-family:'Orbitron';">
-      <button id="__wifiConnect" style="width:100%;padding:12px;background:#4ade80;color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">CONNETTI</button>
-    `;
-    body.querySelector('#__wifiConnect').onclick = () => {
-      const cfg = {
-        type: 'wifi',
-        proto: body.querySelector('#__wifiProto').value,
-        ip: body.querySelector('#__wifiIp').value.trim(),
-        port: parseInt(body.querySelector('#__wifiPort').value, 10),
-        bridge: body.querySelector('#__wifiBridge').value.trim()
-      };
-      localStorage.setItem('eg:connConfig', JSON.stringify({ wifiIp: cfg.ip, wifiPort: cfg.port, wifiBridge: cfg.bridge }));
-      window.applyConnectionFromMaster(cfg);
-      panel.querySelector('#__connStatus').textContent = '⏳ Connessione...';
-    };
-  } else if (type === 'bt') {
-    body.innerHTML = `
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Protocollo</label>
-      <select id="__btProto" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
-        <option value="onstep">OnStep BT</option>
-        <option value="synscan">SynScan BT</option>
-      </select>
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Nome / MAC</label>
-      <input id="__btDev" type="text" value="${saved.btDev || ''}" placeholder="HC-05" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
-      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Bridge WS</label>
-      <input id="__btBridge" type="text" value="${saved.btBridge || 'ws://localhost:8081'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:14px;font-family:'Orbitron';">
-      <button id="__btConnect" style="width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">CONNETTI</button>
-    `;
-    body.querySelector('#__btConnect').onclick = () => {
-      const cfg = {
-        type: 'bt',
-        proto: body.querySelector('#__btProto').value,
-        dev: body.querySelector('#__btDev').value.trim(),
-        bridge: body.querySelector('#__btBridge').value.trim()
-      };
-      localStorage.setItem('eg:connConfig', JSON.stringify({ btDev: cfg.dev, btBridge: cfg.bridge }));
-      window.applyConnectionFromMaster(cfg);
-    };
-  } else {
-    body.innerHTML = `
-      <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:14px;">Modalità simulatore per test.</p>
-      <button id="__simConnect" style="width:100%;padding:12px;background:#eab308;color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">ATTIVA SIM</button>
-    `;
-    body.querySelector('#__simConnect').onclick = () => {
-      window.applyConnectionFromMaster({ type: 'sim' });
-    };
+  EGCore.onCommand('goto', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof _startGoto === 'function') {
+      const raRad = data.ra * EGCore.DEG_TO_RAD;
+      const decRad = data.dec * EGCore.DEG_TO_RAD;
+      _startGoto(raRad, decRad);
+      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
+    }
+  });
+
+  EGCore.onCommand('stop', () => {
+    if (window.__READONLY__) return;
+    if (typeof stopMotion === 'function') stopMotion();
+  });
+
+  EGCore.onCommand('park', () => {
+    if (window.__READONLY__) return;
+    if (typeof parkMount === 'function') parkMount();
+  });
+
+  EGCore.onCommand('unpark', () => {
+    if (window.__READONLY__) return;
+    if (typeof unparkMount === 'function') unparkMount();
+  });
+
+  EGCore.onCommand('home', () => {
+    if (window.__READONLY__) return;
+    if (typeof goHome === 'function') goHome();
+  });
+
+  EGCore.onCommand('speed', (data) => {
+    if (window.__READONLY__ || !data) return;
+    const sp = EGCore.getSpeed(data.key);
+    if (typeof MS !== 'undefined') {
+      MS.speedPerStep = sp.degPerSec / 60; 
+      MS.speedLabel = sp.label;
+      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+    }
+  });
+
+  EGCore.onCommand('rate', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.tracking = data.mode || 'sidereal';
+      const tm = document.getElementById('tracking-mode');
+      if (tm) tm.value = MS.tracking;
+      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+    }
+  });
+
+  EGCore.onCommand('limits', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.minAlt = data.minAlt ?? MS.minAlt;
+      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
+      MS.haMin  = data.haMin  ?? MS.haMin;
+      MS.haMax  = data.haMax  ?? MS.haMax;
+      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
+      if (typeof saveFullState === 'function') saveFullState();
+    }
+  });
+
+  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
+  function publishMountState() {
+    if (window.__READONLY__) return;
+    if (typeof MS === 'undefined' || !MS.connected) return;
+    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+    let astroRa = MS.ra, astroDec = MS.dec;
+    if (typeof getAstroCoords === 'function') {
+      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
+    }
+    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
+    EGCore.pushState({
+      connected: MS.connected,
+      isParked: MS.isParked,
+      tracking: MS.tracking,
+      slewMode: MS.slewMode,
+      ra: astroRa * EGCore.RAD_TO_DEG,
+      dec: astroDec * EGCore.RAD_TO_DEG,
+      alt: pos.alt,
+      az: pos.az,
+      speed: MS.speedLabel,
+      mountType: MS.mountType,
+      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
+    });
   }
-}
+  setInterval(publishMountState, 300);
+
+  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
+  function applyConnectionFromMaster(cfg) {
+    if (!cfg || !cfg.type) return;
+    if (cfg.type === 'sim') {
+      MS.simulated = true;
+      MS.connected = true;
+      MS.wifiEnabled = false;
+      MS.btEnabled = false;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof finishConnect === 'function') finishConnect();
+      if (window.showToast) showToast('SIM attivato da Pianeta');
+      return;
+    }
+    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
+    if (!proto) return;
+    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
+    try {
+      proto.connect(protoCfg,
+        () => {
+          MS.connected = true;
+          MS.wifiEnabled = cfg.type === 'wifi';
+          MS.btEnabled = cfg.type === 'bt';
+          MS.simulated = false;
+          if (typeof updateLinkButtons === 'function') updateLinkButtons();
+          if (typeof finishConnect === 'function') finishConnect();
+          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
+        },
+        (err) => {
+          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
+        }
+      );
+    } catch(e) {
+      if (window.showToast) showToast('Errore connessione', true);
+    }
+  }
+  window.applyConnectionFromMaster = applyConnectionFromMaster;
+})();
+ 
 </script>
-</body>
-</html>
