@@ -379,7 +379,38 @@ hourAngle(raRad,lonDeg,date){const jd=this.julianDate(date||new Date());const ls
 
 function getAstroCoords(){let d=MS.dec%TWO_PI;if(d>Math.PI)d-=TWO_PI;if(d<-Math.PI)d+=TWO_PI;let decAstro,raOffset=0;if(d>HALF_PI){decAstro=Math.PI-d;raOffset=Math.PI}else if(d<-HALF_PI){decAstro=-Math.PI-d;raOffset=Math.PI}else{decAstro=d}return{ra:MountMath.normRA(MS.ra+raOffset),dec:decAstro}}
 
-function mechCoordsForAstro(targetRA,targetDEC,currentDecMech,bypassLimits){const candidates=[{decMech:targetDEC,raMech:targetRA},{decMech:Math.PI-targetDEC,raMech:MountMath.normRA(targetRA+Math.PI)},{decMech:-Math.PI-targetDEC,raMech:MountMath.normRA(targetRA+Math.PI)}];const all=[];for(const c of candidates){all.push({decMech:c.decMech,raMech:c.raMech});all.push({decMech:c.decMech+TWO_PI,raMech:c.raMech});all.push({decMech:c.decMech-TWO_PI,raMech:c.raMech})}const valid=all.filter(o=>o.decMech>=MS.decMin-0.001&&o.decMech<=MS.decMax+0.001);const pool=valid.length>0?valid:(bypassLimits?all:null);if(!pool)return null;return pool.reduce((best,o)=>Math.abs(o.decMech-currentDecMech)<Math.abs(best.decMech-currentDecMech)?o:best)}
+function mechCoordsForAstro(targetRA, targetDEC, currentDecMech, bypassLimits) {
+  // Versione avanzata stile TRITON: genera tutte le soluzioni possibili,
+  // le filtra per limiti e sceglie quella col movimento DEC minore.
+  const candidates = [
+    { decMech: targetDEC,                       raMech: targetRA },
+    { decMech: Math.PI - targetDEC,             raMech: MountMath.normRA(targetRA + Math.PI) },
+    { decMech: -Math.PI - targetDEC,            raMech: MountMath.normRA(targetRA + Math.PI) },
+    { decMech: targetDEC - TWO_PI,              raMech: targetRA },
+    { decMech: targetDEC + TWO_PI,              raMech: targetRA }
+  ];
+
+  let pool = candidates;
+  if (!bypassLimits) {
+    pool = candidates.filter(c =>
+      c.decMech >= MS.decMin - 0.001 && c.decMech <= MS.decMax + 0.001
+    );
+  }
+  if (pool.length === 0) return null;
+
+  const best = pool.reduce((prev, curr) =>
+    Math.abs(curr.decMech - currentDecMech) < Math.abs(prev.decMech - currentDecMech)
+      ? curr : prev
+  );
+
+  // Pier side calcolato dall'angolo orario risultante
+  const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : DEFAULT_LAT;
+  const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : DEFAULT_LON;
+  const ha = Astro.hourAngle(best.raMech, lon, new Date());
+  const pierSide = ha < 0 ? 'East' : 'West';
+
+  return { raMech: best.raMech, decMech: best.decMech, pierSide };
+}
 
 const Transport={
 socket:null,type:null,connected:false,_timeout:null,
