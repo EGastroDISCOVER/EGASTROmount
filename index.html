@@ -1145,6 +1145,10 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   });
   </script></body>  -->
 
-
+<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
+  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+  </button>
+</div>
 </body>
 </html>
