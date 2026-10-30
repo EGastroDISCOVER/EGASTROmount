@@ -1386,39 +1386,45 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
 
 
 
-<!-- TUNNEL ORIGINALE RIPRISTINATO -->
-<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
-  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+<!-- UNIFIED TUNNEL PULITO -->
+<div id="tunnel-btn" style="position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:2147483647;width:54px;height:54px;border-radius:0 12px 12px 0;background:rgba(10,18,32,.95);border:2px solid #d4af37;border-left:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(212,175,55,.5);color:#d4af37;padding:0;font-family:Orbitron,sans-serif;">
+  <button id="tunnel-btn-click" style="background:none;border:none;color:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;width:100%;height:100%;">
+    <svg style="width:26px;height:26px;display:block;flex-shrink:0;margin-bottom:2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/>
+    </svg>
+    <span style="font-size:8px;letter-spacing:1px;line-height:1;">DOME</span>
   </button>
 </div>
+<div id="tunnel-frame-wrap" style="display:none;position:fixed;inset:0;z-index:2147483645;background:#05070a;">
+  <iframe id="tunnel-frame" style="width:100%;height:100%;border:none;" allow="geolocation; camera; microphone; fullscreen"></iframe>
+</div>
+<script id="tunnel-script">
+  (function(){
+    var isIframe = window.parent !== window;
+    var btn = document.getElementById('tunnel-btn-click');
+    var wrap = document.getElementById('tunnel-frame-wrap');
+    var frame = document.getElementById('tunnel-frame');
+    
+    if (isIframe) {
+      btn.onclick = function(){ window.parent.postMessage('close-tunnel', '*'); };
+    } else {
+      btn.onclick = function(){
+        if (!frame.getAttribute('data-loaded')) {
+          frame.src = 'https://egastrodiscover.github.io/EGASTRO/?embed=1&t=' + Date.now();
+          frame.setAttribute('data-loaded', '1');
+        }
+        wrap.style.display = 'block';
+        document.getElementById('tunnel-btn').style.display = 'none';
+      };
+    }
 
-<!-- SYNC GPS IN BACKGROUND (MANTENUTO) -->
-<script id="sync-gps-mount">
-(function(){
-  "use strict";
-  if (window.__syncGPSMountActive) return;
-  window.__syncGPSMountActive = true;
-  var KEY = "egastro_sync_obs";
-  var lastLat = null, lastLon = null;
-  function consume(){
-    try {
-      var raw = localStorage.getItem(KEY);
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      if (!s || !s.ts || Date.now() - s.ts > 15000) return;
-      if (!s.coords || !Number.isFinite(s.coords.lat) || !Number.isFinite(s.coords.lon)) return;
-      if (lastLat === s.coords.lat && lastLon === s.coords.lon) return;
-      lastLat = s.coords.lat; lastLon = s.coords.lon;
-      if (typeof MS !== "undefined" && MS) {
-        MS.gpsLat = s.coords.lat; MS.gpsLon = s.coords.lon; MS.gpsActive = true;
-        if (typeof updateTelemetry === "function") updateTelemetry();
-        if (typeof updateLinkButtons === "function") updateLinkButtons();
+    window.addEventListener('message', function(e){
+      if (e.data === 'close-tunnel') {
+        wrap.style.display = 'none';
+        document.getElementById('tunnel-btn').style.display = 'flex';
       }
-    } catch(e) {}
-  }
-  setInterval(consume, 1000); consume();
-})();
+    });
+  })();
 </script>
 
 </body></html>
