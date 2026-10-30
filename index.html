@@ -19,7 +19,7 @@ body::after{content:'';position:absolute;bottom:110px;left:0;width:100%;height:2
 body.dash-collapsed::after{display:none}
 #canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
 .top-bar{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:10;pointer-events:none;flex-wrap:wrap}
-<button class="btn primary" onclick="openConnectionPanel()" title="Connetti">🔌 Connetti</button>
+.info-panel{background:rgba(13,18,28,0.82);backdrop-filter:blur(15px);border:1px solid rgba(212,175,55,0.4);border-radius:8px;padding:6px 10px;box-shadow:0 6px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:6px;pointer-events:auto;flex-shrink:1;min-width:0;max-width:calc(100vw - 70px);flex-wrap:wrap}
 .connect-block{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-right:10px;border-right:none;flex-shrink:0}
 .connect-row{display:flex;align-items:center;gap:6px}
 #syncBadge{display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;transition:all 0.3s;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px}
@@ -198,149 +198,6 @@ g.addEventListener('focus',function(){snd('hello')});
 g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
 </script>
-
- /* ============================================================
-   SATELLITE — Listener comandi dal Pianeta + pannello standalone
-   ============================================================ */
-(function(){
-  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
-
-  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
-  EGCore.onCommand('connect', (cfg) => {
-    if (window.__READONLY__) return;
-    console.log('[SAT] Comando connect da Pianeta:', cfg);
-    applyConnectionFromMaster(cfg);
-  });
-
-  EGCore.onCommand('goto', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof _startGoto === 'function') {
-      const raRad = data.ra * EGCore.DEG_TO_RAD;
-      const decRad = data.dec * EGCore.DEG_TO_RAD;
-      _startGoto(raRad, decRad);
-      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
-    }
-  });
-
-  EGCore.onCommand('stop', () => {
-    if (window.__READONLY__) return;
-    if (typeof stopMotion === 'function') stopMotion();
-  });
-
-  EGCore.onCommand('park', () => {
-    if (window.__READONLY__) return;
-    if (typeof parkMount === 'function') parkMount();
-  });
-
-  EGCore.onCommand('unpark', () => {
-    if (window.__READONLY__) return;
-    if (typeof unparkMount === 'function') unparkMount();
-  });
-
-  EGCore.onCommand('home', () => {
-    if (window.__READONLY__) return;
-    if (typeof goHome === 'function') goHome();
-  });
-
-  EGCore.onCommand('speed', (data) => {
-    if (window.__READONLY__ || !data) return;
-    const sp = EGCore.getSpeed(data.key);
-    if (typeof MS !== 'undefined') {
-      MS.speedPerStep = sp.degPerSec / 60; // approssimazione per step 60ms
-      MS.speedLabel = sp.label;
-      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-    }
-  });
-
-  EGCore.onCommand('rate', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof MS !== 'undefined') {
-      MS.tracking = data.mode || 'sidereal';
-      const tm = document.getElementById('tracking-mode');
-      if (tm) tm.value = MS.tracking;
-      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-    }
-  });
-
-  EGCore.onCommand('limits', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof MS !== 'undefined') {
-      MS.minAlt = data.minAlt ?? MS.minAlt;
-      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
-      MS.haMin  = data.haMin  ?? MS.haMin;
-      MS.haMax  = data.haMax  ?? MS.haMax;
-      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
-      if (typeof saveFullState === 'function') saveFullState();
-    }
-  });
-
-  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
-  function publishMountState() {
-    if (window.__READONLY__) return;
-    if (typeof MS === 'undefined' || !MS.connected) return;
-    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
-    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
-    // Converti RA meccanica in astro
-    let astroRa = MS.ra, astroDec = MS.dec;
-    if (typeof getAstroCoords === 'function') {
-      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
-    }
-    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
-    EGCore.pushState({
-      connected: MS.connected,
-      isParked: MS.isParked,
-      tracking: MS.tracking,
-      slewMode: MS.slewMode,
-      ra: astroRa * EGCore.RAD_TO_DEG,
-      dec: astroDec * EGCore.RAD_TO_DEG,
-      alt: pos.alt,
-      az: pos.az,
-      speed: MS.speedLabel,
-      mountType: MS.mountType,
-      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
-    });
-  }
-  setInterval(publishMountState, 300);
-
-  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
-  function applyConnectionFromMaster(cfg) {
-    if (!cfg || !cfg.type) return;
-    if (cfg.type === 'sim') {
-      MS.simulated = true;
-      MS.connected = true;
-      MS.wifiEnabled = false;
-      MS.btEnabled = false;
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
-      if (typeof finishConnect === 'function') finishConnect();
-      if (window.showToast) showToast('SIM attivato da Pianeta');
-      return;
-    }
-    // WiFi / BT: prova la connessione
-    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
-    if (!proto) return;
-    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
-    try {
-      proto.connect(protoCfg,
-        () => {
-          MS.connected = true;
-          MS.wifiEnabled = cfg.type === 'wifi';
-          MS.btEnabled = cfg.type === 'bt';
-          MS.simulated = false;
-          if (typeof updateLinkButtons === 'function') updateLinkButtons();
-          if (typeof finishConnect === 'function') finishConnect();
-          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
-        },
-        (err) => {
-          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
-        }
-      );
-    } catch(e) {
-      if (window.showToast) showToast('Errore connessione', true);
-    }
-  }
-  window.applyConnectionFromMaster = applyConnectionFromMaster;
-})(); 
-  
 <style id="mobile-fix">
 @media (max-width: 768px) {
   html, body { height: 100dvh !important; min-height: 100dvh !important; overflow: hidden; }
@@ -879,183 +736,6 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
-<script id="__egCore">
-/* ============================================================
-   EG-CORE v1 — Modulo condiviso Pianeta/Satellite
-   Incollare IDENTICO in entrambi gli index.html, subito dopo SyncBus
-   ============================================================ */
-(function(g){
-'use strict';
-if (g.EGCore) return;
-
-/* ---------- 1. COSTANTI UNIFICATE ---------- */
-const TWO_PI = Math.PI * 2;
-const DEG_TO_RAD = Math.PI / 180;
-const RAD_TO_DEG = 180 / Math.PI;
-
-// Velocità movimento manuale (gradi/secondo) — 4 livelli
-const MOUNT_SPEEDS = {
-  slow:    { label: 'Lento',   degPerSec: 0.5  },
-  default: { label: 'Default', degPerSec: 2.0  },
-  fast:    { label: 'Veloce',  degPerSec: 5.0  },
-  max:     { label: 'Max',     degPerSec: 10.0 }
-};
-
-// Rate di inseguimento (arcsec/secondo)
-const TRACKING_RATES = {
-  sidereal: 15.041,   // stelle
-  solar:    15.000,   // sole
-  lunar:    14.685    // luna
-};
-
-// Fattori personalizzati (× rate siderale)
-const CUSTOM_RATE_FACTORS = [0.50, 0.75, 1.00];
-
-/* ---------- 2. MATEMATICA ASTRONOMICA (riferimento = Pianeta) ---------- */
-const Astro = {
-  julianDate(d){ return d.getTime()/86400000 + 2440587.5; },
-  gmstDeg(jd){
-    const T = (jd - 2451545.0)/36525.0;
-    let gmst = 280.46061837 + 360.98564736629*(jd-2451545.0)
-             + 0.000387933*T*T - T*T*T/38710000;
-    return ((gmst % 360) + 360) % 360;
-  },
-  lstDeg(jd, lonDeg){ return ((this.gmstDeg(jd) + lonDeg) % 360 + 360) % 360; },
-  altAz(raDeg, decDeg, latDeg, lonDeg, date){
-    const jd = this.julianDate(date || new Date());
-    const lst = this.lstDeg(jd, lonDeg);
-    const haDeg = lst - raDeg;
-    const H = haDeg * DEG_TO_RAD;
-    const lat = latDeg * DEG_TO_RAD;
-    const dec = decDeg * DEG_TO_RAD;
-    const sinAlt = Math.sin(lat)*Math.sin(dec) + Math.cos(lat)*Math.cos(dec)*Math.cos(H);
-    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt))) * RAD_TO_DEG;
-    let az = Math.atan2(
-      -Math.sin(H)*Math.cos(dec),
-      Math.sin(dec)*Math.cos(lat) - Math.cos(dec)*Math.sin(lat)*Math.cos(H)
-    ) * RAD_TO_DEG;
-    az = ((az % 360) + 360) % 360;
-    return { alt, az };
-  },
-  hourAngle(raDeg, lonDeg, date){
-    const jd = this.julianDate(date || new Date());
-    const lst = this.lstDeg(jd, lonDeg);
-    let ha = lst - raDeg;
-    while (ha < -180) ha += 360;
-    while (ha > 180)  ha -= 360;
-    return ha;
-  }
-};
-
-/* ---------- 3. STATO LIMITI (default sicuri) ---------- */
-const DefaultLimits = {
-  minAlt: -5,      // gradi
-  maxAlt: 90,      // gradi
-  haMin: -180,     // gradi (HA)
-  haMax:  180,     // gradi (HA)
-  autoFlip: true,  // meridian flip automatico (solo GEM)
-  flipOffset: 2    // gradi oltre il meridiano per iniziare il flip
-};
-
-/* ---------- 4. VERIFICA LIMITI ---------- */
-function isTargetSafe(raDeg, decDeg, limits, latDeg, lonDeg){
-  const L = limits || DefaultLimits;
-  const now = new Date();
-  const { alt } = Astro.altAz(raDeg, decDeg, latDeg, lonDeg, now);
-  const ha = Astro.hourAngle(raDeg, lonDeg, now);
-  if (alt < L.minAlt || alt > L.maxAlt) return { ok:false, reason:`ALT ${alt.toFixed(1)}° fuori [${L.minAlt},${L.maxAlt}]` };
-  if (ha < L.haMin || ha > L.haMax)     return { ok:false, reason:`HA ${ha.toFixed(1)}° fuori [${L.haMin},${L.haMax}]` };
-  return { ok:true, alt, ha };
-}
-
-/* ---------- 5. SINC BUS ESTESO (comandi + stato) ---------- */
-function pushCommand(cmd, payload){
-  if (!g.SyncBus) return;
-  try { g.SyncBus.send('eg:' + cmd, payload || {}); } catch(e){}
-}
-function onCommand(cmd, handler){
-  if (!g.SyncBus) return function(){};
-  return g.SyncBus.on('eg:' + cmd, handler);
-}
-function pushState(stateObj){
-  if (!g.SyncBus) return;
-  try { g.SyncBus.send('eg:state', Object.assign({__isState:true, ts:Date.now()}, stateObj)); } catch(e){}
-}
-function onState(handler){
-  if (!g.SyncBus) return function(){};
-  return g.SyncBus.on('eg:state', handler);
-}
-
-/* ---------- 6. VELOCITÀ ---------- */
-function getSpeed(key){ return MOUNT_SPEEDS[key] || MOUNT_SPEEDS.default; }
-function nextSpeed(currentKey){
-  const keys = Object.keys(MOUNT_SPEEDS);
-  const i = keys.indexOf(currentKey);
-  return keys[(i+1) % keys.length];
-}
-
-/* ---------- 7. RATE PERSONALIZZATO ---------- */
-function computeTrackingRate(mode, customFactor){
-  const base = TRACKING_RATES[mode] || TRACKING_RATES.sidereal;
-  const f = customFactor ? parseFloat(customFactor) : 1.0;
-  return base * f; // arcsec/sec
-}
-
-/* ---------- 8. UTILS UI ---------- */
-function fmtRA(raDeg){
-  const h = ((raDeg % 360) + 360) % 360 / 15;
-  const hh = Math.floor(h);
-  const mm = Math.floor((h-hh)*60);
-  const ss = Math.floor(((h-hh)*60-mm)*60);
-  return `${String(hh).padStart(2,'0')}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
-}
-function fmtDEC(decDeg){
-  const sign = decDeg >= 0 ? '+' : '−';
-  const a = Math.abs(decDeg);
-  const dd = Math.floor(a);
-  const mm = Math.floor((a-dd)*60);
-  const ss = Math.floor(((a-dd)*60-mm)*60);
-  return `${sign}${String(dd).padStart(2,'0')}° ${String(mm).padStart(2,'0')}' ${String(ss).padStart(2,'0')}"`;
-}
-
-/* ---------- 9. MERIDIAN FLIP (sequenza a 2 fasi) ---------- */
-async function executeMeridianFlip(api){
-  // api deve esporre: getCurrentRaDec(), slewTo(ra, dec), getMountType(), showToast()
-  if (!api || typeof api.slewTo !== 'function') return false;
-  if (api.getMountType && api.getMountType() !== 'gem') {
-    if (api.showToast) api.showToast('Flip non necessario per questo tipo di montatura', true);
-    return false;
-  }
-  const cur = api.getCurrentRaDec();
-  if (!cur) return false;
-  // Fase 1: vai al polo (DEC = +90 o -90)
-  const poleDec = cur.dec >= 0 ? 90 : -90;
-  if (api.showToast) api.showToast('Flip fase 1: verso il polo...');
-  await api.slewTo(cur.ra, poleDec);
-  // Fase 2: dal polo al target originale
-  if (api.showToast) api.showToast('Flip fase 2: verso il target...');
-  await api.slewTo(cur.ra, cur.dec);
-  if (api.showToast) api.showToast('✅ Meridian flip completato');
-  return true;
-}
-
-/* ---------- 10. EXPORT ---------- */
-g.EGCore = {
-  VERSION: 1,
-  TWO_PI, DEG_TO_RAD, RAD_TO_DEG,
-  MOUNT_SPEEDS, TRACKING_RATES, CUSTOM_RATE_FACTORS, DefaultLimits,
-  Astro,
-  isTargetSafe,
-  pushCommand, onCommand, pushState, onState,
-  getSpeed, nextSpeed, computeTrackingRate,
-  fmtRA, fmtDEC,
-  executeMeridianFlip
-};
-
-console.log('[EG-CORE v1] ✅ Modulo condiviso caricato');
-})(window);
-</script>  
-
 
 
 
@@ -1463,159 +1143,179 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
     };
     document.body.appendChild(b);
   });
-  if (typeof meridianFlip === 'function') {
-    const _origFlip = meridianFlip;
-    window.meridianFlip = function(isAuto) {
-      if (window.EGCore && window.__mountApi && MS.autoFlip && MS.mountType === 'gem') {
-        return EGCore.executeMeridianFlip(window.__mountApi).then(ok => {
-          if (window.showToast) showToast(ok ? '✅ Flip completato' : 'Flip annullato');
-        });
-      }
-      return _origFlip.apply(this, arguments);
+  </script></body>  -->
+
+<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
+  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+  </button>
+</div>
+  <!-- SCRIPT MAPPA POLARE COMPLETA -->
+<script id="satellite-mappa-v3">
+(function () {
+  'use strict';
+  if (window.__sV3) return; window.__sV3 = true;
+
+  function initTracking() {
+    if (typeof MS === 'undefined') { setTimeout(initTracking, 100); return; }
+    var origStartGoto = window._startGoto;
+    window._startGoto = function (ra, dec, rate, skip, bypass) {
+      if (window._isHomeSlew) { MS._pendingAutoTrack = false; window._isHomeSlew = false; }
+      else { MS._pendingAutoTrack = true; }
+      return origStartGoto.apply(this, arguments);
     };
-  }
-})();
-</script> <!-- ✅ CHIUSURA DEFINITIVA DEL PRIMO SCRIPT -->
-
-<script> <!-- ✅ APERTURA DEL NUOVO SCRIPT -->
-/* ============================================================
-   SATELLITE — Listener comandi dal Pianeta + pannello standalone
-   ============================================================ */
-(function(){
-  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
-
-  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
-  EGCore.onCommand('connect', (cfg) => {
-    if (window.__READONLY__) return;
-    console.log('[SAT] Comando connect da Pianeta:', cfg);
-    applyConnectionFromMaster(cfg);
-  });
-
-  EGCore.onCommand('goto', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof _startGoto === 'function') {
-      const raRad = data.ra * EGCore.DEG_TO_RAD;
-      const decRad = data.dec * EGCore.DEG_TO_RAD;
-      _startGoto(raRad, decRad);
-      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
-    }
-  });
-
-  EGCore.onCommand('stop', () => {
-    if (window.__READONLY__) return;
-    if (typeof stopMotion === 'function') stopMotion();
-  });
-
-  EGCore.onCommand('park', () => {
-    if (window.__READONLY__) return;
-    if (typeof parkMount === 'function') parkMount();
-  });
-
-  EGCore.onCommand('unpark', () => {
-    if (window.__READONLY__) return;
-    if (typeof unparkMount === 'function') unparkMount();
-  });
-
-  EGCore.onCommand('home', () => {
-    if (window.__READONLY__) return;
-    if (typeof goHome === 'function') goHome();
-  });
-
-  EGCore.onCommand('speed', (data) => {
-    if (window.__READONLY__ || !data) return;
-    const sp = EGCore.getSpeed(data.key);
-    if (typeof MS !== 'undefined') {
-      MS.speedPerStep = sp.degPerSec / 60; 
-      MS.speedLabel = sp.label;
-      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
-    }
-  });
-
-  EGCore.onCommand('rate', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof MS !== 'undefined') {
-      MS.tracking = data.mode || 'sidereal';
-      const tm = document.getElementById('tracking-mode');
-      if (tm) tm.value = MS.tracking;
-      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
-    }
-  });
-
-  EGCore.onCommand('limits', (data) => {
-    if (window.__READONLY__ || !data) return;
-    if (typeof MS !== 'undefined') {
-      MS.minAlt = data.minAlt ?? MS.minAlt;
-      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
-      MS.haMin  = data.haMin  ?? MS.haMin;
-      MS.haMax  = data.haMax  ?? MS.haMax;
-      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
-      if (typeof saveFullState === 'function') saveFullState();
-    }
-  });
-
-  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
-  function publishMountState() {
-    if (window.__READONLY__) return;
-    if (typeof MS === 'undefined' || !MS.connected) return;
-    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
-    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
-    let astroRa = MS.ra, astroDec = MS.dec;
-    if (typeof getAstroCoords === 'function') {
-      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
-    }
-    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
-    EGCore.pushState({
-      connected: MS.connected,
-      isParked: MS.isParked,
-      tracking: MS.tracking,
-      slewMode: MS.slewMode,
-      ra: astroRa * EGCore.RAD_TO_DEG,
-      dec: astroDec * EGCore.RAD_TO_DEG,
-      alt: pos.alt,
-      az: pos.az,
-      speed: MS.speedLabel,
-      mountType: MS.mountType,
-      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
-    });
-  }
-  setInterval(publishMountState, 300);
-
-  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
-  function applyConnectionFromMaster(cfg) {
-    if (!cfg || !cfg.type) return;
-    if (cfg.type === 'sim') {
-      MS.simulated = true;
-      MS.connected = true;
-      MS.wifiEnabled = false;
-      MS.btEnabled = false;
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
-      if (typeof finishConnect === 'function') finishConnect();
-      if (window.showToast) showToast('SIM attivato da Pianeta');
-      return;
-    }
-    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
-    if (!proto) return;
-    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
-    try {
-      proto.connect(protoCfg,
-        () => {
-          MS.connected = true;
-          MS.wifiEnabled = cfg.type === 'wifi';
-          MS.btEnabled = cfg.type === 'bt';
-          MS.simulated = false;
-          if (typeof updateLinkButtons === 'function') updateLinkButtons();
-          if (typeof finishConnect === 'function') finishConnect();
-          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
-        },
-        (err) => {
-          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
+    var origGoHome = window.goHome;
+    window.goHome = function () { window._isHomeSlew = true; return origGoHome.apply(this, arguments); };
+    setInterval(function () {
+      if (typeof MS === 'undefined') return;
+      if (MS.slewMode === 'manual') {
+        if (MS._trackingBeforeManual === undefined) {
+          MS._trackingBeforeManual = MS.tracking;
+          if (MS.tracking !== 'off') { MS.tracking = 'off'; if (typeof updateTrackingBtn === 'function') updateTrackingBtn(); }
         }
-      );
-    } catch(e) {
-      if (window.showToast) showToast('Errore connessione', true);
-    }
+      } else {
+        if (MS._trackingBeforeManual !== undefined) {
+          if (MS._trackingBeforeManual !== 'off') {
+            MS.tracking = MS._trackingBeforeManual;
+            if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
+            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+          }
+          MS._trackingBeforeManual = undefined;
+        }
+      }
+      if (MS._pendingAutoTrack !== undefined) {
+        if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
+          if (MS._pendingAutoTrack === true && MS.tracking === 'off') {
+            MS.tracking = 'sidereal'; MS.slewMode = 'tracking';
+            var tm = document.getElementById('tracking-mode');
+            if (tm) tm.value = 'sidereal';
+            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+            if (typeof showToast === 'function') showToast('Tracking ON: siderale');
+          }
+          MS._pendingAutoTrack = undefined;
+        }
+      }
+    }, 100);
   }
-  window.applyConnectionFromMaster = applyConnectionFromMaster;
+  initTracking();
+
+  function initMap() {
+    if (typeof Astro === 'undefined' || typeof getAstroCoords !== 'function') {
+      setTimeout(initMap, 200); return;
+    }
+    var CONST_URL = 'https://egastrodiscover.github.io/EGASTRO/constellations.json';
+    var isMobile = window.innerWidth < 600;
+    var BASE = isMobile ? 260 : 340;
+    var SIZES = { 100: 1.0, 75: 0.75, 50: 0.5 };
+    var currentSize = 100;
+    var scaleFactor = SIZES[100];
+    var internalZoom = 1.0;
+    var SIZE = Math.round(BASE * scaleFactor);
+    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var isOpen = false;
+    var rafId = null;
+
+    var container = document.createElement('div');
+    container.id = '__myPolarContainer';
+    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));background:transparent;display:none;cursor:grab;';
+
+    var sizeSel = document.createElement('div');
+    sizeSel.id = '__myPolarSizeSel';
+    sizeSel.style.cssText = 'position:absolute;top:-38px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(13,18,28,0.95);padding:4px 6px;border-radius:14px;border:1px solid #d4af37;z-index:10;backdrop-filter:blur(10px);';
+    ['100', '75', '50'].forEach(function (sz) {
+      var b = document.createElement('button');
+      b.textContent = sz; b.dataset.sz = sz;
+      b.style.cssText = 'background:transparent;border:1px solid #6b778c;color:#6b778c;padding:3px 10px;border-radius:10px;cursor:pointer;font-family:Orbitron,sans-serif;font-weight:700;font-size:10px;';
+      b.onclick = function (e) {
+        e.stopPropagation(); currentSize = parseInt(sz, 10); scaleFactor = SIZES[currentSize]; SIZE = Math.round(BASE * scaleFactor);
+        container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px'; cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+        cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateBtnState();
+        if (isOpen) drawPolar();
+      };
+      sizeSel.appendChild(b);
+    });
+    container.appendChild(sizeSel);
+
+    function updateBtnState() {
+      sizeSel.querySelectorAll('button').forEach(function (b) {
+        var on = parseInt(b.dataset.sz, 10) === currentSize;
+        b.style.background = on ? '#d4af37' : 'transparent';
+        b.style.color = on ? '#000' : '#6b778c';
+        b.style.borderColor = on ? '#d4af37' : '#6b778c';
+      });
+    }
+
+    var cv = document.createElement('canvas'); cv.style.cssText = 'display:block;border-radius:50%;'; container.appendChild(cv);
+    var ctx = cv.getContext('2d');
+
+    var zoomBox = document.createElement('div');
+    zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+    ['+', '−'].forEach(function (s, i) {
+      var b = document.createElement('button'); b.textContent = s;
+      b.style.cssText = 'width:26px;height:26px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;padding:0;';
+      b.onclick = function (e) { e.stopPropagation(); internalZoom = Math.max(0.5, Math.min(3, internalZoom + (i === 0 ? 0.3 : -0.3))); if (isOpen) drawPolar(); };
+      zoomBox.appendChild(b);
+    });
+    container.appendChild(zoomBox); document.body.appendChild(container);
+
+    container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px'; cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+    cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateBtnState();
+
+    var toggleBtn = document.createElement('div');
+    toggleBtn.id = '__myPolarBtn'; toggleBtn.className = 'circle-btn'; toggleBtn.title = 'Mappa Polare';
+    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
+    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;cursor:pointer;';
+    toggleBtn.onclick = function () { isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; if (isOpen) { if (!rafId) drawPolar(); } else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } } };
+    
+    var topRight = document.querySelector('.top-right-buttons'); 
+    if (topRight) topRight.appendChild(toggleBtn); else document.body.appendChild(toggleBtn);
+
+    var CONST = [];
+    fetch(CONST_URL + '?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.features) return;
+      CONST = d.features.map(function (f) {
+        var segs = (f.geometry && f.geometry.coordinates) || []; var stars = [], map = {};
+        var add = function (ra, dec) { if (!isFinite(ra) || !isFinite(dec)) return -1; var k = ra.toFixed(4) + ',' + dec.toFixed(4); if (map[k] !== undefined) return map[k]; var i = stars.length; stars.push({ ra: ra, dec: dec }); map[k] = i; return i; };
+        return { name: (f.properties && f.properties.name) || f.id, s: stars, l: segs.map(function (seg) { if (!Array.isArray(seg)) return []; return seg.map(function (pt) { if (!Array.isArray(pt) || pt.length < 2) return -1; return add(pt[0], pt[1]); }).filter(function (i) { return i >= 0; }); }).filter(function (l) { return l.length >= 2; }) };
+      }).filter(function (c) { return c.l.length > 0; });
+      if (isOpen) drawPolar();
+    }).catch(function (e) {});
+
+    var STARS_L = [{ n: "Polaris", ra: 37.95, dec: 89.26, mag: 1.98 },{ n: "Kochab", ra: 222.68, dec: 74.16, mag: 2.08 },{ n: "Dubhe", ra: 165.93, dec: 61.75, mag: 1.79 },{ n: "Merak", ra: 165.46, dec: 56.38, mag: 2.37 },{ n: "Vega", ra: 279.23, dec: 38.78, mag: 0.03 },{ n: "Deneb", ra: 310.36, dec: 45.28, mag: 1.25 },{ n: "Arturo", ra: 213.92, dec: 19.18, mag: -0.05 },{ n: "Sirio", ra: 101.29, dec: -16.72, mag: -1.46 }];
+    var DSO_L = [{ n: "M31", ra: 10.68, dec: 41.26, t: "G" },{ n: "M42", ra: 83.82, dec: -5.39, t: "N" },{ n: "M45", ra: 56.75, dec: 24.11, t: "C" },{ n: "M13", ra: 250.42, dec: 36.46, t: "C" }];
+
+    function polar(alt, az) { var r = (SIZE / 2 - 6) * internalZoom * (90 - alt) / 90; var azR = az * Math.PI / 180; return { x: SIZE / 2 + r * Math.sin(azR), y: SIZE / 2 - r * Math.cos(azR), r: r }; }
+    function drawMilkyWay(date, lat, lon) { var ngpRa = 192.86, ngpDec = 27.13; var seed = 777; var rand = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; ctx.save(); for (var i = 0; i < 600; i++) { var l = rand() * 360, b = (rand() - 0.5) * 20; var bR = b * Math.PI / 180, lR = l * Math.PI / 180; var sinDec = Math.sin(ngpDec * Math.PI / 180) * Math.sin(bR) + Math.cos(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var dec = Math.asin(sinDec) * 180 / Math.PI; var yv = Math.cos(bR) * Math.sin(lR); var xv = Math.cos(ngpDec * Math.PI / 180) * Math.sin(bR) - Math.sin(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var ra = ((ngpRa + Math.atan2(yv, xv) * 180 / Math.PI) % 360 + 360) % 360; var p = Astro.altAz(ra * Math.PI / 180, dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) continue; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) continue; var sz = 3 + rand() * 8, al = 0.05 + rand() * 0.08; ctx.fillStyle = (i % 3 === 0) ? 'rgba(200,170,180,' + al + ')' : 'rgba(160,200,255,' + al + ')'; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+
+    function drawPolar() {
+      if (!isOpen) { rafId = null; return; }
+      var lat = (typeof MS !== 'undefined' && MS.gpsLat) || 41.9; var lon = (typeof MS !== 'undefined' && MS.gpsLon) || 12.5; var date = new Date();
+      ctx.clearRect(0, 0, SIZE, SIZE); ctx.save(); ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 2, 0, Math.PI * 2); ctx.clip();
+      var bg = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 4, SIZE / 2, SIZE / 2, SIZE / 2); bg.addColorStop(0, 'rgba(22,32,68,0.35)'); bg.addColorStop(1, 'rgba(4,8,20,0.5)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
+      drawMilkyWay(date, lat, lon);
+      ctx.strokeStyle = 'rgba(139,180,255,0.18)'; ctx.lineWidth = 0.8;
+      [30, 60].forEach(function (alt) { var r = (SIZE / 2 - 2) * internalZoom * (90 - alt) / 90; if (r > 0 && r < SIZE / 2) { ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, r, 0, Math.PI * 2); ctx.stroke(); } });
+      for (var az = 0; az < 360; az += 30) { var a = az * Math.PI / 180; ctx.beginPath(); ctx.moveTo(SIZE / 2, SIZE / 2); ctx.lineTo(SIZE / 2 + SIZE / 2 * Math.sin(a), SIZE / 2 - SIZE / 2 * Math.cos(a)); ctx.stroke(); }
+      if (CONST.length > 0) { ctx.strokeStyle = 'rgba(150,200,255,0.5)'; ctx.lineWidth = 1; CONST.forEach(function (c) { c.l.forEach(function (line) { var st = false; ctx.beginPath(); line.forEach(function (idx) { var s = c.s[idx]; if (!s) return; var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) { st = false; return; } var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) { st = false; return; } if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y); }); ctx.stroke(); }); }); }
+      STARS_L.forEach(function (s) { var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) return; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) return; var sz = Math.max(0.8, 2.5 - s.mag * 0.5); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); });
+      if (typeof Astronomy !== 'undefined') { try { var obs = new Astronomy.Observer(lat, lon, 0); var time = new Astronomy.AstroTime(date); ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].forEach(function (bn) { var body = Astronomy.Body[bn]; var eq = Astronomy.Equator(body, time, obs, true, true); var hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal'); if (hor.altitude < 0) return; var pt = polar(hor.altitude, hor.azimuth); if (pt.r > SIZE / 2) return; var col = '#ffd700', sz = 4, lbl = bn; if (bn === 'Sun') { col = '#ffe600'; sz = 6; lbl = 'Sole'; } if (bn === 'Moon') { col = '#e2e8f0'; sz = 5; lbl = 'Luna'; } ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); ctx.restore(); if (SIZE > 200) { ctx.fillStyle = col; ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'left'; ctx.fillText(lbl, pt.x + 7, pt.y + 3); } }); } catch (e) {} }
+      DSO_L.forEach(function (m) { var p = Astro.altAz(m.ra * Math.PI / 180, m.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) return; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) return; ctx.beginPath(); if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI * 2); else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6); else ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(139,211,255,0.85)'; ctx.fill(); });
+      try { var astro = getAstroCoords(); var p = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (p.alt >= 0) { var pt = polar(p.alt, p.az); if (pt.r <= SIZE / 2) { ctx.strokeStyle = '#ff4466'; ctx.shadowColor = '#ff4466'; ctx.shadowBlur = 10; ctx.lineWidth = 1.8; var cr = 7 + Math.sin(Date.now() / 400) * 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, cr, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x - cr - 4, pt.y); ctx.lineTo(pt.x - cr + 2, pt.y); ctx.moveTo(pt.x + cr - 2, pt.y); ctx.lineTo(pt.x + cr + 4, pt.y); ctx.moveTo(pt.x, pt.y - cr - 4); ctx.lineTo(pt.x, pt.y - cr + 2); ctx.moveTo(pt.x, pt.y + cr - 2); ctx.lineTo(pt.x, pt.y + cr + 4); ctx.stroke(); ctx.shadowBlur = 0; } } } catch (e) {}
+      ctx.restore();
+      ['N', 'E', 'S', 'O'].forEach(function (lbl, i) { var a = i * 90 * Math.PI / 180; var r = SIZE / 2 - (SIZE < 200 ? 10 : 12); ctx.fillStyle = '#d4af37'; ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, SIZE / 2 + r * Math.sin(a), SIZE / 2 - r * Math.cos(a)); });
+      rafId = requestAnimationFrame(drawPolar);
+    }
+
+    var isDragging = false, lastX = 0, lastY = 0, touchDist = 0;
+    container.addEventListener('mousedown', function (e) { if (e.target.tagName === 'BUTTON') return; isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
+    window.addEventListener('mousemove', function (e) { if (!isDragging) return; var dx = e.clientX - lastX, dy = e.clientY - lastY; var r = container.getBoundingClientRect(); container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px'; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mouseup', function () { isDragging = false; });
+    container.addEventListener('touchstart', function (e) { if (e.touches.length === 1 && e.target.tagName !== 'BUTTON') { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { touchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); } }, { passive: true });
+    container.addEventListener('touchmove', function (e) { if (isDragging && e.touches.length === 1) { var dx = e.touches[0].clientX - lastX; var dy = e.touches[0].clientY - lastY; var r = container.getBoundingClientRect(); container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px'; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } else if (e.touches.length === 2 && touchDist > 0) { var dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); internalZoom = Math.max(0.5, Math.min(3, internalZoom + (touchDist - dist) * 0.005)); touchDist = dist; } }, { passive: true });
+    container.addEventListener('touchend', function () { isDragging = false; touchDist = 0; });
+    console.log('[SAT] ✅ Mappa 100/75/50 pronta');
+  }
+  initMap();
 })();
 </script>
 </body>
