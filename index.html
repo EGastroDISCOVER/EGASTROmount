@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
-<head>
+<html lang="it"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EGASTRO Mount</title>
@@ -225,8 +224,8 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
   <div id="syncBadge"><span id="syncDot" style="font-size:10px; color:#6b778c;">●</span><span id="syncText">SYNC</span></div>
 </div>
 <div class="link-btn-wrapper gps-wrapper"><div class="gps-pair"><button class="link-btn reset-mini" onclick="clearGPSCoordinates()" title="Reset coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button><button class="link-btn" id="gps-btn" onclick="openGPSManualModal()" title="Inserisci coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path></svg></button></div><span class="link-label">GPS</span></div>
-<div class="link-btn-wrapper"><button class="link-btn" id="wifiBtn" onclick="toggleWifi()" title="WiFi"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></button><span class="link-label">WIFI</span></div>
-<div class="link-btn-wrapper"><button class="link-btn" id="btBtn" onclick="toggleBt()" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg></button><span class="link-label">BT</span></div>
+<div class="link-btn-wrapper"><button class="link-btn" id="wifiBtn" onclick="toggleWifi()" title="WiFi"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg></button><span class="link-label">WIFI</span></div>
+<div class="link-btn-wrapper"><button class="link-btn" id="btBtn" onclick="toggleBt()" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"></path></svg></button><span class="link-label">BT</span></div>
 <div class="link-btn-wrapper"><button class="link-btn" id="simBtn" onclick="toggleSimulator()" title="Simulatore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6v4H9z"></path><path d="M5 21h14"></path><path d="M12 7v3"></path><rect x="4" y="10" width="16" height="8" rx="2"></rect><circle cx="8.5" cy="14" r="1.2" fill="currentColor"></circle><circle cx="15.5" cy="14" r="1.2" fill="currentColor"></circle></svg></button><span class="link-label">SIM</span></div>
 </div>
 <div class="top-right-buttons">
@@ -263,7 +262,7 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 </div>
 <div class="dash-section tracking-section">
 <h3>Inseguimento / Velocità</h3>
-<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">1x</option><option value="0.02" selected>8x</option><option value="0.06">32x</option><option value="0.2">128x</option></select></div>
+<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">1x</option><option value="0.02" selected="">8x</option><option value="0.06">32x</option><option value="0.2">128x</option></select></div>
 <div class="control-row"><button class="btn primary" id="trackingOnBtn" onclick="toggleTrackingOn()">TRACKING ON</button></div>
 <div class="control-row"><button class="btn" id="invNSBtn" onclick="toggleInvertNS()">INV N/S</button><button class="btn" id="invEWBtn" onclick="toggleInvertEW()">INV E/O</button></div>
 </div>
@@ -289,15 +288,15 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 <h3>Manuale</h3>
 <div class="d-pad-container">
 <div class="d-pad" id="dpad-grid">
-<div class="d-btn up-left" data-dir="nw"><svg viewBox="0 0 24 24"><path d="M19 19L5 5M5 12V5h7" stroke-width="2"/></svg></div>
-<div class="d-btn up" data-dir="n"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-width="2"/></svg></div>
-<div class="d-btn up-right" data-dir="ne"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M12 5h7v7" stroke-width="2"/></svg></div>
-<div class="d-btn left" data-dir="w"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke-width="2"/></svg></div>
+<div class="d-btn up-left" data-dir="nw"><svg viewBox="0 0 24 24"><path d="M19 19L5 5M5 12V5h7" stroke-width="2"></path></svg></div>
+<div class="d-btn up" data-dir="n"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-width="2"></path></svg></div>
+<div class="d-btn up-right" data-dir="ne"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M12 5h7v7" stroke-width="2"></path></svg></div>
+<div class="d-btn left" data-dir="w"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke-width="2"></path></svg></div>
 <div class="stop-btn" onclick="stopMotion()">STOP</div>
-<div class="d-btn right" data-dir="e"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke-width="2"/></svg></div>
-<div class="d-btn down-left" data-dir="sw"><svg viewBox="0 0 24 24"><path d="M19 5L5 19M5 12v7h7" stroke-width="2"/></svg></div>
-<div class="d-btn down" data-dir="s"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke-width="2"/></svg></div>
-<div class="d-btn down-right" data-dir="se"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M12 19h7v-7" stroke-width="2"/></svg></div>
+<div class="d-btn right" data-dir="e"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke-width="2"></path></svg></div>
+<div class="d-btn down-left" data-dir="sw"><svg viewBox="0 0 24 24"><path d="M19 5L5 19M5 12v7h7" stroke-width="2"></path></svg></div>
+<div class="d-btn down" data-dir="s"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke-width="2"></path></svg></div>
+<div class="d-btn down-right" data-dir="se"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M12 19h7v-7" stroke-width="2"></path></svg></div>
 </div>
 </div>
 </div>
@@ -339,7 +338,7 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 <button class="btn primary" id="gps-device-btn" onclick="getGPSFromDevice()" title="Usa il GPS del dispositivo">📱 GPS Dispositivo</button>
 <button class="btn highlight" id="gps-ip-btn" onclick="getGPSFromIP()" title="Rileva posizione da IP pubblico">🌐 IP Pubblico</button>
 </div>
-<label>Città / Provincia (Italia)</label><select id="gps-city-select" onchange="onCitySelect(this.value)"><option value="">— Personalizzato —</option><optgroup label="Nord-Ovest"><optgroup label="Piemonte"><option value="45.0703,7.6869">Torino</option><option value="44.9133,8.6155">Alessandria</option><option value="44.9009,8.2065">Asti</option><option value="45.5628,8.0583">Biella</option><option value="44.3841,7.5426">Cuneo</option><option value="45.4469,8.6222">Novara</option><option value="45.9210,8.5518">Verbania</option><option value="45.3202,8.4186">Vercelli</option></optgroup><optgroup label="Valle d'Aosta"><option value="45.7372,7.3206">Aosta</option></optgroup><optgroup label="Liguria"><option value="44.4056,8.9463">Genova</option><option value="43.8896,8.0393">Imperia</option><option value="44.1024,9.8241">La Spezia</option><option value="44.3092,8.4772">Savona</option></optgroup><optgroup label="Lombardia"><option value="45.4642,9.1900">Milano</option><option value="45.6983,9.6773">Bergamo</option><option value="45.5416,10.2118">Brescia</option><option value="45.8081,9.0852">Como</option><option value="45.1332,10.0227">Cremona</option><option value="45.8566,9.3977">Lecco</option><option value="45.3140,9.5032">Lodi</option><option value="45.1564,10.7914">Mantova</option><option value="45.5845,9.2744">Monza</option><option value="45.1847,9.1582">Pavia</option><option value="46.1699,9.8788">Sondrio</option><option value="45.8206,8.8251">Varese</option></optgroup></optgroup><optgroup label="Nord-Est"><optgroup label="Trentino-Alto Adige"><option value="46.0679,11.1211">Trento</option><option value="46.4983,11.3548">Bolzano</option></optgroup><optgroup label="Veneto"><option value="45.4408,12.3155">Venezia</option><option value="46.1425,12.2167">Belluno</option><option value="45.4064,11.8768">Padova</option><option value="45.0703,11.7898">Rovigo</option><option value="45.6669,12.2430">Treviso</option><option value="45.4384,10.9916">Verona</option><option value="45.5455,11.5354">Vicenza</option></optgroup><optgroup label="Friuli-Venezia Giulia"><option value="45.6495,13.7768">Trieste</option><option value="45.9411,13.6223">Gorizia</option><option value="45.9564,12.6605">Pordenone</option><option value="46.0711,13.2346">Udine</option></optgroup><optgroup label="Emilia-Romagna"><option value="44.4949,11.3426">Bologna</option><option value="44.8381,11.6198">Ferrara</option><option value="44.2225,12.0409">Forlì</option><option value="44.6471,10.9252">Modena</option><option value="44.8015,10.3279">Parma</option><option value="45.0526,9.6929">Piacenza</option><option value="44.4184,12.2035">Ravenna</option><option value="44.6989,10.6297">Reggio Emilia</option><option value="44.0678,12.5695">Rimini</option></optgroup></optgroup><optgroup label="Centro"><optgroup label="Toscana"><option value="43.7696,11.2558">Firenze</option><option value="43.4633,11.8796">Arezzo</option><option value="42.7635,11.1124">Grosseto</option><option value="43.5485,10.3106">Livorno</option><option value="43.8430,10.5081">Lucca</option><option value="44.0357,10.1395">Massa-Carrara</option><option value="43.7228,10.4017">Pisa</option><option value="43.9334,10.9177">Pistoia</option><option value="43.8777,11.1023">Prato</option><option value="43.3188,11.3308">Siena</option></optgroup><optgroup label="Umbria"><option value="43.1107,12.3908">Perugia</option><option value="42.5636,12.6426">Terni</option></optgroup><optgroup label="Marche"><option value="43.6158,13.5189">Ancona</option><option value="42.8544,13.5750">Ascoli Piceno</option><option value="43.1609,13.7181">Fermo</option><option value="43.2984,13.4533">Macerata</option><option value="43.9102,12.9132">Pesaro-Urbino</option></optgroup><optgroup label="Lazio"><option value="41.9028,12.4964">Roma</option><option value="41.6396,13.3426">Frosinone</option><option value="41.4675,12.9037">Latina</option><option value="42.4047,12.8567">Rieti</option><option value="42.4207,12.1077">Viterbo</option></optgroup></optgroup><optgroup label="Sud"><optgroup label="Abruzzo"><option value="42.3498,13.3995">L'Aquila</option><option value="42.3512,14.1675">Chieti</option><option value="42.4617,14.2161">Pescara</option><option value="42.6589,13.7044">Teramo</option></optgroup><optgroup label="Molise"><option value="41.5603,14.6627">Campobasso</option><option value="41.5960,14.2335">Isernia</option></optgroup><optgroup label="Campania"><option value="40.8518,14.2681">Napoli</option><option value="40.9142,14.7906">Avellino</option><option value="41.1298,14.7826">Benevento</option><option value="41.0723,14.3329">Caserta</option><option value="40.6824,14.7681">Salerno</option></optgroup><optgroup label="Puglia"><option value="41.1171,16.8719">Bari</option><option value="41.3197,16.2706">Barletta-Andria-Trani</option><option value="40.6327,17.9417">Brindisi</option><option value="41.4622,15.5446">Foggia</option><option value="40.3515,18.1750">Lecce</option><option value="40.4644,17.2470">Taranto</option></optgroup><optgroup label="Basilicata"><option value="40.6395,15.8056">Potenza</option><option value="40.6664,16.6043">Matera</option></optgroup><optgroup label="Calabria"><option value="38.9098,16.5877">Catanzaro</option><option value="39.2983,16.2539">Cosenza</option><option value="39.0808,17.1271">Crotone</option><option value="38.1113,15.6473">Reggio Calabria</option><option value="38.6759,16.1004">Vibo Valentia</option></optgroup></optgroup><optgroup label="Isole"><optgroup label="Sicilia"><option value="38.1157,13.3615">Palermo</option><option value="37.3111,13.5765">Agrigento</option><option value="37.4901,14.0629">Caltanissetta</option><option value="37.5079,15.0830">Catania</option><option value="37.5670,14.2794">Enna</option><option value="38.1938,15.5540">Messina</option><option value="36.9269,14.7255">Ragusa</option><option value="37.0755,15.2866">Siracusa</option><option value="38.0176,12.5365">Trapani</option></optgroup><optgroup label="Sardegna"><option value="39.2238,9.1217">Cagliari</option><option value="40.3210,9.3300">Nuoro</option><option value="39.9062,8.5884">Oristano</option><option value="40.7259,8.5557">Sassari</option><option value="39.1672,8.5222">Sud Sardegna</option></optgroup></optgroup></select>
+<label>Città / Provincia (Italia)</label><select id="gps-city-select" onchange="onCitySelect(this.value)"><option value="">— Personalizzato —</option><optgroup label="Nord-Ovest"></optgroup><optgroup label="Piemonte"><option value="45.0703,7.6869">Torino</option><option value="44.9133,8.6155">Alessandria</option><option value="44.9009,8.2065">Asti</option><option value="45.5628,8.0583">Biella</option><option value="44.3841,7.5426">Cuneo</option><option value="45.4469,8.6222">Novara</option><option value="45.9210,8.5518">Verbania</option><option value="45.3202,8.4186">Vercelli</option></optgroup><optgroup label="Valle d'Aosta"><option value="45.7372,7.3206">Aosta</option></optgroup><optgroup label="Liguria"><option value="44.4056,8.9463">Genova</option><option value="43.8896,8.0393">Imperia</option><option value="44.1024,9.8241">La Spezia</option><option value="44.3092,8.4772">Savona</option></optgroup><optgroup label="Lombardia"><option value="45.4642,9.1900">Milano</option><option value="45.6983,9.6773">Bergamo</option><option value="45.5416,10.2118">Brescia</option><option value="45.8081,9.0852">Como</option><option value="45.1332,10.0227">Cremona</option><option value="45.8566,9.3977">Lecco</option><option value="45.3140,9.5032">Lodi</option><option value="45.1564,10.7914">Mantova</option><option value="45.5845,9.2744">Monza</option><option value="45.1847,9.1582">Pavia</option><option value="46.1699,9.8788">Sondrio</option><option value="45.8206,8.8251">Varese</option></optgroup><optgroup label="Nord-Est"></optgroup><optgroup label="Trentino-Alto Adige"><option value="46.0679,11.1211">Trento</option><option value="46.4983,11.3548">Bolzano</option></optgroup><optgroup label="Veneto"><option value="45.4408,12.3155">Venezia</option><option value="46.1425,12.2167">Belluno</option><option value="45.4064,11.8768">Padova</option><option value="45.0703,11.7898">Rovigo</option><option value="45.6669,12.2430">Treviso</option><option value="45.4384,10.9916">Verona</option><option value="45.5455,11.5354">Vicenza</option></optgroup><optgroup label="Friuli-Venezia Giulia"><option value="45.6495,13.7768">Trieste</option><option value="45.9411,13.6223">Gorizia</option><option value="45.9564,12.6605">Pordenone</option><option value="46.0711,13.2346">Udine</option></optgroup><optgroup label="Emilia-Romagna"><option value="44.4949,11.3426">Bologna</option><option value="44.8381,11.6198">Ferrara</option><option value="44.2225,12.0409">Forlì</option><option value="44.6471,10.9252">Modena</option><option value="44.8015,10.3279">Parma</option><option value="45.0526,9.6929">Piacenza</option><option value="44.4184,12.2035">Ravenna</option><option value="44.6989,10.6297">Reggio Emilia</option><option value="44.0678,12.5695">Rimini</option></optgroup><optgroup label="Centro"></optgroup><optgroup label="Toscana"><option value="43.7696,11.2558">Firenze</option><option value="43.4633,11.8796">Arezzo</option><option value="42.7635,11.1124">Grosseto</option><option value="43.5485,10.3106">Livorno</option><option value="43.8430,10.5081">Lucca</option><option value="44.0357,10.1395">Massa-Carrara</option><option value="43.7228,10.4017">Pisa</option><option value="43.9334,10.9177">Pistoia</option><option value="43.8777,11.1023">Prato</option><option value="43.3188,11.3308">Siena</option></optgroup><optgroup label="Umbria"><option value="43.1107,12.3908">Perugia</option><option value="42.5636,12.6426">Terni</option></optgroup><optgroup label="Marche"><option value="43.6158,13.5189">Ancona</option><option value="42.8544,13.5750">Ascoli Piceno</option><option value="43.1609,13.7181">Fermo</option><option value="43.2984,13.4533">Macerata</option><option value="43.9102,12.9132">Pesaro-Urbino</option></optgroup><optgroup label="Lazio"><option value="41.9028,12.4964">Roma</option><option value="41.6396,13.3426">Frosinone</option><option value="41.4675,12.9037">Latina</option><option value="42.4047,12.8567">Rieti</option><option value="42.4207,12.1077">Viterbo</option></optgroup><optgroup label="Sud"></optgroup><optgroup label="Abruzzo"><option value="42.3498,13.3995">L'Aquila</option><option value="42.3512,14.1675">Chieti</option><option value="42.4617,14.2161">Pescara</option><option value="42.6589,13.7044">Teramo</option></optgroup><optgroup label="Molise"><option value="41.5603,14.6627">Campobasso</option><option value="41.5960,14.2335">Isernia</option></optgroup><optgroup label="Campania"><option value="40.8518,14.2681">Napoli</option><option value="40.9142,14.7906">Avellino</option><option value="41.1298,14.7826">Benevento</option><option value="41.0723,14.3329">Caserta</option><option value="40.6824,14.7681">Salerno</option></optgroup><optgroup label="Puglia"><option value="41.1171,16.8719">Bari</option><option value="41.3197,16.2706">Barletta-Andria-Trani</option><option value="40.6327,17.9417">Brindisi</option><option value="41.4622,15.5446">Foggia</option><option value="40.3515,18.1750">Lecce</option><option value="40.4644,17.2470">Taranto</option></optgroup><optgroup label="Basilicata"><option value="40.6395,15.8056">Potenza</option><option value="40.6664,16.6043">Matera</option></optgroup><optgroup label="Calabria"><option value="38.9098,16.5877">Catanzaro</option><option value="39.2983,16.2539">Cosenza</option><option value="39.0808,17.1271">Crotone</option><option value="38.1113,15.6473">Reggio Calabria</option><option value="38.6759,16.1004">Vibo Valentia</option></optgroup><optgroup label="Isole"></optgroup><optgroup label="Sicilia"><option value="38.1157,13.3615">Palermo</option><option value="37.3111,13.5765">Agrigento</option><option value="37.4901,14.0629">Caltanissetta</option><option value="37.5079,15.0830">Catania</option><option value="37.5670,14.2794">Enna</option><option value="38.1938,15.5540">Messina</option><option value="36.9269,14.7255">Ragusa</option><option value="37.0755,15.2866">Siracusa</option><option value="38.0176,12.5365">Trapani</option></optgroup><optgroup label="Sardegna"><option value="39.2238,9.1217">Cagliari</option><option value="40.3210,9.3300">Nuoro</option><option value="39.9062,8.5884">Oristano</option><option value="40.7259,8.5557">Sassari</option><option value="39.1672,8.5222">Sud Sardegna</option></optgroup></select>
 <label>Latitudine (°)</label><input id="manual-lat" type="number" step="0.0001" placeholder="es. 41.9028">
 <label>Longitudine (°)</label><input id="manual-lon" type="number" step="0.0001" placeholder="es. 12.4964">
 <button class="btn icon-btn" id="popup-refresh-btn" onclick="clearGPSPopupFields()" title="Pulisci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
@@ -1176,11 +1175,7 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   });
   </script></body>  -->
 
-<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
-  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
-  </button>
-</div>
+
   <!-- SCRIPT MAPPA POLARE COMPLETA -->
 <script id="satellite-mappa-v3">
 (function () {
@@ -1350,369 +1345,9 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
 })();
 </script>
   <!-- SCRIPT TUNNEL UNIFICATO - INCOLLARE IN ENTRAMBI I FILE, PRIMA DI </body> -->
-<script id="unified-tunnel-sync">
-(function() {
-    'use strict';
-    if (window.UnifiedTunnel) return;
-    window.UnifiedTunnel = true;
 
-    // === 1. CONFIGURAZIONE ===
-    const MY_APP = document.querySelector('meta[name="app-id"]')?.content || 'observatory';
-    const OTHER_APP_URL = {
-        'observatory': 'https://egastrodiscover.github.io/EGASTROmount/',
-        'mount': 'https://egastrodiscover.github.io/EGASTRO/'
-    }[MY_APP];
-
-    // === 2. CREAZIONE DEL CANALE DI COMUNICAZIONE ===
-    const channel = new BroadcastChannel('egastro_unified_sync');
-
-    // === 3. GESTIONE DELL'IFRAME DEL TUNNEL ===
-    function createTunnel() {
-        const tunnelBtn = document.createElement('button');
-        tunnelBtn.id = 'unified-tunnel-btn';
-        tunnelBtn.style.cssText = `
-            position: fixed; left: 0; top: 50%; transform: translateY(-50%);
-            z-index: 2147483647; width: 52px; height: 52px;
-            border-radius: 0 12px 12px 0; background: rgba(10,18,32,.95);
-            border: 2px solid #d4af37; border-left: none; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 20px rgba(212,175,55,.5); color: #d4af37;
-            font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
-        `;
-        tunnelBtn.innerHTML = MY_APP === 'mount' ? 'DOME' : 'TEL';
-        tunnelBtn.onclick = () => toggleIframe();
-
-        const iframeContainer = document.createElement('div');
-        iframeContainer.id = 'unified-tunnel-frame';
-        iframeContainer.style.cssText = `
-            position: fixed; inset: 0; z-index: 2147483645;
-            background: #05070a; display: none;
-        `;
-        const iframe = document.createElement('iframe');
-        iframe.id = 'unified-tunnel-iframe';
-        iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
-        iframe.setAttribute('allow', 'geolocation; camera; microphone; fullscreen');
-
-        // Passa il testimone dell'app corrente all'altra
-        iframe.onload = () => {
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'tunnel-hello',
-                    from: MY_APP,
-                    payload: getSyncState()
-                }, '*');
-            } catch(e) {}
-        };
-
-        iframeContainer.appendChild(iframe);
-        document.body.appendChild(tunnelBtn);
-        document.body.appendChild(iframeContainer);
-
-        // Ascolta i messaggi dall'iframe
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'tunnel-hello') {
-                // L'altra app è pronta, invia lo stato corrente
-                sendStateToPeer(event.data.from);
-            }
-            if (event.data === 'close-tunnel') {
-                iframeContainer.style.display = 'none';
-                tunnelBtn.style.display = 'flex';
-            }
-        });
-    }
-
-    function toggleIframe() {
-        const container = document.getElementById('unified-tunnel-frame');
-        const iframe = document.getElementById('unified-tunnel-iframe');
-        const btn = document.getElementById('unified-tunnel-btn');
-
-        if (container.style.display === 'none') {
-            if (!iframe.src) {
-                iframe.src = OTHER_APP_URL + '?t=' + Date.now();
-            }
-            container.style.display = 'block';
-            btn.style.display = 'none';
-        } else {
-            container.style.display = 'none';
-            btn.style.display = 'flex';
-        }
-    }
-
-    // === 4. SINCRONIZZAZIONE DELLO STATO ===
-    function getSyncState() {
-        // Questa funzione deve essere adattata per leggere lo stato rilevante da entrambe le app
-        if (MY_APP === 'observatory') {
-            return {
-                target: window.state?.target || null,
-                coordinates: { lat: window.state?.lat, lon: window.state?.lon },
-                telescopeTarget: JSON.parse(localStorage.getItem('egastro_telescope_target') || 'null')
-            };
-        } else { // mount
-            return {
-                mount: window.MS ? {
-                    connected: MS.connected,
-                    tracking: MS.tracking,
-                    isParked: MS.isParked,
-                    ra: MS.ra,
-                    dec: MS.dec,
-                    slewMode: MS.slewMode,
-                    speed: MS.speedLabel
-                } : null,
-                gps: { lat: window.MS?.gpsLat, lon: window.MS?.gpsLon }
-            };
-        }
-    }
-
-    function sendStateToPeer(peerApp) {
-        const state = getSyncState();
-        channel.postMessage({ type: 'state-update', from: MY_APP, state: state });
-        // Invia anche all'iframe se presente
-        const iframe = document.getElementById('unified-tunnel-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type: 'state-update', from: MY_APP, state: state }, '*');
-        }
-    }
-
-    // Ascolta gli aggiornamenti di stato dal canale
-    channel.onmessage = (event) => {
-        if (event.data.from === MY_APP) return;
-        applyPeerState(event.data.state);
-    };
-
-    // Ascolta gli aggiornamenti dall'iframe (per la comunicazione diretta)
-    window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'state-update') {
-            applyPeerState(event.data.state);
-        }
-    });
-
-    function applyPeerState(peerState) {
-        if (!peerState) return;
-
-        if (MY_APP === 'observatory') {
-            // L'Osservatorio riceve lo stato della Montatura
-            if (peerState.mount) {
-                // Aggiorna l'interfaccia dell'Osservatorio con lo stato della montatura
-                const badge = document.getElementById('syncBadge');
-                if (badge) {
-                    badge.style.borderColor = peerState.mount.connected ? '#4ade80' : '#f87171';
-                    document.getElementById('syncText').textContent = peerState.mount.connected ? 'MOUNT CONNESSO' : 'MOUNT OFFLINE';
-                }
-                // Qui puoi aggiornare altri elementi UI dell'Osservatorio
-            }
-            if (peerState.gps && peerState.gps.lat) {
-                // Sincronizza le coordinate GPS
-                document.getElementById('lat').value = peerState.gps.lat.toFixed(4);
-                document.getElementById('lon').value = peerState.gps.lon.toFixed(4);
-                if (typeof updateAll === 'function') updateAll();
-            }
-        } else { // mount
-            // La Montatura riceve lo stato dell'Osservatorio (es. target selezionato)
-            if (peerState.target && peerState.target.ra) {
-                // Prepara un GOTO automatico? O semplicemente mostra il target?
-                // Per ora, logghiamo
-                if (typeof showToast === 'function') showToast(`Target ricevuto: ${peerState.target.n || 'Sconosciuto'}`);
-            }
-        }
-    }
-
-    // === 5. AVVIO ===
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', createTunnel);
-    } else {
-        createTunnel();
-    }
-
-    // Invio periodico dello stato (heartbeat)
-    setInterval(() => {
-        sendStateToPeer(MY_APP === 'observatory' ? 'mount' : 'observatory');
-    }, 2000);
-
-    console.log(`[UnifiedTunnel] Attivo su: ${MY_APP}`);
-})();
-</script>
   <!-- SCRIPT TUNNEL UNIFICATO - INCOLLARE IN ENTRAMBI I FILE, PRIMA DI </body> -->
-<script id="unified-tunnel-sync">
-(function() {
-    'use strict';
-    if (window.UnifiedTunnel) return;
-    window.UnifiedTunnel = true;
 
-    // === 1. CONFIGURAZIONE ===
-    const MY_APP = document.querySelector('meta[name="app-id"]')?.content || 'observatory';
-    const OTHER_APP_URL = {
-        'observatory': 'https://egastrodiscover.github.io/EGASTROmount/',
-        'mount': 'https://egastrodiscover.github.io/EGASTRO/'
-    }[MY_APP];
-
-    // === 2. CREAZIONE DEL CANALE DI COMUNICAZIONE ===
-    const channel = new BroadcastChannel('egastro_unified_sync');
-
-    // === 3. GESTIONE DELL'IFRAME DEL TUNNEL ===
-    function createTunnel() {
-        const tunnelBtn = document.createElement('button');
-        tunnelBtn.id = 'unified-tunnel-btn';
-        tunnelBtn.style.cssText = `
-            position: fixed; left: 0; top: 50%; transform: translateY(-50%);
-            z-index: 2147483647; width: 52px; height: 52px;
-            border-radius: 0 12px 12px 0; background: rgba(10,18,32,.95);
-            border: 2px solid #d4af37; border-left: none; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 20px rgba(212,175,55,.5); color: #d4af37;
-            font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
-        `;
-        tunnelBtn.innerHTML = MY_APP === 'mount' ? 'DOME' : 'TEL';
-        tunnelBtn.onclick = () => toggleIframe();
-
-        const iframeContainer = document.createElement('div');
-        iframeContainer.id = 'unified-tunnel-frame';
-        iframeContainer.style.cssText = `
-            position: fixed; inset: 0; z-index: 2147483645;
-            background: #05070a; display: none;
-        `;
-        const iframe = document.createElement('iframe');
-        iframe.id = 'unified-tunnel-iframe';
-        iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
-        iframe.setAttribute('allow', 'geolocation; camera; microphone; fullscreen');
-
-        // Passa il testimone dell'app corrente all'altra
-        iframe.onload = () => {
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'tunnel-hello',
-                    from: MY_APP,
-                    payload: getSyncState()
-                }, '*');
-            } catch(e) {}
-        };
-
-        iframeContainer.appendChild(iframe);
-        document.body.appendChild(tunnelBtn);
-        document.body.appendChild(iframeContainer);
-
-        // Ascolta i messaggi dall'iframe
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'tunnel-hello') {
-                // L'altra app è pronta, invia lo stato corrente
-                sendStateToPeer(event.data.from);
-            }
-            if (event.data === 'close-tunnel') {
-                iframeContainer.style.display = 'none';
-                tunnelBtn.style.display = 'flex';
-            }
-        });
-    }
-
-    function toggleIframe() {
-        const container = document.getElementById('unified-tunnel-frame');
-        const iframe = document.getElementById('unified-tunnel-iframe');
-        const btn = document.getElementById('unified-tunnel-btn');
-
-        if (container.style.display === 'none') {
-            if (!iframe.src) {
-                iframe.src = OTHER_APP_URL + '?t=' + Date.now();
-            }
-            container.style.display = 'block';
-            btn.style.display = 'none';
-        } else {
-            container.style.display = 'none';
-            btn.style.display = 'flex';
-        }
-    }
-
-    // === 4. SINCRONIZZAZIONE DELLO STATO ===
-    function getSyncState() {
-        // Questa funzione deve essere adattata per leggere lo stato rilevante da entrambe le app
-        if (MY_APP === 'observatory') {
-            return {
-                target: window.state?.target || null,
-                coordinates: { lat: window.state?.lat, lon: window.state?.lon },
-                telescopeTarget: JSON.parse(localStorage.getItem('egastro_telescope_target') || 'null')
-            };
-        } else { // mount
-            return {
-                mount: window.MS ? {
-                    connected: MS.connected,
-                    tracking: MS.tracking,
-                    isParked: MS.isParked,
-                    ra: MS.ra,
-                    dec: MS.dec,
-                    slewMode: MS.slewMode,
-                    speed: MS.speedLabel
-                } : null,
-                gps: { lat: window.MS?.gpsLat, lon: window.MS?.gpsLon }
-            };
-        }
-    }
-
-    function sendStateToPeer(peerApp) {
-        const state = getSyncState();
-        channel.postMessage({ type: 'state-update', from: MY_APP, state: state });
-        // Invia anche all'iframe se presente
-        const iframe = document.getElementById('unified-tunnel-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type: 'state-update', from: MY_APP, state: state }, '*');
-        }
-    }
-
-    // Ascolta gli aggiornamenti di stato dal canale
-    channel.onmessage = (event) => {
-        if (event.data.from === MY_APP) return;
-        applyPeerState(event.data.state);
-    };
-
-    // Ascolta gli aggiornamenti dall'iframe (per la comunicazione diretta)
-    window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'state-update') {
-            applyPeerState(event.data.state);
-        }
-    });
-
-    function applyPeerState(peerState) {
-        if (!peerState) return;
-
-        if (MY_APP === 'observatory') {
-            // L'Osservatorio riceve lo stato della Montatura
-            if (peerState.mount) {
-                // Aggiorna l'interfaccia dell'Osservatorio con lo stato della montatura
-                const badge = document.getElementById('syncBadge');
-                if (badge) {
-                    badge.style.borderColor = peerState.mount.connected ? '#4ade80' : '#f87171';
-                    document.getElementById('syncText').textContent = peerState.mount.connected ? 'MOUNT CONNESSO' : 'MOUNT OFFLINE';
-                }
-                // Qui puoi aggiornare altri elementi UI dell'Osservatorio
-            }
-            if (peerState.gps && peerState.gps.lat) {
-                // Sincronizza le coordinate GPS
-                document.getElementById('lat').value = peerState.gps.lat.toFixed(4);
-                document.getElementById('lon').value = peerState.gps.lon.toFixed(4);
-                if (typeof updateAll === 'function') updateAll();
-            }
-        } else { // mount
-            // La Montatura riceve lo stato dell'Osservatorio (es. target selezionato)
-            if (peerState.target && peerState.target.ra) {
-                // Prepara un GOTO automatico? O semplicemente mostra il target?
-                // Per ora, logghiamo
-                if (typeof showToast === 'function') showToast(`Target ricevuto: ${peerState.target.n || 'Sconosciuto'}`);
-            }
-        }
-    }
-
-    // === 5. AVVIO ===
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', createTunnel);
-    } else {
-        createTunnel();
-    }
-
-    // Invio periodico dello stato (heartbeat)
-    setInterval(() => {
-        sendStateToPeer(MY_APP === 'observatory' ? 'mount' : 'observatory');
-    }, 2000);
-
-    console.log(`[UnifiedTunnel] Attivo su: ${MY_APP}`);
-})();
-</script>
 
 <!-- __syncGPSMount — Tappa 1: legge GPS/coordinate da localStorage -->
 <script id="__syncGPSMount">
@@ -1748,5 +1383,42 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   console.log("[Sync GPS] Mount receiving attivo");
 })();
 </script>
-</body>
-</html>
+
+
+
+<!-- TUNNEL ORIGINALE RIPRISTINATO -->
+<div id="my-tunnel-btn-mount" style="position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:999999;">
+  <button onclick="if(window.parent!==window){window.parent.postMessage('close-mount-tunnel','*');}else{window.location.href='https://egastrodiscover.github.io/EGASTRO/';}" style="width:50px; height:50px; border-radius:0 10px 10px 0; background:#0a1220; border:2px solid #d4af37; color:#d4af37; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(212,175,55,0.5);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
+  </button>
+</div>
+
+<!-- SYNC GPS IN BACKGROUND (MANTENUTO) -->
+<script id="sync-gps-mount">
+(function(){
+  "use strict";
+  if (window.__syncGPSMountActive) return;
+  window.__syncGPSMountActive = true;
+  var KEY = "egastro_sync_obs";
+  var lastLat = null, lastLon = null;
+  function consume(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (!s || !s.ts || Date.now() - s.ts > 15000) return;
+      if (!s.coords || !Number.isFinite(s.coords.lat) || !Number.isFinite(s.coords.lon)) return;
+      if (lastLat === s.coords.lat && lastLon === s.coords.lon) return;
+      lastLat = s.coords.lat; lastLon = s.coords.lon;
+      if (typeof MS !== "undefined" && MS) {
+        MS.gpsLat = s.coords.lat; MS.gpsLon = s.coords.lon; MS.gpsActive = true;
+        if (typeof updateTelemetry === "function") updateTelemetry();
+        if (typeof updateLinkButtons === "function") updateLinkButtons();
+      }
+    } catch(e) {}
+  }
+  setInterval(consume, 1000); consume();
+})();
+</script>
+
+</body></html>
