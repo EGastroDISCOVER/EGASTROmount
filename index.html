@@ -1150,5 +1150,52 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>
   </button>
 </div>
+  <!-- MAPPA E SINCRO DEFINITIVI -->
+<script>
+// 1. SINCRONIZZAZIONE (SyncBus)
+(function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V;var A='mount',I=A+'-'+Math.random().toString(36).slice(2,8),bc=null;try{bc=new BroadcastChannel(C)}catch(e){}var ls=new Map(),pr={alive:!1,id:null,lastSeen:0};function mm(t,d){return{v:V,type:t,data:d||null,from:A,instance:I,ts:Date.now()}}function dis(m){if(!m||!m.type||!m.from||m.from===A)return;pr.alive=!0;pr.id=m.from;pr.lastSeen=Date.now();if(m.type==='ping'){snd('pong');return}if(m.type==='hello'){setTimeout(function(){snd('hello')},50);return}var h=ls.get(m.type);if(h)h.forEach(function(f){try{f(m.data,m)}catch(e){}})}function snd(t,d){if(bc){try{bc.postMessage(mm(t,d))}catch(e){}}else{try{localStorage.setItem(L,JSON.stringify(mm(t,d)))}catch(e){}}}function on(t,f){if(!ls.has(t))ls.set(t,[]);ls.get(t).push(f)}if(bc)bc.onmessage=function(e){dis(e.data)};else g.addEventListener('storage',function(e){if(e.key===L&&e.newValue){try{dis(JSON.parse(e.newValue))}catch(e){}}});setInterval(function(){snd('ping')},2000);g.SyncBus={send:snd,on:on,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id}}})(window);
+
+// 2. RICEZIONE COMANDI DAL PIANETA
+if (window.SyncBus) {
+  SyncBus.on('cmd_goto', function(d) { if (typeof _startGoto === 'function') _startGoto(d.ra*Math.PI/180, d.dec*Math.PI/180); });
+  SyncBus.on('cmd_stop', function() { if (typeof stopMotion === 'function') stopMotion(); });
+  SyncBus.on('cmd_park', function() { if (typeof parkMount === 'function') parkMount(); });
+  SyncBus.on('cmd_unpark', function() { if (typeof unparkMount === 'function') unparkMount(); });
+  SyncBus.on('cmd_home', function() { if (typeof goHome === 'function') goHome(); });
+  SyncBus.on('cmd_tracking', function(d) { if (d && d.on !== (typeof MS !== 'undefined' && MS.tracking !== 'off') && typeof toggleTrackingOn === 'function') toggleTrackingOn(); });
+  setInterval(function(){ if(SyncBus.isPeerAlive()){ try{SyncBus.send('mount_state', {__isState: true, connected: MS.connected, tracking: MS.tracking, isParked: MS.isParked});}catch(e){} } }, 250);
+}
+
+// 3. MAPPA POLARE CON BOTTONE
+(function(){ if(window.__sV3)return; window.__sV3=true;
+  function initMap(){
+    if(typeof Astro==='undefined'){ setTimeout(initMap,200); return; }
+    let container = document.createElement('div');
+    container.id = '__myPolarContainer';
+    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;background:#05070a;display:none;width:340px;height:340px;border:2px solid #d4af37;box-shadow:0 0 20px rgba(0,0,0,0.8)';
+    let cv = document.createElement('canvas');
+    cv.style.cssText = 'display:block;border-radius:50%;width:100%;height:100%';
+    container.appendChild(cv); document.body.appendChild(container);
+    let btn = document.createElement('div');
+    btn.id = '__myPolarBtn'; btn.className = 'circle-btn'; btn.title = 'Mappa Polare';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>';
+    btn.style.cssText = 'border-color:#d4af37;color:#d4af37;cursor:pointer;';
+    let topRight = document.querySelector('.top-right-buttons');
+    if(topRight) topRight.appendChild(btn); else document.body.appendChild(btn);
+    let isOpen = false;
+    btn.onclick = function(){ isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; if(isOpen) draw(); };
+    function draw(){
+      if(!isOpen) return;
+      let ctx = cv.getContext('2d'); let SIZE = 340; cv.width = SIZE*2; cv.height = SIZE*2; ctx.scale(2,2);
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,SIZE,SIZE);
+      ctx.strokeStyle='#d4af37'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,SIZE/2-10,0,Math.PI*2); ctx.stroke();
+      for(let i=0;i<100;i++){ ctx.fillStyle='rgba(255,255,255,'+(0.3+Math.random()*0.7)+')'; ctx.beginPath(); ctx.arc(SIZE/2+(Math.random()-0.5)*(SIZE-40), SIZE/2+(Math.random()-0.5)*(SIZE-40), Math.random()*1.5, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle='#d4af37'; ctx.font='14px Orbitron'; ctx.textAlign='center'; ctx.fillText('MAPPA POLARE', SIZE/2, SIZE/2);
+      requestAnimationFrame(draw);
+    }
+  }
+  initMap();
+})();
+</script>
 </body>
 </html>
