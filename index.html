@@ -736,6 +736,183 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+<script id="__egCore">
+/* ============================================================
+   EG-CORE v1 — Modulo condiviso Pianeta/Satellite
+   Incollare IDENTICO in entrambi gli index.html, subito dopo SyncBus
+   ============================================================ */
+(function(g){
+'use strict';
+if (g.EGCore) return;
+
+/* ---------- 1. COSTANTI UNIFICATE ---------- */
+const TWO_PI = Math.PI * 2;
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+// Velocità movimento manuale (gradi/secondo) — 4 livelli
+const MOUNT_SPEEDS = {
+  slow:    { label: 'Lento',   degPerSec: 0.5  },
+  default: { label: 'Default', degPerSec: 2.0  },
+  fast:    { label: 'Veloce',  degPerSec: 5.0  },
+  max:     { label: 'Max',     degPerSec: 10.0 }
+};
+
+// Rate di inseguimento (arcsec/secondo)
+const TRACKING_RATES = {
+  sidereal: 15.041,   // stelle
+  solar:    15.000,   // sole
+  lunar:    14.685    // luna
+};
+
+// Fattori personalizzati (× rate siderale)
+const CUSTOM_RATE_FACTORS = [0.50, 0.75, 1.00];
+
+/* ---------- 2. MATEMATICA ASTRONOMICA (riferimento = Pianeta) ---------- */
+const Astro = {
+  julianDate(d){ return d.getTime()/86400000 + 2440587.5; },
+  gmstDeg(jd){
+    const T = (jd - 2451545.0)/36525.0;
+    let gmst = 280.46061837 + 360.98564736629*(jd-2451545.0)
+             + 0.000387933*T*T - T*T*T/38710000;
+    return ((gmst % 360) + 360) % 360;
+  },
+  lstDeg(jd, lonDeg){ return ((this.gmstDeg(jd) + lonDeg) % 360 + 360) % 360; },
+  altAz(raDeg, decDeg, latDeg, lonDeg, date){
+    const jd = this.julianDate(date || new Date());
+    const lst = this.lstDeg(jd, lonDeg);
+    const haDeg = lst - raDeg;
+    const H = haDeg * DEG_TO_RAD;
+    const lat = latDeg * DEG_TO_RAD;
+    const dec = decDeg * DEG_TO_RAD;
+    const sinAlt = Math.sin(lat)*Math.sin(dec) + Math.cos(lat)*Math.cos(dec)*Math.cos(H);
+    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt))) * RAD_TO_DEG;
+    let az = Math.atan2(
+      -Math.sin(H)*Math.cos(dec),
+      Math.sin(dec)*Math.cos(lat) - Math.cos(dec)*Math.sin(lat)*Math.cos(H)
+    ) * RAD_TO_DEG;
+    az = ((az % 360) + 360) % 360;
+    return { alt, az };
+  },
+  hourAngle(raDeg, lonDeg, date){
+    const jd = this.julianDate(date || new Date());
+    const lst = this.lstDeg(jd, lonDeg);
+    let ha = lst - raDeg;
+    while (ha < -180) ha += 360;
+    while (ha > 180)  ha -= 360;
+    return ha;
+  }
+};
+
+/* ---------- 3. STATO LIMITI (default sicuri) ---------- */
+const DefaultLimits = {
+  minAlt: -5,      // gradi
+  maxAlt: 90,      // gradi
+  haMin: -180,     // gradi (HA)
+  haMax:  180,     // gradi (HA)
+  autoFlip: true,  // meridian flip automatico (solo GEM)
+  flipOffset: 2    // gradi oltre il meridiano per iniziare il flip
+};
+
+/* ---------- 4. VERIFICA LIMITI ---------- */
+function isTargetSafe(raDeg, decDeg, limits, latDeg, lonDeg){
+  const L = limits || DefaultLimits;
+  const now = new Date();
+  const { alt } = Astro.altAz(raDeg, decDeg, latDeg, lonDeg, now);
+  const ha = Astro.hourAngle(raDeg, lonDeg, now);
+  if (alt < L.minAlt || alt > L.maxAlt) return { ok:false, reason:`ALT ${alt.toFixed(1)}° fuori [${L.minAlt},${L.maxAlt}]` };
+  if (ha < L.haMin || ha > L.haMax)     return { ok:false, reason:`HA ${ha.toFixed(1)}° fuori [${L.haMin},${L.haMax}]` };
+  return { ok:true, alt, ha };
+}
+
+/* ---------- 5. SINC BUS ESTESO (comandi + stato) ---------- */
+function pushCommand(cmd, payload){
+  if (!g.SyncBus) return;
+  try { g.SyncBus.send('eg:' + cmd, payload || {}); } catch(e){}
+}
+function onCommand(cmd, handler){
+  if (!g.SyncBus) return function(){};
+  return g.SyncBus.on('eg:' + cmd, handler);
+}
+function pushState(stateObj){
+  if (!g.SyncBus) return;
+  try { g.SyncBus.send('eg:state', Object.assign({__isState:true, ts:Date.now()}, stateObj)); } catch(e){}
+}
+function onState(handler){
+  if (!g.SyncBus) return function(){};
+  return g.SyncBus.on('eg:state', handler);
+}
+
+/* ---------- 6. VELOCITÀ ---------- */
+function getSpeed(key){ return MOUNT_SPEEDS[key] || MOUNT_SPEEDS.default; }
+function nextSpeed(currentKey){
+  const keys = Object.keys(MOUNT_SPEEDS);
+  const i = keys.indexOf(currentKey);
+  return keys[(i+1) % keys.length];
+}
+
+/* ---------- 7. RATE PERSONALIZZATO ---------- */
+function computeTrackingRate(mode, customFactor){
+  const base = TRACKING_RATES[mode] || TRACKING_RATES.sidereal;
+  const f = customFactor ? parseFloat(customFactor) : 1.0;
+  return base * f; // arcsec/sec
+}
+
+/* ---------- 8. UTILS UI ---------- */
+function fmtRA(raDeg){
+  const h = ((raDeg % 360) + 360) % 360 / 15;
+  const hh = Math.floor(h);
+  const mm = Math.floor((h-hh)*60);
+  const ss = Math.floor(((h-hh)*60-mm)*60);
+  return `${String(hh).padStart(2,'0')}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+}
+function fmtDEC(decDeg){
+  const sign = decDeg >= 0 ? '+' : '−';
+  const a = Math.abs(decDeg);
+  const dd = Math.floor(a);
+  const mm = Math.floor((a-dd)*60);
+  const ss = Math.floor(((a-dd)*60-mm)*60);
+  return `${sign}${String(dd).padStart(2,'0')}° ${String(mm).padStart(2,'0')}' ${String(ss).padStart(2,'0')}"`;
+}
+
+/* ---------- 9. MERIDIAN FLIP (sequenza a 2 fasi) ---------- */
+async function executeMeridianFlip(api){
+  // api deve esporre: getCurrentRaDec(), slewTo(ra, dec), getMountType(), showToast()
+  if (!api || typeof api.slewTo !== 'function') return false;
+  if (api.getMountType && api.getMountType() !== 'gem') {
+    if (api.showToast) api.showToast('Flip non necessario per questo tipo di montatura', true);
+    return false;
+  }
+  const cur = api.getCurrentRaDec();
+  if (!cur) return false;
+  // Fase 1: vai al polo (DEC = +90 o -90)
+  const poleDec = cur.dec >= 0 ? 90 : -90;
+  if (api.showToast) api.showToast('Flip fase 1: verso il polo...');
+  await api.slewTo(cur.ra, poleDec);
+  // Fase 2: dal polo al target originale
+  if (api.showToast) api.showToast('Flip fase 2: verso il target...');
+  await api.slewTo(cur.ra, cur.dec);
+  if (api.showToast) api.showToast('✅ Meridian flip completato');
+  return true;
+}
+
+/* ---------- 10. EXPORT ---------- */
+g.EGCore = {
+  VERSION: 1,
+  TWO_PI, DEG_TO_RAD, RAD_TO_DEG,
+  MOUNT_SPEEDS, TRACKING_RATES, CUSTOM_RATE_FACTORS, DefaultLimits,
+  Astro,
+  isTargetSafe,
+  pushCommand, onCommand, pushState, onState,
+  getSpeed, nextSpeed, computeTrackingRate,
+  fmtRA, fmtDEC,
+  executeMeridianFlip
+};
+
+console.log('[EG-CORE v1] ✅ Modulo condiviso caricato');
+})(window);
+</script>  
+
 
 
 
