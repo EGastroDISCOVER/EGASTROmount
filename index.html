@@ -1,1 +1,1480 @@
-<html class=" mgjcknhd idc0_350"><head><style>undefined</style></head><body></body></html>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EGASTRO Mount</title>
+<link rel="icon" type="image/png" href="logo-mount.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05070a">
+<meta name="app-id" content="mount">
+<link rel="apple-touch-icon" href="logo-mount.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',sans-serif;user-select:none;-webkit-user-select:none}input,textarea,select{user-select:text;-webkit-user-select:text}
+body{background:linear-gradient(to bottom,#05070a 0%,#0a1220 70%,#1e3a5f 100%);height:100vh;height:100dvh;display:flex;overflow:hidden;position:relative;color:#c9d1e3}
+body::after{content:'';position:absolute;bottom:110px;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(139,211,255,0.5),transparent);z-index:2;pointer-events:none;transition:opacity 0.3s ease}
+body.dash-collapsed::after{display:none}
+#canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
+.top-bar{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:10;pointer-events:none;flex-wrap:wrap}
+<button class="btn primary" onclick="openConnectionPanel()" title="Connetti">🔌 Connetti</button>
+.connect-block{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-right:10px;border-right:none;flex-shrink:0}
+.connect-row{display:flex;align-items:center;gap:6px}
+#syncBadge{display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;transition:all 0.3s;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px}
+#syncText{display:inline-block;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#f87171;box-shadow:0 0 6px #f87171;transition:all 0.3s;flex-shrink:0}
+.dot.connected{background:#4ade80;box-shadow:0 0 8px #4ade80}
+#connect-btn{padding:4px 10px!important;font-size:11px!important;height:26px;border-radius:4px;transition:all 0.3s}
+#connect-btn:hover{transform:scale(1.05);box-shadow:0 0 10px rgba(212,175,55,0.6)}
+.link-btn-wrapper{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.link-btn-wrapper .link-label{font-family:'Orbitron',sans-serif;font-size:7px;color:rgba(139,155,181,0.85);text-transform:uppercase;letter-spacing:0.4px;font-weight:700;white-space:nowrap;text-align:center}
+.gps-pair{display:flex;gap:3px;align-items:center;justify-content:center}
+.gps-pair .link-btn{width:30px;height:30px;min-width:30px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.gps-pair .link-btn svg{width:14px;height:14px}
+.gps-pair .reset-mini{width:24px;height:24px;min-width:24px;background:linear-gradient(180deg,#2a1515 0%,#150a0a 100%);border-color:rgba(239,68,68,0.5);color:#f87171}
+.gps-pair .reset-mini svg{width:10px;height:10px}
+.gps-pair .reset-mini:hover{background:linear-gradient(180deg,#b91c1c 0%,#7f1d1d 100%);color:#fff;border-color:#ef4444}
+.link-btn{width:30px;height:30px;min-width:30px;padding:0;border-radius:50%;background:linear-gradient(180deg,#2a3441 0%,#151b26 100%);border:1px solid #3e4d63;box-shadow:0 4px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.1);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.link-btn:hover{background:linear-gradient(180deg,#354457 0%,#1c2533 100%);color:#fff;transform:translateY(-1px)}
+.link-btn:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,0.5)}
+.link-btn.active{background:linear-gradient(180deg,#4ade80 0%,#22c55e 100%);color:#000;border-color:#4ade80;box-shadow:0 0 12px rgba(74,222,128,0.6)}
+.link-btn.gps-active{background:linear-gradient(180deg,#8bd3ff 0%,#3b82f6 100%);color:#000;border-color:#8bd3ff;box-shadow:0 0 12px rgba(139,211,255,0.6)}
+.link-btn.sim-active{background:linear-gradient(180deg,#fef08a 0%,#eab308 100%);color:#000;border-color:#fef08a;box-shadow:0 0 12px rgba(250,204,21,0.6)}
+.link-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+@keyframes pulse-attention{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.8),inset 0 1px 0 rgba(255,255,255,0.1);border-color:#ef4444;color:#f87171}50%{box-shadow:0 0 0 10px rgba(239,68,68,0),inset 0 1px 0 rgba(255,255,255,0.1);border-color:#ef4444;color:#f87171}}
+.link-btn.pulse-attention{animation:pulse-attention 0.9s ease-in-out 2;border-color:#ef4444;color:#f87171}
+.top-telemetry-overlay{position:fixed;top:115px;left:14px;display:flex;flex-direction:column;gap:3px;z-index:15;pointer-events:none;text-align:left;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 8px rgba(0,0,0,0.7);opacity:0.78}
+.top-telemetry-overlay .ct-item{display:flex;gap:8px;justify-content:flex-start;align-items:baseline}
+.top-telemetry-overlay .ct-item .k{font-size:8px;color:rgba(107,119,140,0.55);text-transform:uppercase;letter-spacing:0.6px;font-family:'Inter',sans-serif;font-weight:600;min-width:34px}
+.top-telemetry-overlay .ct-item .v{font-family:'Orbitron',sans-serif;font-size:12px;color:rgba(212,175,55,0.85);font-weight:700}
+.top-telemetry-overlay .ct-item .v.track-on{color:rgba(74,222,128,0.9)}
+.top-telemetry-overlay .ct-item .v.gps{color:rgba(139,211,255,0.8);font-size:10px}
+.top-telemetry-overlay .ct-item .v.state{color:rgba(139,211,255,0.85)}
+.top-telemetry-overlay .ct-item .v.limit{color:rgba(255,165,0,0.85);font-size:9.5px;white-space:nowrap;font-weight:600}
+.top-telemetry-overlay .ct-item .v.limit .lbl{color:rgba(255,200,80,0.6);font-weight:400}
+.top-telemetry-overlay .ct-item .v.limit .sep{color:rgba(255,165,0,0.4);margin:0 3px}
+.top-right-buttons{display:flex;flex-direction:column;gap:8px;pointer-events:auto;flex-shrink:0}
+.circle-btn{background:rgba(13,18,28,0.82);backdrop-filter:blur(15px);border:1px solid rgba(212,175,55,0.4);border-radius:50%;width:48px;height:48px;display:flex;justify-content:center;align-items:center;cursor:pointer;color:#d4af37;box-shadow:0 5px 15px rgba(0,0,0,0.6);transition:all 0.3s;font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px}
+.circle-btn:hover{background:#d4af37;color:#000;transform:scale(1.1);box-shadow:0 0 20px rgba(212,175,55,0.7)}
+.circle-btn:active{transform:scale(0.95)}
+.circle-btn svg{width:24px;height:24px;stroke-width:2}
+.circle-btn.reset-btn{border-color:rgba(239,68,68,0.6);color:#ef4444}
+.circle-btn.reset-btn:hover{background:#ef4444;color:#fff;box-shadow:0 0 20px rgba(239,68,68,0.8)}
+@keyframes rotate-telescope{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.rotating-telescope{animation:rotate-telescope 4s linear infinite}
+.dashboard-toggle-btn{position:absolute;left:15px;bottom:215px;width:30px;height:30px;background:rgba(13,18,28,0.85);border:1px solid rgba(212,175,55,0.6);border-radius:50%;display:flex;justify-content:center;align-items:center;cursor:pointer;color:#d4af37;z-index:50;backdrop-filter:blur(10px);transition:bottom 0.4s cubic-bezier(0.4,0,0.2,1),background 0.3s,color 0.3s,border-color 0.3s;box-shadow:0 4px 10px rgba(0,0,0,0.5)}
+.dashboard-toggle-btn:hover{background:#d4af37;color:#000}
+.dashboard-toggle-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;transition:transform 0.4s ease}
+.dashboard-toggle-btn.collapsed{border-color:#8bd3ff;color:#8bd3ff}
+.dashboard-toggle-btn.collapsed:hover{background:#8bd3ff;color:#000}
+.dashboard-toggle-btn.collapsed svg{transform:rotate(180deg)}
+.dashboard{position:absolute;bottom:0;left:0;width:100%;background:rgba(10,14,20,0.95);backdrop-filter:blur(20px);border-top:1px solid #d4af37;padding:16px;display:grid;grid-template-columns:1.2fr 1fr 1fr 200px;align-items:stretch;gap:16px;z-index:10;box-shadow:0 -5px 20px rgba(0,0,0,0.8);min-height:200px;transition:transform 0.4s cubic-bezier(0.4,0,0.2,1),height 0.4s ease,min-height 0.4s ease,padding 0.4s ease}
+.dashboard:not(.collapsed) .mini-strip{display:none!important}
+.dashboard.collapsed{transform:translateY(0);height:92px;min-height:92px;padding:8px 16px;display:flex;justify-content:center;align-items:center}
+.dashboard.collapsed>.dash-section:not(.mini-strip){display:none}
+.mini-strip{display:none;flex-direction:column;gap:4px;width:100%;max-width:720px;margin:0 auto;padding-left:35px}
+.dashboard.collapsed .mini-strip{display:flex}
+.mini-strip-row{display:flex;justify-content:space-around;align-items:center;gap:8px;width:100%}
+.mini-strip-labels span{flex:1;text-align:center;font-family:'Orbitron',sans-serif;font-size:8px;color:rgba(139,155,181,0.7);letter-spacing:0.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.mini-btn{flex:1;height:38px;background:linear-gradient(180deg,#2a3441 0%,#151b26 100%);border:1px solid #3e4d63;box-shadow:0 4px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.1);color:#cbd5e1;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;min-width:0;padding:0}
+.mini-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;pointer-events:none}
+.mini-btn:hover{background:linear-gradient(180deg,#354457 0%,#1c2533 100%);color:#fff}
+.mini-btn:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,0.5)}
+.mini-btn.primary{background:linear-gradient(180deg,#e8c350 0%,#b89428 100%);color:#000;border-color:#f3e5ab}
+.mini-btn.highlight{background:linear-gradient(180deg,#4a5b73 0%,#2a3441 100%);color:#d4af37;border-color:#d4af37}
+.mini-btn.danger{background:linear-gradient(180deg,#b91c1c 0%,#7f1d1d 100%);color:#fca5a5;border-color:#ef4444}
+.mini-btn.parked-active{background:linear-gradient(180deg,#f59e0b 0%,#b45309 100%);color:#fff;border-color:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,0.6)}
+.mini-btn.unpark-active{background:linear-gradient(180deg,#ef4444 0%,#b91c1c 100%);color:#fff;border-color:#ef4444;animation:pulse-red 1.5s infinite}
+.dash-section{display:flex;flex-direction:column;gap:8px;justify-content:center;min-width:0}
+.dash-section h3{font-size:10px;color:#d4af37;text-transform:uppercase;letter-spacing:1px;font-family:'Orbitron',sans-serif;white-space:nowrap;margin-bottom:2px}
+input,select{background:rgba(0,0,0,0.4);border:1px solid #334155;color:#fff;padding:8px;border-radius:6px;font-size:12px;outline:none;width:100%;font-family:'Orbitron',sans-serif}
+input:focus,select:focus{border-color:#d4af37;box-shadow:0 0 10px rgba(212,175,55,0.2)}
+.control-row{display:flex;gap:6px}
+.control-row>*{flex:1;min-width:0}
+.btn{background:linear-gradient(180deg,#2a3441 0%,#151b26 100%);color:#cbd5e1;border:1px solid #3e4d63;box-shadow:0 4px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.1);text-shadow:0 1px 2px rgba(0,0,0,0.5);border-radius:6px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.1s;text-align:center;white-space:nowrap;display:flex;align-items:center;justify-content:center}
+.btn:hover{background:linear-gradient(180deg,#354457 0%,#1c2533 100%);border-color:#4a5b73;color:#fff}
+.btn:active{box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);transform:translateY(1px)}
+.btn.primary{background:linear-gradient(180deg,#e8c350 0%,#b89428 100%);color:#000;border-color:#f3e5ab}
+.btn.primary:hover{background:linear-gradient(180deg,#f6d568 0%,#cca633 100%);box-shadow:0 0 15px rgba(212,175,55,0.4)}
+.btn.danger{background:linear-gradient(180deg,#b91c1c 0%,#7f1d1d 100%);color:#fca5a5;border-color:#ef4444}
+.btn.danger:hover{background:linear-gradient(180deg,#ef4444 0%,#b91c1c 100%);color:#fff}
+.btn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.btn-grid .btn{padding:8px 4px;font-size:10px;height:34px}
+.btn.highlight{background:linear-gradient(180deg,#4a5b73 0%,#2a3441 100%);color:#d4af37;border-color:#d4af37}
+.btn.highlight:hover{background:#d4af37;color:#000;box-shadow:0 0 12px rgba(212,175,55,0.5)}
+.btn.parked-active{background:linear-gradient(180deg,#f59e0b 0%,#b45309 100%);color:#fff;border-color:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,0.6)}
+.btn.unpark-active{background:linear-gradient(180deg,#ef4444 0%,#b91c1c 100%);color:#fff;border-color:#ef4444;box-shadow:0 0 15px rgba(239,68,68,0.8);animation:pulse-red 1.5s infinite}
+@keyframes pulse-red{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.7)}70%{box-shadow:0 0 0 10px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.btn.home-active{background:linear-gradient(180deg,#3b82f6 0%,#1d4ed8 100%);color:#fff;border-color:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,0.6)}
+.btn.saved{position:relative}
+.btn.saved::after{content:'';position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:#4ade80;box-shadow:0 0 4px #4ade80;opacity:0;transition:opacity 0.3s}
+.btn.saved.has-value::after{opacity:0.85}
+.slewing-indicator{display:flex;justify-content:center;align-items:center;background:rgba(212,175,55,0.1);border:1px solid #d4af37;border-radius:6px;color:#d4af37;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;padding:8px;height:34px;white-space:nowrap;overflow:hidden}
+.speed-display{font-family:'Orbitron',sans-serif;font-size:11px;color:#8bd3ff;text-align:center;padding:6px;background:rgba(139,211,255,0.08);border:1px solid rgba(139,211,255,0.25);border-radius:6px;letter-spacing:0.5px}
+.d-pad-container{display:flex;align-items:stretch;justify-content:center;width:100%;height:100%}
+.d-pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;position:relative;width:100%;max-width:180px;aspect-ratio:1/1;height:100%}
+.d-btn{background:linear-gradient(180deg,#2a3441 0%,#151b26 100%);border:1px solid #3e4d63;box-shadow:0 4px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.1);border-radius:8px;display:flex;justify-content:center;align-items:center;cursor:pointer;color:#cbd5e1;touch-action:none;transition:0.1s;-webkit-tap-highlight-color:transparent}
+.d-btn svg{width:28px;height:28px;stroke:currentColor;fill:none;pointer-events:none}
+.d-btn svg *{pointer-events:none}
+.d-btn:active,.d-btn.active{background:linear-gradient(180deg,#e8c350 0%,#b89428 100%);color:#000;border-color:#f3e5ab;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);transform:translateY(1px)}
+.up{grid-column:2;grid-row:1}.down{grid-column:2;grid-row:3}
+.left{grid-column:1;grid-row:2}.right{grid-column:3;grid-row:2}
+.up-left{grid-column:1;grid-row:1}.up-right{grid-column:3;grid-row:1}
+.down-left{grid-column:1;grid-row:3}.down-right{grid-column:3;grid-row:3}
+.stop-btn{grid-column:2;grid-row:2;background:linear-gradient(180deg,#b91c1c 0%,#7f1d1d 100%);color:#fff;border-radius:8px;display:flex;justify-content:center;align-items:center;font-weight:900;font-size:12px;cursor:pointer;border:1px solid #ef4444;font-family:'Orbitron',sans-serif;transition:0.1s;box-shadow:0 4px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.1);animation:pulse-stop 2s infinite}
+.stop-btn:active{box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);transform:translateY(1px);background:linear-gradient(180deg,#ef4444 0%,#b91c1c 100%);animation:none}
+@keyframes pulse-stop{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.8),inset 0 1px 0 rgba(255,255,255,0.1)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0),inset 0 1px 0 rgba(255,255,255,0.1)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0),inset 0 1px 0 rgba(255,255,255,0.1)}}
+.toast{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:rgba(212,175,55,0.96);color:#000;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,0.6);font-family:'Orbitron',sans-serif;letter-spacing:0.5px;max-width:80vw;text-align:center}
+.toast.visible{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.toast.error{background:#ef4444;color:#fff}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:2000;backdrop-filter:blur(5px)}
+.modal-box{background:#0d121c;border:1px solid rgba(212,175,55,0.4);border-radius:12px;padding:20px;min-width:340px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,0.8);color:#fff;display:flex;flex-direction:column;gap:10px}
+.modal-box h3{color:#d4af37;font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:1px;margin-bottom:4px}
+.modal-box label{font-size:11px;color:#8a9bb5;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.modal-box input,.modal-box select{font-size:14px;padding:10px;width:100%;box-sizing:border-box;background:rgba(0,0,0,0.5);border:1px solid #334155;border-radius:6px;color:#fff;margin-bottom:2px;height:44px;line-height:1.4}
+.modal-box select{-webkit-appearance:none;-moz-appearance:none;appearance:none;padding:10px 34px 10px 12px;background-color:rgba(0,0,0,0.5);background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right 10px center;background-size:14px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:14px;height:44px}
+.modal-box select option{background:#0d121c;color:#fff;font-size:14px;padding:8px 10px}
+.modal-box select optgroup{background:#0a1628;color:#d4af37;font-weight:700;font-style:normal;font-size:13px;padding:6px}
+.modal-actions{display:flex;gap:10px;margin-top:10px}
+.modal-actions .btn{flex:1;padding:10px;font-size:12px;height:auto}
+.icon-btn{width:100%;height:42px;padding:0;margin-top:6px}
+.icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;transition:transform 0.4s ease}
+.icon-btn:hover svg{transform:rotate(-180deg);color:#d4af37}
+.welcome-box{border-color:rgba(212,175,55,0.6);max-width:420px;box-shadow:0 0 40px rgba(212,175,55,0.3),0 10px 40px rgba(0,0,0,0.8)}
+.welcome-box h3{text-align:center;font-size:15px;margin-bottom:8px}
+.welcome-box ul{list-style:none;padding:0;margin:4px 0}
+.welcome-box ul li{font-size:13px;color:#cbd5e1;line-height:1.7;padding:6px 10px;background:rgba(139,211,255,0.05);border-radius:6px;border-left:3px solid #8bd3ff;margin-bottom:6px}
+.welcome-box ul li.wifi{border-left-color:#4ade80}
+.welcome-box ul li.bt{border-left-color:#3b82f6}
+.welcome-box ul li.sim{border-left-color:#eab308}
+#gps-manual-modal .modal-box{min-width:380px}
+.gps-source-row{display:flex;gap:8px;margin-top:4px}
+.gps-source-row .btn{flex:1;font-size:10px;height:38px;padding:6px 4px;line-height:1.2}
+.side-menu{position:fixed;top:0;right:0;bottom:0;width:320px;background:rgba(13,18,28,0.95);backdrop-filter:blur(20px);border-left:1px solid #d4af37;z-index:3000;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,0.8)}
+.side-menu.open{transform:translateX(0)}
+.side-menu-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #334155}
+.side-menu-header h3{color:#d4af37;font-family:'Orbitron',sans-serif;font-size:14px;margin:0}
+.side-menu-content{padding:15px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.side-menu-content label{font-size:11px;color:#8a9bb5;text-transform:uppercase;letter-spacing:1px;margin-top:5px}
+.side-menu-content input,.side-menu-content select{font-size:14px;padding:10px;width:100%;box-sizing:border-box;background:rgba(0,0,0,0.5);border:1px solid #334155;border-radius:6px;color:#fff;height:44px}
+.alt-limits-row{display:flex;gap:8px;align-items:flex-end}
+.alt-limits-row>div{flex:1;display:flex;flex-direction:column;gap:4px}
+.alt-limits-row span{font-size:10px;color:#8a9bb5;text-transform:uppercase;letter-spacing:0.5px}
+.limits-section-title{font-family:'Orbitron',sans-serif;font-size:12px;color:#d4af37;letter-spacing:1px;text-transform:uppercase;margin-top:15px;padding-bottom:5px;border-bottom:1px solid rgba(212,175,55,0.3)}
+@media (max-width: 768px){body{display:block;height:100vh;height:100dvh;overflow:hidden}body::after{display:none}#canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}.top-bar{z-index:10;top:calc(4px + env(safe-area-inset-top,0px));left:6px;right:6px;gap:6px}.info-panel{padding:5px 8px;gap:4px}.connect-block{padding-right:6px;gap:4px}.dot{width:7px;height:7px}#connect-btn{padding:3px 8px!important;font-size:10px!important;height:22px}.link-btn-wrapper .link-label{font-size:6px;letter-spacing:0.2px}.link-btn{width:28px;height:28px;min-width:28px}.link-btn svg{width:12px;height:12px}.gps-pair{gap:2px}.gps-pair .link-btn{width:26px;height:26px;min-width:26px}.gps-pair .link-btn svg{width:11px;height:11px}.gps-pair .reset-mini{width:22px;height:22px;min-width:22px}.gps-pair .reset-mini svg{width:9px;height:9px}.top-telemetry-overlay{top:80px;left:8px;gap:2px}.top-telemetry-overlay .ct-item .k{font-size:7px;min-width:28px}.top-telemetry-overlay .ct-item .v{font-size:11px}.top-telemetry-overlay .ct-item .v.limit{font-size:8px}.top-right-buttons{gap:6px}.circle-btn{width:42px;height:42px;font-size:13px;border-radius:8px}.circle-btn svg{width:22px;height:22px}.dashboard{position:absolute;bottom:0;left:0;width:100%;z-index:10;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 160px;grid-template-rows:auto auto auto;gap:6px;background:rgba(10,14,20,0.98);max-height:70vh;overflow-y:auto}.dashboard.collapsed{height:80px;min-height:80px;padding:6px 10px;display:flex;flex-direction:row;justify-content:center}.mini-strip{padding-left:0;gap:3px}.mini-strip-row{gap:4px}.mini-strip-labels span{font-size:7px;letter-spacing:0.2px}.mini-btn{height:34px;border-radius:6px}.mini-btn svg{width:17px;height:17px}.status-section{grid-column:1;grid-row:1}.tracking-section{grid-column:1;grid-row:2}.position-section{grid-column:1;grid-row:3}.dpad-section{grid-column:2;grid-row:1/span 3}.dash-section{gap:5px}.dash-section h3{display:none}input,select{padding:5px 6px;font-size:10px;height:30px}.btn{padding:5px 6px;font-size:10px;height:30px}.btn-grid{grid-template-columns:repeat(4,1fr);gap:4px}.btn-grid .btn{padding:6px 2px;font-size:9px;height:30px}.slewing-indicator{font-size:10px;height:28px;padding:4px}.speed-display{font-size:10px;padding:4px}.d-pad-container{height:100%}.d-pad{max-width:160px;gap:4px}.d-btn svg{width:24px;height:24px}.stop-btn{font-size:11px}.modal-box input,.modal-box select{height:44px;padding:8px 10px;font-size:14px}.modal-box select{padding:10px 34px 10px 12px}.side-menu{width:280px}}
+@media (max-width: 900px) and (orientation: landscape){.dashboard{grid-template-columns:1fr 1.3fr 0.7fr auto;grid-template-rows:auto;min-height:140px;height:auto;max-height:none}.d-pad{max-width:140px}}
+</style>
+<script>
+(function(g){'use strict';if(g.SyncBus)return;var V=3,C='egastro_sync_v'+V,L='egastro_sync_v'+V,LK='egastro_leader_v'+V;
+function aid(){var m=document.querySelector('meta[name="app-id"]');if(m&&m.content){var v=String(m.content).trim().toLowerCase();if(v==='mount'||v==='observatory')return v}if(document.getElementById('dpad-grid'))return'mount';return'observatory'}
+var A=aid(),I=A+'-'+Math.random().toString(36).slice(2,8),bc=null;try{bc=new BroadcastChannel(C)}catch(e){}
+var ls=new Map(),pa=new Map(),pr={alive:!1,id:null,lastSeen:0,helloBackAt:0},ov=0,iv=new Map();
+function mm(t,d,id){return{v:V,type:t,data:d||null,from:A,instance:I,ts:Date.now(),id:id||(Math.random().toString(36).slice(2)+Date.now().toString(36))}}
+function dis(m){if(!m||!m.type||!m.from)return;if(m.from===A)return;pr.alive=!0;pr.id=m.from;pr.lastSeen=Date.now();
+if(m.type==='ping'){snd('pong');return}if(m.type==='pong')return;
+if(m.type==='hello'){var n=Date.now();if(n-pr.helloBackAt>300){pr.helloBackAt=n;setTimeout(function(){snd('hello')},30+Math.random()*50)}return}
+if(m.type==='ack'){var p=pa.get(m.data&&m.data.id);if(p){clearTimeout(p.timer);pa.delete(m.data.id);p.resolve(!0)}return}
+if(m.data&&Number.isFinite(m.data.__v)){var l=iv.get(m.from)||0;if(m.data.__v<=l)return;iv.set(m.from,m.data.__v)}
+if(m.data&&m.data.__needAck&&m.data.__ackId)snd('ack',{id:m.data.__ackId});
+var h=ls.get(m.type);if(h)h.forEach(function(f){try{f(m.data,m)}catch(e){}});
+var a=ls.get('*');if(a)a.forEach(function(f){try{f(m.data,m)}catch(e){}})}
+var lsd=0;function rs(m){if(bc){try{bc.postMessage(m)}catch(e){}}else{try{m.nonce=Math.random();localStorage.setItem(L,JSON.stringify(m))}catch(e){}}}
+function snd(t,d){var n=Date.now();if(n-lsd<16){setTimeout(function(){snd(t,d)},16);return}lsd=n;if(d&&d.__isState)d.__v=++ov;rs(mm(t,d))}
+function swa(t,d,to){return new Promise(function(r){var ai='ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),pl=Object.assign({},d||{},{__needAck:!0,__ackId:ai}),m=mm(t,pl),tm=setTimeout(function(){pa.delete(ai);r(!1)},to||4000);pa.set(ai,{resolve:r,timer:tm});rs(m)})}
+function on(t,f){if(!ls.has(t))ls.set(t,[]);ls.get(t).push(f);return function(){var ar=ls.get(t);if(!ar)return;var i=ar.indexOf(f);if(i>=0)ar.splice(i,1)}}
+function glr(){try{return JSON.parse(localStorage.getItem(LK)||'null')}catch(e){return null}}
+function slr(){try{localStorage.setItem(LK,JSON.stringify({instance:I,app:A,expiresAt:Date.now()+6000}))}catch(e){}}
+function il(){if(A!=='mount')return!1;var r=glr();return!!(r&&r.instance===I&&r.expiresAt>Date.now())}
+function rl(){if(A!=='mount')return!1;var r=glr();if(!r||r.expiresAt<=Date.now()){slr();return!0}return r.instance===I}
+var lt=null;function slrr(){if(A!=='mount'||lt)return;rl();lt=setInterval(function(){if(il())slr()},3000)}
+function stlr(){if(lt){clearInterval(lt);lt=null}try{var r=glr();if(r&&r.instance===I)localStorage.removeItem(LK)}catch(e){}}
+if(bc)bc.onmessage=function(e){dis(e.data)};else g.addEventListener('storage',function(e){if(e.key!==L||!e.newValue)return;try{dis(JSON.parse(e.newValue))}catch(e){}});
+var pt=null;function st(){if(pt)return;[100,300,700,1500].forEach(function(ms){setTimeout(function(){snd('hello')},ms)});slrr();pt=setInterval(function(){snd('ping');if(Date.now()-pr.lastSeen>12000){if(pr.alive){pr.alive=!1;var h=ls.get('peer_offline');if(h)h.forEach(function(f){try{f()}catch(e){}})}}},2000)}
+function sp(){if(pt)clearInterval(pt);pt=null;stlr();if(bc)try{bc.close()}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){pr.helloBackAt=0;snd('hello')}});
+g.addEventListener('focus',function(){snd('hello')});
+g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
+</script>
+  
+<style id="mobile-fix">
+@media (max-width: 768px) {
+  html, body { height: 100dvh !important; min-height: 100dvh !important; overflow: hidden; }
+  #canvas-container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100dvh !important; z-index: 1 !important; }
+  .dashboard { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important; max-height: 70vh !important; overflow-y: auto !important; }
+  .top-bar { padding-top: calc(4px + env(safe-area-inset-top, 0px)) !important; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+  if (new URLSearchParams(location.search).get('debug') === '1') {
+    eruda.init(); eruda.show(); console.log('[MOBILE] Eruda attiva');
+  }
+</script>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div class="top-bar">
+<div class="info-panel" id="info-panel">
+<div class="connect-block">
+  <div class="connect-row">
+    <div class="dot" id="status-dot"></div>
+    <button class="btn primary" id="connect-btn" onclick="toggleConnection()">Connetti</button>
+  </div>
+  <div id="syncBadge"><span id="syncDot" style="font-size:10px; color:#6b778c;">●</span><span id="syncText">SYNC</span></div>
+</div>
+<div class="link-btn-wrapper gps-wrapper"><div class="gps-pair"><button class="link-btn reset-mini" onclick="clearGPSCoordinates()" title="Reset coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button><button class="link-btn" id="gps-btn" onclick="openGPSManualModal()" title="Inserisci coordinate GPS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"></path></svg></button></div><span class="link-label">GPS</span></div>
+<div class="link-btn-wrapper"><button class="link-btn" id="wifiBtn" onclick="toggleWifi()" title="WiFi"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></button><span class="link-label">WIFI</span></div>
+<div class="link-btn-wrapper"><button class="link-btn" id="btBtn" onclick="toggleBt()" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg></button><span class="link-label">BT</span></div>
+<div class="link-btn-wrapper"><button class="link-btn" id="simBtn" onclick="toggleSimulator()" title="Simulatore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6v4H9z"></path><path d="M5 21h14"></path><path d="M12 7v3"></path><rect x="4" y="10" width="16" height="8" rx="2"></rect><circle cx="8.5" cy="14" r="1.2" fill="currentColor"></circle><circle cx="15.5" cy="14" r="1.2" fill="currentColor"></circle></svg></button><span class="link-label">SIM</span></div>
+</div>
+<div class="top-right-buttons">
+<div class="circle-btn" onclick="resetCamera()" title="Ripristina"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="4"></line><line x1="12" y1="16" x2="12" y2="20"></line><line x1="8" y1="12" x2="4" y2="12"></line><line x1="16" y1="12" x2="20" y2="12"></line><circle cx="12" cy="12" r="2"></circle></svg></div>
+<div class="circle-btn" onclick="setNorthView()" title="Vista Nord">N</div>
+<div class="circle-btn" onclick="toggleSideMenu()" title="Impostazioni"><svg class="rotating-telescope" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg></div>
+<div class="circle-btn reset-btn" onclick="openResetModal()" title="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg></div>
+</div>
+</div>
+<div class="top-telemetry-overlay" id="top-telemetry-overlay">
+<div class="ct-item"><span class="k">LIM</span><span class="v limit" id="ct-lim"><span class="lbl">ALT</span> -5°/+90° <span class="sep">|</span> <span class="lbl">DEC</span> -180°/+180° <span class="sep">|</span> <span class="lbl">HA</span> -180°/+180°</span></div>
+<div class="ct-item"><span class="k">A.R.</span><span class="v" id="ct-ar">00h 00m</span></div>
+<div class="ct-item"><span class="k">DEC</span><span class="v" id="ct-dec">090° 00'</span></div>
+<div class="ct-item"><span class="k">ALT</span><span class="v" id="ct-alt">--°</span></div>
+<div class="ct-item"><span class="k">AZ</span><span class="v" id="ct-az">---°</span></div>
+<div class="ct-item"><span class="k">TRACK</span><span class="v" id="ct-track">OFF</span></div>
+<div class="ct-item"><span class="k">SLEW</span><span class="v" id="ct-slew">IDLE</span></div>
+<div class="ct-item"><span class="k">LAT</span><span class="v gps" id="ct-lat">--</span></div>
+<div class="ct-item"><span class="k">LON</span><span class="v gps" id="ct-lon">--</span></div>
+<div class="ct-item"><span class="k">VEL</span><span class="v" id="ct-vel">8x</span></div>
+<div class="ct-item"><span class="k">STATO</span><span class="v state" id="ct-state">OFF</span></div>
+</div>
+<div class="dashboard" id="dashboard">
+<div class="dash-section mini-strip">
+<div class="mini-strip-row mini-strip-labels"><span>TRACK</span><span>GOTO</span><span>PARK</span><span>UNPARK</span><span>HOME</span><span>STOP</span></div>
+<div class="mini-strip-row mini-strip-icons">
+<button class="mini-btn primary" onclick="toggleTrackingOn()" title="Tracking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg></button>
+<button class="mini-btn highlight" onclick="openGotoModal()" title="GOTO"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path></svg></button>
+<button class="mini-btn" id="mini-park-btn" onclick="parkMount()" title="Park"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path></svg></button>
+<button class="mini-btn" id="mini-unpark-btn" onclick="unparkMount()" title="Unpark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path><line x1="12" y1="3" x2="12" y2="11"></line></svg></button>
+<button class="mini-btn" id="mini-home-btn" onclick="goHome()" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h14V10"></path></svg></button>
+<button class="mini-btn danger" onclick="stopMotion()" title="Stop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"></rect></svg></button>
+</div>
+</div>
+<div class="dash-section tracking-section">
+<h3>Inseguimento / Velocità</h3>
+<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">1x</option><option value="0.02" selected>8x</option><option value="0.06">32x</option><option value="0.2">128x</option></select></div>
+<div class="control-row"><button class="btn primary" id="trackingOnBtn" onclick="toggleTrackingOn()">TRACKING ON</button></div>
+<div class="control-row"><button class="btn" id="invNSBtn" onclick="toggleInvertNS()">INV N/S</button><button class="btn" id="invEWBtn" onclick="toggleInvertEW()">INV E/O</button></div>
+</div>
+<div class="dash-section position-section">
+<h3>Posizioni</h3>
+<div class="btn-grid">
+<button class="btn" id="btn-park" onclick="parkMount()">PARK</button>
+<button class="btn" id="btn-unpark" onclick="unparkMount()">UNPARK</button>
+<button class="btn" id="btn-home" onclick="goHome()">HOME</button>
+<button class="btn highlight" onclick="openGotoModal()">GOTO</button>
+<button class="btn highlight saved" id="setParkBtn" onclick="setPark()">SET PARK</button>
+<button class="btn highlight saved" id="setHomeBtn" onclick="setHome()">SET HOME</button>
+<button class="btn" onclick="meridianFlip(false)" title="Flip">FLIP</button>
+<button class="btn danger" onclick="stopMotion()">STOP</button>
+</div>
+</div>
+<div class="dash-section status-section">
+<h3>Stato</h3>
+<div class="slewing-indicator" id="slewing-indicator" style="display:none;"><span id="slewing-text">GoTo: Ready</span></div>
+<div class="speed-display" id="speed-display">Velocità: 8x</div>
+</div>
+<div class="dash-section dpad-section">
+<h3>Manuale</h3>
+<div class="d-pad-container">
+<div class="d-pad" id="dpad-grid">
+<div class="d-btn up-left" data-dir="nw"><svg viewBox="0 0 24 24"><path d="M19 19L5 5M5 12V5h7" stroke-width="2"/></svg></div>
+<div class="d-btn up" data-dir="n"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-width="2"/></svg></div>
+<div class="d-btn up-right" data-dir="ne"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M12 5h7v7" stroke-width="2"/></svg></div>
+<div class="d-btn left" data-dir="w"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" stroke-width="2"/></svg></div>
+<div class="stop-btn" onclick="stopMotion()">STOP</div>
+<div class="d-btn right" data-dir="e"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke-width="2"/></svg></div>
+<div class="d-btn down-left" data-dir="sw"><svg viewBox="0 0 24 24"><path d="M19 5L5 19M5 12v7h7" stroke-width="2"/></svg></div>
+<div class="d-btn down" data-dir="s"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke-width="2"/></svg></div>
+<div class="d-btn down-right" data-dir="se"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M12 19h7v-7" stroke-width="2"/></svg></div>
+</div>
+</div>
+</div>
+</div>
+<div class="dashboard-toggle-btn" id="dashToggleBtn" onclick="toggleDashboard()" title="Apri/Chiudi"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+<div id="side-menu" class="side-menu">
+<div class="side-menu-header"><h3>⚙️ Impostazioni Montatura</h3><button class="btn danger" onclick="toggleSideMenu()" style="padding:4px 8px;height:auto;">✕</button></div>
+<div class="side-menu-content">
+<div class="limits-section-title">Tipo di Montatura</div>
+<div style="margin-bottom: 10px;">
+<select id="set-mount-type" onchange="changeMountType(this.value)">
+<option value="gem">Equatoriale Tedesca (GEM)</option>
+<option value="fork">Forcella (Fork)</option>
+<option value="harmonic">Armonica (Strain Wave)</option>
+<option value="altaz">Alt-Azimutale</option>
+<option value="dobs">Dobson</option>
+</select>
+</div>
+<div class="limits-section-title">Limiti Asse DEC</div>
+<div class="alt-limits-row"><div><span>Minimo</span><input type="number" id="set-dec-min" step="1" value="-180" min="-720" max="0"></div><div><span>Massimo</span><input type="number" id="set-dec-max" step="1" value="180" min="0" max="720"></div></div>
+<p style="font-size:10px;color:#6b778c;margin-top:-6px;">Il manuale è libero. Questi limiti valgono solo per GOTO e tracking.</p>
+<div class="limits-section-title">Limiti Asse AR (HA)</div>
+<div class="alt-limits-row"><div><span>Minimo</span><input type="number" id="set-ha-min" step="1" value="-180" min="-270" max="0"></div><div><span>Massimo</span><input type="number" id="set-ha-max" step="1" value="180" min="0" max="270"></div></div>
+<div class="limits-section-title">Limiti Altitudine</div>
+<div class="alt-limits-row"><div><span>Minimo</span><input type="number" id="set-min-alt" step="1" value="-5" min="-30" max="90"></div><div><span>Massimo</span><input type="number" id="set-max-alt" step="1" value="90" min="-30" max="90"></div></div>
+<div class="limits-section-title">Meridian Flip</div>
+<label>Flip Automatico</label><select id="set-auto-flip"><option value="true">ON</option><option value="false">OFF</option></select>
+<label>Offset Flip (°)</label><input type="number" id="set-flip-offset" step="0.5" value="2" min="-10" max="15">
+<div class="limits-section-title">Flip Visivo</div>
+<label>Specchia X</label><select id="set-flip-x"><option value="false">OFF</option><option value="true">ON</option></select>
+<label>Specchia Y</label><select id="set-flip-y"><option value="false">OFF</option><option value="true">ON</option></select>
+<button class="btn primary" onclick="saveSettings()" style="margin-top:15px;">Salva Impostazioni</button>
+</div>
+</div>
+<div id="welcome-modal" class="modal-overlay" style="display:none;"><div class="modal-box welcome-box"><h3>🔭 Connessione Richiesta</h3><p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:4px;">Per utilizzare il telescopio e tutte le sue funzionalità, è necessario attivare <b>prima</b> uno di questi collegamenti:</p><ul><li class="wifi">📶 <b>WiFi</b> — Montatura in rete locale</li><li class="bt">📡 <b>Bluetooth</b> — Connessione diretta</li><li class="sim">🧪 <b>Simulatore</b> — Per testare l'app senza hardware</li></ul><div class="modal-actions"><button class="btn primary" onclick="closeWelcomeModal()" style="width:100%;">Ho capito</button></div></div></div>
+<div id="goto-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeGotoModal()"><div class="modal-box"><h3>GOTO Coordinate</h3><label>RA (ore 0-24)</label><input id="goto-ra" type="number" step="0.01" placeholder="0.00"><label>DEC (gradi)</label><input id="goto-dec" type="number" step="0.1" placeholder="0.0"><div class="modal-actions"><button class="btn danger" onclick="closeGotoModal()">Annulla</button><button class="btn primary" onclick="confirmGoto()">Vai</button></div></div></div>
+<div id="gps-manual-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeGPSManualModal()"><div class="modal-box"><h3>Coordinate GPS</h3>
+<div class="gps-source-row">
+<button class="btn primary" id="gps-device-btn" onclick="getGPSFromDevice()" title="Usa il GPS del dispositivo">📱 GPS Dispositivo</button>
+<button class="btn highlight" id="gps-ip-btn" onclick="getGPSFromIP()" title="Rileva posizione da IP pubblico">🌐 IP Pubblico</button>
+</div>
+<label>Città / Provincia (Italia)</label><select id="gps-city-select" onchange="onCitySelect(this.value)"><option value="">— Personalizzato —</option><optgroup label="Nord-Ovest"><optgroup label="Piemonte"><option value="45.0703,7.6869">Torino</option><option value="44.9133,8.6155">Alessandria</option><option value="44.9009,8.2065">Asti</option><option value="45.5628,8.0583">Biella</option><option value="44.3841,7.5426">Cuneo</option><option value="45.4469,8.6222">Novara</option><option value="45.9210,8.5518">Verbania</option><option value="45.3202,8.4186">Vercelli</option></optgroup><optgroup label="Valle d'Aosta"><option value="45.7372,7.3206">Aosta</option></optgroup><optgroup label="Liguria"><option value="44.4056,8.9463">Genova</option><option value="43.8896,8.0393">Imperia</option><option value="44.1024,9.8241">La Spezia</option><option value="44.3092,8.4772">Savona</option></optgroup><optgroup label="Lombardia"><option value="45.4642,9.1900">Milano</option><option value="45.6983,9.6773">Bergamo</option><option value="45.5416,10.2118">Brescia</option><option value="45.8081,9.0852">Como</option><option value="45.1332,10.0227">Cremona</option><option value="45.8566,9.3977">Lecco</option><option value="45.3140,9.5032">Lodi</option><option value="45.1564,10.7914">Mantova</option><option value="45.5845,9.2744">Monza</option><option value="45.1847,9.1582">Pavia</option><option value="46.1699,9.8788">Sondrio</option><option value="45.8206,8.8251">Varese</option></optgroup></optgroup><optgroup label="Nord-Est"><optgroup label="Trentino-Alto Adige"><option value="46.0679,11.1211">Trento</option><option value="46.4983,11.3548">Bolzano</option></optgroup><optgroup label="Veneto"><option value="45.4408,12.3155">Venezia</option><option value="46.1425,12.2167">Belluno</option><option value="45.4064,11.8768">Padova</option><option value="45.0703,11.7898">Rovigo</option><option value="45.6669,12.2430">Treviso</option><option value="45.4384,10.9916">Verona</option><option value="45.5455,11.5354">Vicenza</option></optgroup><optgroup label="Friuli-Venezia Giulia"><option value="45.6495,13.7768">Trieste</option><option value="45.9411,13.6223">Gorizia</option><option value="45.9564,12.6605">Pordenone</option><option value="46.0711,13.2346">Udine</option></optgroup><optgroup label="Emilia-Romagna"><option value="44.4949,11.3426">Bologna</option><option value="44.8381,11.6198">Ferrara</option><option value="44.2225,12.0409">Forlì</option><option value="44.6471,10.9252">Modena</option><option value="44.8015,10.3279">Parma</option><option value="45.0526,9.6929">Piacenza</option><option value="44.4184,12.2035">Ravenna</option><option value="44.6989,10.6297">Reggio Emilia</option><option value="44.0678,12.5695">Rimini</option></optgroup></optgroup><optgroup label="Centro"><optgroup label="Toscana"><option value="43.7696,11.2558">Firenze</option><option value="43.4633,11.8796">Arezzo</option><option value="42.7635,11.1124">Grosseto</option><option value="43.5485,10.3106">Livorno</option><option value="43.8430,10.5081">Lucca</option><option value="44.0357,10.1395">Massa-Carrara</option><option value="43.7228,10.4017">Pisa</option><option value="43.9334,10.9177">Pistoia</option><option value="43.8777,11.1023">Prato</option><option value="43.3188,11.3308">Siena</option></optgroup><optgroup label="Umbria"><option value="43.1107,12.3908">Perugia</option><option value="42.5636,12.6426">Terni</option></optgroup><optgroup label="Marche"><option value="43.6158,13.5189">Ancona</option><option value="42.8544,13.5750">Ascoli Piceno</option><option value="43.1609,13.7181">Fermo</option><option value="43.2984,13.4533">Macerata</option><option value="43.9102,12.9132">Pesaro-Urbino</option></optgroup><optgroup label="Lazio"><option value="41.9028,12.4964">Roma</option><option value="41.6396,13.3426">Frosinone</option><option value="41.4675,12.9037">Latina</option><option value="42.4047,12.8567">Rieti</option><option value="42.4207,12.1077">Viterbo</option></optgroup></optgroup><optgroup label="Sud"><optgroup label="Abruzzo"><option value="42.3498,13.3995">L'Aquila</option><option value="42.3512,14.1675">Chieti</option><option value="42.4617,14.2161">Pescara</option><option value="42.6589,13.7044">Teramo</option></optgroup><optgroup label="Molise"><option value="41.5603,14.6627">Campobasso</option><option value="41.5960,14.2335">Isernia</option></optgroup><optgroup label="Campania"><option value="40.8518,14.2681">Napoli</option><option value="40.9142,14.7906">Avellino</option><option value="41.1298,14.7826">Benevento</option><option value="41.0723,14.3329">Caserta</option><option value="40.6824,14.7681">Salerno</option></optgroup><optgroup label="Puglia"><option value="41.1171,16.8719">Bari</option><option value="41.3197,16.2706">Barletta-Andria-Trani</option><option value="40.6327,17.9417">Brindisi</option><option value="41.4622,15.5446">Foggia</option><option value="40.3515,18.1750">Lecce</option><option value="40.4644,17.2470">Taranto</option></optgroup><optgroup label="Basilicata"><option value="40.6395,15.8056">Potenza</option><option value="40.6664,16.6043">Matera</option></optgroup><optgroup label="Calabria"><option value="38.9098,16.5877">Catanzaro</option><option value="39.2983,16.2539">Cosenza</option><option value="39.0808,17.1271">Crotone</option><option value="38.1113,15.6473">Reggio Calabria</option><option value="38.6759,16.1004">Vibo Valentia</option></optgroup></optgroup><optgroup label="Isole"><optgroup label="Sicilia"><option value="38.1157,13.3615">Palermo</option><option value="37.3111,13.5765">Agrigento</option><option value="37.4901,14.0629">Caltanissetta</option><option value="37.5079,15.0830">Catania</option><option value="37.5670,14.2794">Enna</option><option value="38.1938,15.5540">Messina</option><option value="36.9269,14.7255">Ragusa</option><option value="37.0755,15.2866">Siracusa</option><option value="38.0176,12.5365">Trapani</option></optgroup><optgroup label="Sardegna"><option value="39.2238,9.1217">Cagliari</option><option value="40.3210,9.3300">Nuoro</option><option value="39.9062,8.5884">Oristano</option><option value="40.7259,8.5557">Sassari</option><option value="39.1672,8.5222">Sud Sardegna</option></optgroup></optgroup></select>
+<label>Latitudine (°)</label><input id="manual-lat" type="number" step="0.0001" placeholder="es. 41.9028">
+<label>Longitudine (°)</label><input id="manual-lon" type="number" step="0.0001" placeholder="es. 12.4964">
+<button class="btn icon-btn" id="popup-refresh-btn" onclick="clearGPSPopupFields()" title="Pulisci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
+<div class="modal-actions"><button class="btn danger" onclick="closeGPSManualModal()">Annulla</button><button class="btn primary" onclick="confirmManualGPS()">Salva</button></div>
+</div></div>
+<div id="wifi-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeWifiModal()"><div class="modal-box"><h3>Connessione WiFi Montatura</h3><label>Protocollo / Driver</label><select id="wifi-driver"><option value="onstep">OnStep (LX200)</option><option value="ascom_alpaca">ASCOM Alpaca</option><option value="synscan">SynScan</option><option value="indigo">INDIGO</option></select><label>Indirizzo IP / Host</label><input id="wifi-ip" type="text" placeholder="192.168.4.1" value="192.168.4.1"><label>Porta</label><input id="wifi-port" type="number" placeholder="9998" value="9998"><label>WebSocket Bridge</label><input id="wifi-bridge" type="text" placeholder="ws://localhost:8080" value="ws://localhost:8080"><div class="modal-actions"><button class="btn danger" onclick="closeWifiModal()">Annulla</button><button class="btn primary" onclick="confirmWifi()">Connetti</button></div></div></div>
+<div id="bt-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeBtModal()"><div class="modal-box"><h3>Connessione Bluetooth</h3><label>Protocollo / Driver</label><select id="bt-driver"><option value="onstep_bt">OnStep BT (LX200)</option><option value="synscan_bt">SynScan BT</option></select><label>Nome Dispositivo / MAC</label><input id="bt-device" type="text" placeholder="Es. OnStep-BT o 00:11:22:33:44:55"><label>WebSocket Bridge</label><input id="bt-bridge" type="text" placeholder="ws://localhost:8081" value="ws://localhost:8081"><div class="modal-actions"><button class="btn danger" onclick="closeBtModal()">Annulla</button><button class="btn primary" onclick="confirmBt()">Connetti</button></div></div></div>
+<div id="park-warning" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeParkWarning()"><div class="modal-box" style="border-color:#ef4444;"><h3 style="color:#ef4444;">Montatura in PARK</h3><p style="font-size:13px;color:#cbd5e1;line-height:1.4;">La montatura è attualmente parcheggiata. Per muovere il telescopio, è necessario eseguire l'operazione di <b>UNPARK</b>.</p><div class="modal-actions"><button class="btn danger" onclick="closeParkWarning()">Annulla</button><button class="btn primary" onclick="unparkMount()">UNPARK</button></div></div></div>
+<div id="reset-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeResetModal()"><div class="modal-box" style="border-color:#ef4444;"><h3 style="color:#ef4444;">Reset ai valori di default</h3><p style="font-size:13px;color:#cbd5e1;line-height:1.4;">Verranno <b>cancellati tutti i salvataggi</b> e l'app verrà ricaricata con le <b>impostazioni di default</b>.</p><div class="modal-actions"><button class="btn danger" onclick="closeResetModal()">Annulla</button><button class="btn primary" onclick="resetDefaults()">Reset &amp; Ricarica</button></div></div></div>
+
+<script>
+const TWO_PI=Math.PI*2,HALF_PI=Math.PI/2,RAD_TO_DEG=180/Math.PI,DEG_TO_RAD=Math.PI/180;
+const STEP_NOMINAL_MS=60,FOLLOW_RATE_FAST=8.0,FOLLOW_RATE_GOTO=4.0,PARK_RATE=2.5,PARK_FOLLOW=PARK_RATE*2;
+const TRACKING_RATES={sidereal:7.2921e-5,solar:7.2722e-5,lunar:7.0237e-5};
+const MOUNT_STORAGE_VERSION='58_mount_types';
+const DEFAULT_LAT=41.9028,DEFAULT_LON=12.4964,DEFAULT_HOME_DEC=HALF_PI,CONNECT_TIMEOUT_MS=5000;
+const SLEW_ACCELERATION_DIST=5.0,SLEW_RAPID_STOP_DIST=2.5,TRACK_BACKLASH_RATE=5,BACKLASH_TAKEUP_TIME=0.2,HOME_RATE=PARK_RATE*1.5;
+const DIST_OPEN_DESKTOP=8.8,DIST_CLOSED_DESKTOP=5.1,DIST_OPEN_MOBILE=8.2,DIST_CLOSED_MOBILE=4.9;
+
+const MountMath={
+normRA(ra){ra=ra%TWO_PI;if(ra<0)ra+=TWO_PI;if(ra>=TWO_PI)ra-=TWO_PI;return ra},
+clampDEC(dec){return Number.isFinite(dec)?dec:0},
+angleDiff(from,to){let d=(to-from)%TWO_PI;if(d>Math.PI)d-=TWO_PI;if(d<=-Math.PI)d+=TWO_PI;return d},
+raDiff(from,to){return this.angleDiff(from,to)},
+fmtDEC(dec){if(!Number.isFinite(dec))dec=0;let d=dec%TWO_PI;if(d>Math.PI)d-=TWO_PI;if(d<-Math.PI)d+=TWO_PI;const deg=d*RAD_TO_DEG,sign=deg>=0?'+':'-',abs=Math.abs(deg);const dd=Math.floor(abs),mm=Math.floor((abs-dd)*60);return `${sign}${String(dd).padStart(2,'0')}° ${String(mm).padStart(2,'0')}'`},
+fmtRA(ra){ra=this.normRA(ra);const hours=ra*12/Math.PI;const h=Math.floor(hours);const m=Math.floor((hours-h)*60);return `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m`},
+fmtFull(ra,dec){return `${this.fmtRA(ra)} / ${this.fmtDEC(dec)}`}
+};
+
+const Astro={
+julianDate(date){return date.getTime()/86400000+2440587.5},
+gmstDeg(jd){const T=(jd-2451545.0)/36525.0;let gmst=280.46061837+360.98564736629*(jd-2451545.0)+0.000387933*T*T-T*T*T/38710000;return((gmst%360)+360)%360},
+lstDeg(jd,lonDeg){return((this.gmstDeg(jd)+lonDeg)%360+360)%360},
+altAz(raRad,decRad,latDeg,lonDeg,date){const jd=this.julianDate(date||new Date());const lst=this.lstDeg(jd,lonDeg);const raDeg=raRad*RAD_TO_DEG;const haDeg=lst-raDeg;const H=haDeg*DEG_TO_RAD;const lat=latDeg*DEG_TO_RAD;const sinAlt=Math.sin(lat)*Math.sin(decRad)+Math.cos(lat)*Math.cos(decRad)*Math.cos(H);const alt=Math.asin(Math.max(-1,Math.min(1,sinAlt)))*RAD_TO_DEG;let az=Math.atan2(-Math.sin(H)*Math.cos(decRad),Math.sin(decRad)*Math.cos(lat)-Math.cos(decRad)*Math.sin(lat)*Math.cos(H))*RAD_TO_DEG;az=((az%360)+360)%360;return{alt,az}},
+hourAngle(raRad,lonDeg,date){const jd=this.julianDate(date||new Date());const lst=this.lstDeg(jd,lonDeg);const raDeg=raRad*RAD_TO_DEG;let ha=lst-raDeg;while(ha<-180)ha+=360;while(ha>180)ha-=360;return ha}
+};
+
+function getAstroCoords(){let d=MS.dec%TWO_PI;if(d>Math.PI)d-=TWO_PI;if(d<-Math.PI)d+=TWO_PI;let decAstro,raOffset=0;if(d>HALF_PI){decAstro=Math.PI-d;raOffset=Math.PI}else if(d<-HALF_PI){decAstro=-Math.PI-d;raOffset=Math.PI}else{decAstro=d}return{ra:MountMath.normRA(MS.ra+raOffset),dec:decAstro}}
+
+function mechCoordsForAstro(targetRA,targetDEC,currentDecMech,bypassLimits){const candidates=[{decMech:targetDEC,raMech:targetRA},{decMech:Math.PI-targetDEC,raMech:MountMath.normRA(targetRA+Math.PI)},{decMech:-Math.PI-targetDEC,raMech:MountMath.normRA(targetRA+Math.PI)}];const all=[];for(const c of candidates){all.push({decMech:c.decMech,raMech:c.raMech});all.push({decMech:c.decMech+TWO_PI,raMech:c.raMech});all.push({decMech:c.decMech-TWO_PI,raMech:c.raMech})}const valid=all.filter(o=>o.decMech>=MS.decMin-0.001&&o.decMech<=MS.decMax+0.001);const pool=valid.length>0?valid:(bypassLimits?all:null);if(!pool)return null;return pool.reduce((best,o)=>Math.abs(o.decMech-currentDecMech)<Math.abs(best.decMech-currentDecMech)?o:best)}
+
+const Transport={
+socket:null,type:null,connected:false,_timeout:null,
+isValidIp(ip){return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip)||ip==='localhost'},
+isValidPort(p){const n=parseInt(p,10);return Number.isInteger(n)&&n>0&&n<65536},
+wsConnect(url,onOpen,onError){this.disconnect();this.type='websocket';try{this.socket=new WebSocket(url)}catch(e){onError?.(e);return}this._timeout=setTimeout(()=>{if(!this.connected){this.disconnect();onError?.(new Error('Timeout'))}},CONNECT_TIMEOUT_MS);this.socket.onopen=()=>{this.connected=true;clearTimeout(this._timeout);onOpen?.()};this.socket.onerror=()=>{clearTimeout(this._timeout);this.connected=false;onError?.(new Error('WebSocket error'))};this.socket.onclose=()=>{clearTimeout(this._timeout);this.connected=false;if(MS.connected)disconnectMount(true)};this.socket.onmessage=(ev)=>{if(this._onData)this._onData(ev.data)}},
+send(cmd){if(this.socket&&this.socket.readyState===WebSocket.OPEN)this.socket.send(cmd)},
+disconnect(){if(this.socket){try{this.socket.close()}catch(e){}}this.socket=null;this.connected=false;clearTimeout(this._timeout)}
+};
+
+const Protocols={
+onstep:{
+connect(cfg,onOk,onErr){Transport._onData=(data)=>{};Transport.wsConnect(cfg.bridge,()=>{Transport.send(JSON.stringify({type:'connect',target:'tcp',host:cfg.ip,port:cfg.port}));onOk?.()},onErr)},
+sendGoto(raHours,decDeg){const raH=Math.floor(raHours),raM=Math.floor((raHours-raH)*60),raS=Math.floor(((raHours-raH)*60-raM)*60);const sign=decDeg>=0?'+':'-',absD=Math.abs(decDeg),dD=Math.floor(absD),dM=Math.floor((absD-dD)*60);Transport.send(`:Sr${String(raH).padStart(2,'0')}:${String(raM).padStart(2,'0')}:${String(raS).padStart(2,'0')}#`);Transport.send(`:Sd${sign}${String(dD).padStart(2,'0')}*${String(dM).padStart(2,'0')}#`);Transport.send(':MS#')},
+stop(){Transport.send(':Q#')},park(){Transport.send(':hP#')},unpark(){Transport.send(':hR#')},tracking(on){Transport.send(on?':T1#':':T0#')}
+},
+ascom_alpaca:{
+base:'',
+async connect(cfg,onOk,onErr){if(!Transport.isValidIp(cfg.ip)||!Transport.isValidPort(cfg.port)){onErr?.(new Error('IP/porta non validi'));return}this.base=`http://${cfg.ip}:${cfg.port}/api/v1/telescope/0`;try{const res=await fetch(`${this.base}/connected`,{signal:AbortSignal.timeout(CONNECT_TIMEOUT_MS)});if(!res.ok)throw new Error('HTTP '+res.status);onOk?.()}catch(e){onErr?.(e)}},
+async sendGoto(raHours,decDeg){try{await fetch(`${this.base}/slewtocoordinatesasync?RightAscension=${raHours}&Declination=${decDeg}`,{method:'PUT'})}catch(e){showToast('Alpaca GOTO fallito',true)}},
+async stop(){try{await fetch(`${this.base}/abortslew`,{method:'PUT'})}catch(e){}},
+async park(){try{await fetch(`${this.base}/park`,{method:'PUT'})}catch(e){}},
+async unpark(){try{await fetch(`${this.base}/unpark`,{method:'PUT'})}catch(e){}}
+},
+synscan:{
+connect(cfg,onOk,onErr){Transport._onData=(data)=>{};Transport.wsConnect(cfg.bridge,()=>{Transport.send(JSON.stringify({type:'connect',target:'udp',host:cfg.ip,port:cfg.port}));onOk?.()},onErr)},
+sendGoto(raHours,decDeg){const raVal=Math.round((raHours/24)*65536);const decVal=Math.round(((decDeg+90)/180)*65536);const raHex=raVal.toString(16).toUpperCase().padStart(4,'0');const decHex=decVal.toString(16).toUpperCase().padStart(4,'0');Transport.send(`R${raHex},${decHex}`)},
+stop(){Transport.send('T0')},park(){Transport.send('T0')},unpark(){},tracking(on){Transport.send(on?'T2':'T0')}
+},
+indigo:{
+connect(cfg,onOk,onErr){if(cfg.port===11880||cfg.port===11882)this._impl=Protocols.synscan;else this._impl=Protocols.onstep;this._impl.connect(cfg,onOk,onErr)},
+sendGoto(ra,dec){this._impl?.sendGoto(ra,dec)},stop(){this._impl?.stop()},park(){this._impl?.park()},unpark(){this._impl?.unpark()},tracking(on){this._impl?.tracking(on)}
+}
+};
+
+const MS={ra:0,dec:DEFAULT_HOME_DEC,tRA:0,tDEC:DEFAULT_HOME_DEC,homeRA:0,homeDEC:DEFAULT_HOME_DEC,parkRA:0,parkDEC:DEFAULT_HOME_DEC,connected:false,isParked:false,slewMode:'idle',tracking:'off',activeDir:null,slewStartDist:0,speedPerStep:0.02,speedLabel:'8x',lastFrameTime:0,laserActiveTime:0,invertNS:false,invertEW:false,gpsLat:null,gpsLon:null,gpsAlt:null,gpsAccuracy:null,gpsActive:false,wifiEnabled:false,btEnabled:false,simulated:false,customGotoRate:null,minAlt:-5,maxAlt:90,decMin:-180*DEG_TO_RAD,decMax:180*DEG_TO_RAD,haMin:-180,haMax:180,autoFlip:true,flipOffset:2,flipX:false,flipY:false,pierSide:'East',mountType:'gem',wifiDriver:'onstep',wifiIp:'192.168.4.1',wifiPort:9998,wifiBridge:'ws://localhost:8080',btDriver:'onstep_bt',btDevice:'',btBridge:'ws://localhost:8081',_gotoRemainingRA:0,_flipped:false,_backlashTimer:0,_lastTrackingDir:0,_flipSequence:null,_flipFinalRA:null,_flipFinalDEC:null,_parkTargetRA:0,_parkTargetDEC:DEFAULT_HOME_DEC,_trackingBeforePark:null,_lastTelemetryTime:0};
+
+let isDashboardOpen=true;
+let camTween={active:false,t:0,duration:0.5,startP:new THREE.Vector3(),endP:new THREE.Vector3(),startT:new THREE.Vector3(),endT:new THREE.Vector3()};
+
+function toggleSideMenu(){const menu=document.getElementById('side-menu');if(menu.classList.contains('open'))menu.classList.remove('open');else{document.getElementById('set-min-alt').value=MS.minAlt;document.getElementById('set-max-alt').value=MS.maxAlt;document.getElementById('set-dec-min').value=(MS.decMin*RAD_TO_DEG).toFixed(0);document.getElementById('set-dec-max').value=(MS.decMax*RAD_TO_DEG).toFixed(0);document.getElementById('set-ha-min').value=MS.haMin;document.getElementById('set-ha-max').value=MS.haMax;document.getElementById('set-auto-flip').value=MS.autoFlip.toString();document.getElementById('set-flip-offset').value=MS.flipOffset;document.getElementById('set-flip-x').value=MS.flipX.toString();document.getElementById('set-flip-y').value=MS.flipY.toString();document.getElementById('set-mount-type').value=MS.mountType;menu.classList.add('open')}}
+
+function changeMountType(type){MS.mountType=type;if(window.cwGroup){window.cwGroup.visible=(type==='gem')}if(type!=='gem'){MS.autoFlip=false;document.getElementById('set-auto-flip').value='false'}else{MS.autoFlip=true;document.getElementById('set-auto-flip').value='true'}saveFullState();const sel=document.getElementById('set-mount-type');const label=sel?sel.options[sel.selectedIndex].text:type;showToast(`Tipo montatura: ${label}`)}
+
+function saveSettings(){const minAltV=parseFloat(document.getElementById('set-min-alt').value);const maxAltV=parseFloat(document.getElementById('set-max-alt').value);MS.minAlt=Number.isFinite(minAltV)?minAltV:-5;MS.maxAlt=Number.isFinite(maxAltV)?maxAltV:90;if(MS.maxAlt<=MS.minAlt){showToast('Altitudine massima > minima',true);return}const decMinV=parseFloat(document.getElementById('set-dec-min').value);const decMaxV=parseFloat(document.getElementById('set-dec-max').value);if(!Number.isFinite(decMinV)||!Number.isFinite(decMaxV)){showToast('Limiti DEC non validi',true);return}if(decMaxV<=decMinV){showToast('DEC massimo > minimo',true);return}MS.decMin=decMinV*DEG_TO_RAD;MS.decMax=decMaxV*DEG_TO_RAD;const haMinV=parseFloat(document.getElementById('set-ha-min').value);const haMaxV=parseFloat(document.getElementById('set-ha-max').value);if(!Number.isFinite(haMinV)||!Number.isFinite(haMaxV)){showToast('Limiti HA non validi',true);return}if(haMaxV<=haMinV){showToast('HA massimo > minimo',true);return}MS.haMin=haMinV;MS.haMax=haMaxV;MS.mountType=document.getElementById('set-mount-type').value;MS.autoFlip=document.getElementById('set-auto-flip').value==='true';if(MS.mountType!=='gem')MS.autoFlip=false;const off=parseFloat(document.getElementById('set-flip-offset').value);MS.flipOffset=Number.isFinite(off)?off:2;MS.flipX=document.getElementById('set-flip-x').value==='true';MS.flipY=document.getElementById('set-flip-y').value==='true';saveFullState();applyFlipToScene();showToast(`Limiti salvati: DEC ${decMinV}°/${decMaxV}°, HA ${haMinV}°/${haMaxV}°`);toggleSideMenu()}
+
+function isAltInRange(alt){return alt>=MS.minAlt&&alt<=MS.maxAlt}
+function isHAInRange(ha){return ha>=MS.haMin&&ha<=MS.haMax}
+
+function startCamTween(px,py,pz,tx,ty,tz){camTween.startP.copy(camera.position);camTween.endP.set(px,py,pz);camTween.startT.copy(controls.target);camTween.endT.set(tx,ty,tz);camTween.t=0;camTween.active=true}
+function updateToggleBtnPosition(){const dash=document.getElementById('dashboard'),btn=document.getElementById('dashToggleBtn');if(!dash||!btn)return;if(dash.classList.contains('collapsed')){btn.style.bottom=(dash.offsetHeight+8)+'px';btn.classList.add('collapsed')}else{btn.style.bottom=Math.min(dash.offsetHeight+10,window.innerHeight-100)+'px';btn.classList.remove('collapsed')}}
+function zoomToPreset(targetY,newDist,immediate=false){const dir=new THREE.Vector3().subVectors(camera.position,controls.target);if(dir.length()<0.001)return;dir.normalize();const newTarget=new THREE.Vector3(0,targetY,0);const newPos=new THREE.Vector3().copy(newTarget).addScaledVector(dir,newDist);if(immediate){camera.position.copy(newPos);controls.target.copy(newTarget);controls.update()}else startCamTween(newPos.x,newPos.y,newPos.z,newTarget.x,newTarget.y,newTarget.z)}
+function toggleDashboard(){const dash=document.getElementById('dashboard');isDashboardOpen=!isDashboardOpen;if(isDashboardOpen){dash.classList.remove('collapsed');document.body.classList.remove('dash-collapsed')}else{dash.classList.add('collapsed');document.body.classList.add('dash-collapsed')}const isMobile=window.innerWidth<=768;if(isDashboardOpen){const ty=isMobile?-0.35:-0.4;const dist=isMobile?DIST_OPEN_MOBILE:DIST_OPEN_DESKTOP;zoomToPreset(ty,dist)}else{const ty=0.55;const dist=isMobile?DIST_CLOSED_MOBILE:DIST_CLOSED_DESKTOP;zoomToPreset(ty,dist)}setTimeout(()=>{updateToggleBtnPosition()},10)}
+function updateCameraView(openState,immediate=false){const isMobile=window.innerWidth<=768;let px,py,pz,tx,ty,tz;if(isMobile){if(openState){px=4.5;py=3.0;pz=6.0;tx=0;ty=-0.35;tz=0}else{px=2.8;py=1.8;pz=3.7;tx=0;ty=0.55;tz=0}}else{if(openState){px=5.0;py=3.3;pz=6.2;tx=0;ty=-0.4;tz=0}else{px=3.1;py=1.9;pz=3.6;tx=0;ty=0.55;tz=0}}if(immediate){camera.position.set(px,py,pz);controls.target.set(tx,ty,tz);controls.update()}else startCamTween(px,py,pz,tx,ty,tz)}
+function resetCamera(){updateCameraView(isDashboardOpen,false)}
+function setNorthView(){const isMobile=window.innerWidth<=768;let px,py,pz,tx,ty,tz;if(isDashboardOpen){if(isMobile){px=0;py=2.0;pz=7.0;tx=0;ty=-0.05;tz=0}else{px=0;py=2.2;pz=7.5;tx=0;ty=-0.1;tz=0}}else{if(isMobile){px=0;py=1.2;pz=4.5;tx=0;ty=0.55;tz=0}else{px=0;py=1.2;pz=4.2;tx=0;ty=0.55;tz=0}}startCamTween(px,py,pz,tx,ty,tz)}
+
+function showWelcomeModal(){document.getElementById('welcome-modal').style.display='flex'}
+function closeWelcomeModal(){document.getElementById('welcome-modal').style.display='none'}
+
+function migrateStorage(){try{const storedVer=localStorage.getItem('mount_storage_version');if(storedVer===MOUNT_STORAGE_VERSION)return;if(storedVer==='52_cable_smooth_top'){['home','park'].forEach(key=>{try{const raw=localStorage.getItem('mount_'+key);if(!raw)return;const obj=JSON.parse(raw);if(typeof obj.ra!=='number'||typeof obj.dec!=='number')return;const d=obj.dec;let newDec,newRa;if(d>HALF_PI){newDec=Math.PI-d;newRa=MountMath.normRA(obj.ra+Math.PI)}else if(d<-HALF_PI){newDec=-Math.PI-d;newRa=MountMath.normRA(obj.ra+Math.PI)}else{newDec=d;newRa=obj.ra}localStorage.setItem('mount_'+key,JSON.stringify({ra:newRa,dec:newDec,v:1,ts:Date.now()}))}catch(e){}})}else{const polar={ra:0,dec:DEFAULT_HOME_DEC,v:1,ts:Date.now()};localStorage.setItem('mount_home',JSON.stringify(polar));localStorage.setItem('mount_park',JSON.stringify(polar));localStorage.removeItem('mount_state')}localStorage.setItem('mount_storage_version',MOUNT_STORAGE_VERSION)}catch(e){}}
+function savePosition(key,ra,dec){if(!Number.isFinite(ra)||!Number.isFinite(dec))return false;try{localStorage.setItem('mount_'+key,JSON.stringify({ra:MountMath.normRA(ra),dec:MountMath.clampDEC(dec),v:1,ts:Date.now()}));return true}catch(e){return false}}
+function loadPosition(key){try{const raw=localStorage.getItem('mount_'+key);if(!raw)return null;const obj=JSON.parse(raw);if(typeof obj.ra!=='number'||typeof obj.dec!=='number')return null;if(!Number.isFinite(obj.ra)||!Number.isFinite(obj.dec))return null;return{ra:MountMath.normRA(obj.ra),dec:MountMath.clampDEC(obj.dec)}}catch(e){return null}}
+function saveFullState(){try{localStorage.setItem('mount_state',JSON.stringify({ra:MS.ra,dec:MS.dec,isParked:MS.isParked,tracking:MS.tracking,speedPerStep:MS.speedPerStep,speedLabel:MS.speedLabel,invertNS:MS.invertNS,invertEW:MS.invertEW,gpsLat:MS.gpsLat,gpsLon:MS.gpsLon,gpsAlt:MS.gpsAlt,gpsAccuracy:MS.gpsAccuracy,wifiEnabled:MS.wifiEnabled,btEnabled:MS.btEnabled,simulated:MS.simulated,minAlt:MS.minAlt,maxAlt:MS.maxAlt,decMin:MS.decMin,decMax:MS.decMax,haMin:MS.haMin,haMax:MS.haMax,autoFlip:MS.autoFlip,flipOffset:MS.flipOffset,flipX:MS.flipX,flipY:MS.flipY,_flipped:MS._flipped,pierSide:MS.pierSide,mountType:MS.mountType,_parkTargetRA:MS._parkTargetRA,_parkTargetDEC:MS._parkTargetDEC,wifiDriver:MS.wifiDriver,wifiIp:MS.wifiIp,wifiPort:MS.wifiPort,wifiBridge:MS.wifiBridge,btDriver:MS.btDriver,btDevice:MS.btDevice,btBridge:MS.btBridge,v:1,ts:Date.now()}))}catch(e){}}
+function restoreFullState(){try{const raw=localStorage.getItem('mount_state');if(!raw)return false;const s=JSON.parse(raw);let ok=false;if(Number.isFinite(s.ra)&&Number.isFinite(s.dec)){MS.ra=MountMath.normRA(s.ra);MS.dec=s.dec;MS.tRA=MS.ra;MS.tDEC=MS.dec;ok=true}if(typeof s.isParked==='boolean')MS.isParked=s.isParked;if(typeof s.tracking==='string')MS.tracking=s.tracking;if(Number.isFinite(s.speedPerStep)){MS.speedPerStep=s.speedPerStep;MS.speedLabel=s.speedLabel||'8x'}if(typeof s.invertNS==='boolean')MS.invertNS=s.invertNS;if(typeof s.invertEW==='boolean')MS.invertEW=s.invertEW;if(Number.isFinite(s.gpsLat))MS.gpsLat=s.gpsLat;if(Number.isFinite(s.gpsLon))MS.gpsLon=s.gpsLon;if(Number.isFinite(s.gpsAlt))MS.gpsAlt=s.gpsAlt;if(Number.isFinite(s.gpsAccuracy))MS.gpsAccuracy=s.gpsAccuracy;if(Number.isFinite(s.gpsLat)&&Number.isFinite(s.gpsLon))MS.gpsActive=true;if(typeof s.wifiEnabled==='boolean')MS.wifiEnabled=s.wifiEnabled;if(typeof s.btEnabled==='boolean')MS.btEnabled=s.btEnabled;if(typeof s.simulated==='boolean')MS.simulated=s.simulated;if(Number.isFinite(s.minAlt))MS.minAlt=s.minAlt;if(Number.isFinite(s.maxAlt))MS.maxAlt=s.maxAlt;if(Number.isFinite(s.decMin))MS.decMin=s.decMin;if(Number.isFinite(s.decMax))MS.decMax=s.decMax;if(Number.isFinite(s.haMin))MS.haMin=s.haMin;if(Number.isFinite(s.haMax))MS.haMax=s.haMax;if(typeof s.autoFlip==='boolean')MS.autoFlip=s.autoFlip;if(Number.isFinite(s.flipOffset))MS.flipOffset=s.flipOffset;if(typeof s.flipX==='boolean')MS.flipX=s.flipX;if(typeof s.flipY==='boolean')MS.flipY=s.flipY;if(typeof s._flipped==='boolean')MS._flipped=s._flipped;if(typeof s.pierSide==='string')MS.pierSide=s.pierSide;if(typeof s.mountType==='string')MS.mountType=s.mountType;if(Number.isFinite(s._parkTargetRA))MS._parkTargetRA=s._parkTargetRA;if(Number.isFinite(s._parkTargetDEC))MS._parkTargetDEC=s._parkTargetDEC;if(typeof s.wifiDriver==='string')MS.wifiDriver=s.wifiDriver;if(typeof s.wifiIp==='string')MS.wifiIp=s.wifiIp;if(Number.isFinite(s.wifiPort))MS.wifiPort=s.wifiPort;if(typeof s.wifiBridge==='string')MS.wifiBridge=s.wifiBridge;if(typeof s.btDriver==='string')MS.btDriver=s.btDriver;if(typeof s.btDevice==='string')MS.btDevice=s.btDevice;if(typeof s.btBridge==='string')MS.btBridge=s.btBridge;return ok}catch(e){return false}}
+function loadAllPositions(){const home=loadPosition('home');if(home){MS.homeRA=home.ra;MS.homeDEC=home.dec}else{MS.homeRA=0;MS.homeDEC=DEFAULT_HOME_DEC}const park=loadPosition('park');if(park){MS.parkRA=park.ra;MS.parkDEC=park.dec}else{MS.parkRA=0;MS.parkDEC=DEFAULT_HOME_DEC}if(!restoreFullState()){MS.ra=MS.tRA=MS.homeRA;MS.dec=MS.tDEC=MS.homeDEC}const tm=document.getElementById('tracking-mode');if(tm&&MS.tracking)tm.value=MS.tracking;const ss=document.getElementById('slew-speed');if(ss){const opts=Array.from(ss.options);if(opts.length){const closest=opts.reduce((a,b)=>Math.abs(parseFloat(a.value)-MS.speedPerStep)<Math.abs(parseFloat(b.value)-MS.speedPerStep)?a:b);ss.value=closest.value;MS.speedPerStep=parseFloat(closest.value);MS.speedLabel=closest.textContent}}updateSavedBadges();updateSpeedDisplay();updateTrackingBtn();updateInvertButtons();updateGPSDisplay();updateLinkButtons();updateStateButtons();applyFlipToScene();const wd=document.getElementById('wifi-driver');if(wd)wd.value=MS.wifiDriver;const wi=document.getElementById('wifi-ip');if(wi)wi.value=MS.wifiIp;const wp=document.getElementById('wifi-port');if(wp)wp.value=MS.wifiPort;const wb=document.getElementById('wifi-bridge');if(wb)wb.value=MS.wifiBridge;const bd=document.getElementById('bt-driver');if(bd)bd.value=MS.btDriver;const bdev=document.getElementById('bt-device');if(bdev)bdev.value=MS.btDevice;const bb=document.getElementById('bt-bridge');if(bb)bb.value=MS.btBridge;const mt=document.getElementById('set-mount-type');if(mt)mt.value=MS.mountType;if(window.cwGroup){window.cwGroup.visible=(MS.mountType==='gem')}}
+function openResetModal(){document.getElementById('reset-modal').style.display='flex'}
+function closeResetModal(){document.getElementById('reset-modal').style.display='none'}
+function resetDefaults(){MS.connected=false;Transport.disconnect();try{localStorage.removeItem('mount_home');localStorage.removeItem('mount_park');localStorage.removeItem('mount_state');localStorage.removeItem('mount_storage_version')}catch(e){}location.reload()}
+
+function hasActiveLink(){return MS.wifiEnabled||MS.btEnabled||MS.simulated}
+function pulseLinkButtons(){['wifiBtn','btBtn','simBtn'].forEach(id=>{const btn=document.getElementById(id);if(!btn)return;btn.classList.remove('pulse-attention');void btn.offsetWidth;btn.classList.add('pulse-attention');setTimeout(()=>btn.classList.remove('pulse-attention'),2000)})}
+function setLedsState(on){const state=on?5:0;if(ledRearCyl)ledRearCyl.material.emissiveIntensity=state;if(ledGrayBox)ledGrayBox.material.emissiveIntensity=state;if(ledBlueBox)ledBlueBox.material.emissiveIntensity=state;if(ledRearCube)ledRearCube.material.emissiveIntensity=state;if(ledMountBase)ledMountBase.material.emissiveIntensity=state;if(ledMesh){ledMesh.material.emissiveIntensity=on?2:0;ledMesh.material.color.setHex(on?0x00ff00:0x333333)}}
+function disconnectMount(silent){if(!MS.connected)return;MS.connected=false;MS.slewMode='idle';MS.activeDir=null;MS.slewStartDist=0;Transport.disconnect();hideSlewIndicator();document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));updateTrackingBtn();const dot=document.getElementById('status-dot');const btn=document.getElementById('connect-btn');if(dot)dot.classList.remove('connected');if(btn){btn.innerText='Connetti';btn.className='btn primary'}setLedsState(false);if(laserMesh)laserMesh.visible=false;MS.laserActiveTime=0;saveFullState();if(!silent)showToast('Mount disconnesso',true)}
+function toggleSimulator(){MS.simulated=!MS.simulated;updateLinkButtons();saveFullState();showToast('Simulatore: '+(MS.simulated?'ON':'OFF'));if(MS.connected&&!hasActiveLink()){disconnectMount(true);showToast('Mount disconnesso: nessun link attivo',true)}}
+function toggleWifi(){if(MS.wifiEnabled){MS.wifiEnabled=false;updateLinkButtons();saveFullState();showToast('WiFi: DISCONNESSO');if(MS.connected&&!hasActiveLink()){disconnectMount(true);showToast('Mount disconnesso: nessun link attivo',true)}}else document.getElementById('wifi-modal').style.display='flex'}
+function closeWifiModal(){document.getElementById('wifi-modal').style.display='none'}
+function confirmWifi(){const driver=document.getElementById('wifi-driver').value;const ip=document.getElementById('wifi-ip').value.trim();const port=parseInt(document.getElementById('wifi-port').value,10);const bridge=document.getElementById('wifi-bridge').value.trim();if(!Transport.isValidIp(ip)){showToast('IP non valido',true);return}if(!Transport.isValidPort(port)){showToast('Porta non valida',true);return}MS.wifiDriver=driver;MS.wifiIp=ip;MS.wifiPort=port;MS.wifiBridge=bridge;MS.wifiEnabled=true;updateLinkButtons();saveFullState();closeWifiModal();showToast(`WiFi (${driver}) configurato per ${ip}:${port}`)}
+function toggleBt(){if(MS.btEnabled){MS.btEnabled=false;updateLinkButtons();saveFullState();showToast('Bluetooth: DISCONNESSO');if(MS.connected&&!hasActiveLink()){disconnectMount(true);showToast('Mount disconnesso: nessun link attivo',true)}}else document.getElementById('bt-modal').style.display='flex'}
+function closeBtModal(){document.getElementById('bt-modal').style.display='none'}
+function confirmBt(){const driver=document.getElementById('bt-driver').value;const dev=document.getElementById('bt-device').value.trim();const bridge=document.getElementById('bt-bridge').value.trim();if(!dev){showToast('Inserisci nome/MAC dispositivo',true);return}if(!bridge.startsWith('ws://')&&!bridge.startsWith('wss://')){showToast('Bridge WebSocket non valido',true);return}MS.btDriver=driver;MS.btDevice=dev;MS.btBridge=bridge;MS.btEnabled=true;updateLinkButtons();saveFullState();closeBtModal();showToast(`Bluetooth (${driver}) configurato per ${dev}`)}
+function updateLinkButtons(){const w=document.getElementById('wifiBtn'),b=document.getElementById('btBtn'),g=document.getElementById('gps-btn'),s=document.getElementById('simBtn');if(w)w.classList.toggle('active',MS.wifiEnabled);if(b)b.classList.toggle('active',MS.btEnabled);if(g)g.classList.toggle('gps-active',MS.gpsActive);if(s)s.classList.toggle('sim-active',MS.simulated)}
+function openGPSManualModal(){const latEl=document.getElementById('manual-lat'),lonEl=document.getElementById('manual-lon'),citySel=document.getElementById('gps-city-select');if(latEl)latEl.value='';if(lonEl)lonEl.value='';if(citySel)citySel.value='';document.getElementById('gps-manual-modal').style.display='flex';setTimeout(()=>{if(citySel)citySel.focus()},100)}
+function closeGPSManualModal(){document.getElementById('gps-manual-modal').style.display='none'}
+function onCitySelect(value){const latEl=document.getElementById('manual-lat'),lonEl=document.getElementById('manual-lon');if(!value){if(latEl)latEl.value='';if(lonEl)lonEl.value='';return}const parts=value.split(','),lat=parseFloat(parts[0]),lon=parseFloat(parts[1]);if(Number.isFinite(lat)&&Number.isFinite(lon)){if(latEl)latEl.value=lat.toFixed(4);if(lonEl)lonEl.value=lon.toFixed(4)}}
+function clearGPSCoordinates(){if(!MS.gpsActive&&MS.gpsLat===null&&MS.gpsLon===null){showToast('Nessuna coordinata da cancellare');return}MS.gpsLat=null;MS.gpsLon=null;MS.gpsAlt=null;MS.gpsAccuracy=null;MS.gpsActive=false;saveFullState();updateTelemetry();updateLinkButtons();showToast('✓ Coordinate GPS cancellate')}
+function clearGPSPopupFields(){const latEl=document.getElementById('manual-lat'),lonEl=document.getElementById('manual-lon'),citySel=document.getElementById('gps-city-select');if(latEl)latEl.value='';if(lonEl)lonEl.value='';if(citySel)citySel.value='';if(latEl)latEl.blur();if(lonEl)lonEl.blur();showToast('Campi puliti')}
+function confirmManualGPS(){const lat=parseFloat(document.getElementById('manual-lat').value),lon=parseFloat(document.getElementById('manual-lon').value);if(!Number.isFinite(lat)||!Number.isFinite(lon)){showToast('Coordinate non valide',true);return}if(lat<-90||lat>90){showToast('Latitudine fuori range',true);return}if(lon<-180||lon>180){showToast('Longitudine fuori range',true);return}MS.gpsLat=lat;MS.gpsLon=lon;MS.gpsAlt=0;MS.gpsAccuracy=0;MS.gpsActive=true;saveFullState();updateTelemetry();updateLinkButtons();closeGPSManualModal();showToast(`✓ Coordinate: ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`)}
+
+function getGPSFromDevice(){
+  if(!navigator.geolocation){showToast('GPS non supportato dal dispositivo',true);return}
+  const btn=document.getElementById('gps-device-btn');
+  const oldText=btn?btn.innerHTML:'';
+  if(btn){btn.innerHTML='⏳ Rilevo...';btn.disabled=true}
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const lat=pos.coords.latitude,lon=pos.coords.longitude,alt=Number.isFinite(pos.coords.altitude)?pos.coords.altitude:0,acc=Number.isFinite(pos.coords.accuracy)?pos.coords.accuracy:0;
+      MS.gpsLat=lat;MS.gpsLon=lon;MS.gpsAlt=alt;MS.gpsAccuracy=acc;MS.gpsActive=true;
+      saveFullState();updateTelemetry();updateLinkButtons();
+      const latEl=document.getElementById('manual-lat'),lonEl=document.getElementById('manual-lon');
+      if(latEl)latEl.value=lat.toFixed(4);
+      if(lonEl)lonEl.value=lon.toFixed(4);
+      if(btn){btn.innerHTML=oldText;btn.disabled=false}
+      closeGPSManualModal();
+      showToast(`✓ GPS dispositivo: ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`)
+    },
+    (err)=>{
+      if(btn){btn.innerHTML=oldText;btn.disabled=false}
+      let msg='GPS dispositivo fallito';
+      if(err.code===1)msg='Permesso GPS negato';
+      else if(err.code===2)msg='Posizione non disponibile';
+      else if(err.code===3)msg='Timeout GPS';
+      showToast(msg,true)
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
+  )
+}
+async function getGPSFromIP(){
+  const btn=document.getElementById('gps-ip-btn');
+  const oldText=btn?btn.innerHTML:'';
+  if(btn){btn.innerHTML='⏳ Rilevo...';btn.disabled=true}
+  const restore=()=>{if(btn){btn.innerHTML=oldText;btn.disabled=false}};
+  try{
+    let lat=null,lon=null,source='';
+    try{
+      const r=await fetch('https://ipapi.co/json/',{signal:AbortSignal.timeout(6000)});
+      if(r.ok){const d=await r.json();if(Number.isFinite(d.latitude)&&Number.isFinite(d.longitude)){lat=d.latitude;lon=d.longitude;source=d.city||d.region||'IP'}}
+    }catch(e){}
+    if(lat===null){
+      try{
+        const r=await fetch('http://ip-api.com/json/?fields=status,lat,lon,city',{signal:AbortSignal.timeout(6000)});
+        if(r.ok){const d=await r.json();if(d.status==='success'&&Number.isFinite(d.lat)&&Number.isFinite(d.lon)){lat=d.lat;lon=d.lon;source=d.city||'IP'}}
+      }catch(e){}
+    }
+    if(lat===null){restore();showToast('Impossibile rilevare posizione da IP (serve connessione internet)',true);return}
+    MS.gpsLat=lat;MS.gpsLon=lon;MS.gpsAlt=0;MS.gpsAccuracy=0;MS.gpsActive=true;
+    saveFullState();updateTelemetry();updateLinkButtons();
+    const latEl=document.getElementById('manual-lat'),lonEl=document.getElementById('manual-lon');
+    if(latEl)latEl.value=lat.toFixed(4);
+    if(lonEl)lonEl.value=lon.toFixed(4);
+    restore();
+    closeGPSManualModal();
+    showToast(`✓ IP (${source}): ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`)
+  }catch(e){restore();showToast('Errore rilevamento IP',true)}
+}
+
+function updateGPSDisplay(){updateTelemetry()}
+
+function showToast(msg,isError){let toast=document.getElementById('app-toast');if(!toast){toast=document.createElement('div');toast.id='app-toast';toast.className='toast';document.body.appendChild(toast)}toast.textContent=msg;toast.classList.toggle('error',!!isError);toast.classList.add('visible');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('visible'),2600)}
+function flashButton(id){const btn=document.getElementById(id);if(!btn)return;btn.classList.remove('flash');void btn.offsetWidth;btn.classList.add('flash');clearTimeout(btn._ft);btn._ft=setTimeout(()=>btn.classList.remove('flash'),750)}
+function updateSavedBadges(){let hasHome=false,hasPark=false;try{hasHome=localStorage.getItem('mount_home')!==null;hasPark=localStorage.getItem('mount_park')!==null}catch(e){}const hb=document.getElementById('setHomeBtn'),pb=document.getElementById('setParkBtn');if(hb)hb.classList.toggle('has-value',hasHome);if(pb)pb.classList.toggle('has-value',hasPark)}
+function updateSlewIndicator(text){const el=document.getElementById('slewing-text');if(el)el.innerText='GoTo: '+text}
+function showSlewIndicator(){const el=document.getElementById('slewing-indicator');if(el)el.style.display='flex'}
+function hideSlewIndicator(){const el=document.getElementById('slewing-indicator');if(el)el.style.display='none'}
+function updateSpeedDisplay(){const el=document.getElementById('speed-display');if(el)el.innerText='Velocità: '+MS.speedLabel}
+function updateTrackingBtn(){const btn=document.getElementById('trackingOnBtn');if(!btn)return;const isOn=MS.tracking!=='off';if(isOn){btn.textContent='TRACKING OFF';btn.classList.add('highlight')}else{btn.textContent='TRACKING ON';btn.classList.remove('highlight')}}
+function updateInvertButtons(){const ns=document.getElementById('invNSBtn'),ew=document.getElementById('invEWBtn');if(ns)ns.classList.toggle('highlight',MS.invertNS);if(ew)ew.classList.toggle('highlight',MS.invertEW)}
+function updateStateButtons(){const astro=getAstroCoords();const isAtHome=Math.abs(MountMath.angleDiff(astro.ra,MS.homeRA))<0.01&&Math.abs(astro.dec-MS.homeDEC)<0.01;const parkBtn=document.getElementById('btn-park'),unparkBtn=document.getElementById('btn-unpark'),homeBtn=document.getElementById('btn-home');if(parkBtn)parkBtn.classList.toggle('parked-active',MS.isParked);if(unparkBtn)unparkBtn.classList.toggle('unpark-active',MS.isParked);if(homeBtn)homeBtn.classList.toggle('home-active',isAtHome&&!MS.isParked);const miniPark=document.getElementById('mini-park-btn'),miniUnpark=document.getElementById('mini-unpark-btn');if(miniPark)miniPark.classList.toggle('parked-active',MS.isParked);if(miniUnpark)miniUnpark.classList.toggle('unpark-active',MS.isParked)}
+function checkPark(){if(MS.isParked){document.getElementById('park-warning').style.display='flex';return true}return false}
+function closeParkWarning(){document.getElementById('park-warning').style.display='none'}
+function applyFlipToScene(){if(!skyGroup)return;skyGroup.scale.x=MS.flipX?-1:1;skyGroup.scale.y=MS.flipY?-1:1}
+
+function toggleConnection(){const btn=document.getElementById('connect-btn'),dot=document.getElementById('status-dot');if(!MS.connected){if(!hasActiveLink()){showToast('NOT CONNECTED - Seleziona WiFi, BT o Simulatore',true);pulseLinkButtons();return}btn.innerText='...';const proto=MS.wifiEnabled?Protocols[MS.wifiDriver]:(MS.btEnabled?Protocols[MS.btDriver.replace('_bt','')]:null);const cfg=MS.wifiEnabled?{ip:MS.wifiIp,port:MS.wifiPort,bridge:MS.wifiBridge}:{ip:MS.btDevice,port:0,bridge:MS.btBridge};if(MS.simulated||!proto){setTimeout(()=>finishConnect(),MS.simulated?100:400)}else{try{proto.connect(cfg,()=>finishConnect(),(err)=>{btn.innerText='Connetti';btn.className='btn primary';showToast('Connessione fallita: '+(err?.message||'errore'),true)})}catch(e){btn.innerText='Connetti';showToast('Errore connessione',true)}}}else disconnectMount(false)}
+
+function finishConnect(){const btn=document.getElementById('connect-btn'),dot=document.getElementById('status-dot');MS.connected=true;MS.tracking=document.getElementById('tracking-mode').value;dot.classList.add('connected');btn.innerText='Scollega';btn.className='btn danger';setLedsState(true);MS.laserActiveTime=performance.now();const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:DEFAULT_LON;const astro0=getAstroCoords();const ha=Astro.hourAngle(astro0.ra,lon,new Date());MS.pierSide=ha<0?'East':'West';let hasSavedHome=false;try{hasSavedHome=localStorage.getItem('mount_home')!==null}catch(e){}if(!hasSavedHome){const astroH=getAstroCoords();MS.homeRA=astroH.ra;MS.homeDEC=astroH.dec;savePosition('home',MS.homeRA,MS.homeDEC);updateSavedBadges()}updateTrackingBtn();saveFullState();if(!MS.isParked)goHome()}
+
+function changeTrackingMode(mode){if(checkPark()){document.getElementById('tracking-mode').value=MS.tracking;return}MS.tracking=mode;saveFullState();if(MS.slewMode==='tracking'){if(mode==='off')MS.slewMode='idle'}else if(MS.slewMode==='idle'&&mode!=='off'&&MS.connected){MS.slewMode='tracking'}updateTrackingBtn();const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.tracking)proto.tracking(mode!=='off')}
+function toggleTrackingOn(){if(!MS.connected){showToast('Connetti prima il mount',true);return}if(checkPark())return;if(MS.tracking==='off'){let mode=document.getElementById('tracking-mode').value;if(mode==='off'){mode='sidereal';document.getElementById('tracking-mode').value='sidereal'}MS.tracking=mode;if(MS.slewMode==='idle')MS.slewMode='tracking';showToast('Tracking ON: '+mode);const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.tracking)proto.tracking(true)}else{MS.tracking='off';document.getElementById('tracking-mode').value='off';if(MS.slewMode==='tracking')MS.slewMode='idle';showToast('Tracking OFF');const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.tracking)proto.tracking(false)}saveFullState();updateTrackingBtn()}
+function changeSlewSpeed(val){const v=parseFloat(val);if(!Number.isFinite(v))return;MS.speedPerStep=v;const labels={'0.005':'1x','0.02':'8x','0.06':'32x','0.2':'128x'};MS.speedLabel=labels[val]||(v+'');updateSpeedDisplay();saveFullState();showToast('Velocità: '+MS.speedLabel)}
+function toggleInvertNS(){MS.invertNS=!MS.invertNS;updateInvertButtons();saveFullState();showToast('Inversione N/S: '+(MS.invertNS?'ON':'OFF'))}
+function toggleInvertEW(){MS.invertEW=!MS.invertEW;updateInvertButtons();saveFullState();showToast('Inversione E/O: '+(MS.invertEW?'ON':'OFF'))}
+function setHome(){if(!MS.connected){showToast('Connetti prima il mount',true);return}const astro=getAstroCoords();MS.homeRA=astro.ra;MS.homeDEC=astro.dec;if(savePosition('home',MS.homeRA,MS.homeDEC)){showToast(`✓ HOME: ${MountMath.fmtFull(MS.homeRA,MS.homeDEC)}`);flashButton('setHomeBtn');updateSavedBadges();saveFullState();updateStateButtons()}}
+function setPark(){if(!MS.connected){showToast('Connetti prima il mount',true);return}const astro=getAstroCoords();MS.parkRA=astro.ra;MS.parkDEC=astro.dec;if(savePosition('park',MS.parkRA,MS.parkDEC)){showToast(`✓ PARK: ${MountMath.fmtFull(MS.parkRA,MS.parkDEC)}`);flashButton('setParkBtn');updateSavedBadges();saveFullState()}}
+
+function _startGoto(targetRA,targetDEC,customRate=null,skipFlip=false,bypassLimits=false){if(checkPark())return;const lat=Number.isFinite(MS.gpsLat)?MS.gpsLat:DEFAULT_LAT;const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:DEFAULT_LON;const now=new Date();const destAltAz=Astro.altAz(targetRA,targetDEC,lat,lon,now);if(!bypassLimits&&!isAltInRange(destAltAz.alt)){showToast(`GOTO bloccato: altitudine ${destAltAz.alt.toFixed(1)}° fuori range`,true);return}const destHA=Astro.hourAngle(targetRA,lon,now);if(!bypassLimits&&!isHAInRange(destHA)){showToast(`GOTO bloccato: HA ${destHA.toFixed(1)}° fuori limiti`,true);return}const mech=mechCoordsForAstro(targetRA,targetDEC,MS.dec,bypassLimits);if(!mech){showToast(`GOTO bloccato: DEC fuori limiti`,true);return}const targetPierSide=destHA<0?'East':'West';if(!skipFlip&&MS.autoFlip&&MS.mountType==='gem'&&MS.pierSide!==targetPierSide){MS._flipSequence='toPole';MS._flipFinalRA=targetRA;MS._flipFinalDEC=targetDEC;MS.slewMode='goto';MS.slewStartDist=0;MS.customGotoRate=customRate;const poleDEC=(targetDEC>=0)?HALF_PI:-HALF_PI;const mechPole=mechCoordsForAstro(targetRA,poleDEC,MS.dec,true);if(mechPole){MS.tRA=mechPole.raMech;MS.tDEC=mechPole.decMech;const raDiff=MountMath.angleDiff(MS.ra,MS.tRA);const decDiff=MS.tDEC-MS.dec;MS._gotoRemainingRA=raDiff;MS.slewStartDist=Math.sqrt(raDiff*raDiff+decDiff*decDiff)}else{MS.tRA=MS.ra;MS.tDEC=poleDEC;MS._gotoRemainingRA=0}showSlewIndicator();updateSlewIndicator('FLIP: fase 1');showToast('Meridian Flip: rotazione attraverso il polo');return}const raDiff=MountMath.angleDiff(MS.ra,mech.raMech);let decDiff=mech.decMech-MS.dec;while(decDiff>Math.PI)decDiff-=TWO_PI;while(decDiff<-Math.PI)decDiff+=TWO_PI;const dist=Math.sqrt(raDiff*raDiff+decDiff*decDiff);if(dist<0.001){MS.slewMode=(MS.tracking!=='off')?'tracking':'idle';hideSlewIndicator();return}MS.tRA=mech.raMech;MS.tDEC=mech.decMech;MS._gotoRemainingRA=raDiff;MS.slewMode='goto';MS.slewStartDist=dist;MS.customGotoRate=customRate;showSlewIndicator();updateSlewIndicator('0%');const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.sendGoto)proto.sendGoto(targetRA*12/Math.PI,targetDEC*RAD_TO_DEG)}
+
+function goHome(){if(!MS.connected)return;_startGoto(MS.homeRA,MS.homeDEC,HOME_RATE,true,true)}
+function parkMount(){if(!MS.connected){showToast('Connetti prima il mount',true);return}if(MS.isParked){showToast('Già in PARK',true);return}const mech=mechCoordsForAstro(MS.parkRA,MS.parkDEC,MS.dec,true);if(!mech){showToast('PARK non raggiungibile',true);return}const raDiff=MountMath.angleDiff(MS.ra,mech.raMech);const decDiff=mech.decMech-MS.dec;
+MS._parkTargetRA=mech.raMech;MS._parkTargetDEC=mech.decMech;MS.tRA=mech.raMech;MS.tDEC=mech.decMech;MS._gotoRemainingRA=0;MS.slewStartDist=Math.sqrt(raDiff*raDiff+decDiff*decDiff);MS.slewMode='park';showSlewIndicator();updateSlewIndicator('0%');const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.park)proto.park()}
+function unparkMount(){if(!MS.connected){showToast('Connetti prima il mount',true);return}MS.isParked=false;
+MS.tRA=MS.ra;MS.tDEC=MS.dec;MS._gotoRemainingRA=0;MS.slewStartDist=0;
+if(MS._trackingBeforePark&&MS._trackingBeforePark!=='off'){MS.tracking=MS._trackingBeforePark;document.getElementById('tracking-mode').value=MS.tracking}MS._trackingBeforePark=null;MS.slewMode=(MS.tracking!=='off')?'tracking':'idle';closeParkWarning();updateStateButtons();updateTrackingBtn();saveFullState();const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.unpark)proto.unpark();showToast('Montatura sbloccata (UNPARK)')}
+
+function meridianFlip(isAuto = false) {
+    if (!MS.connected) return;
+    if (checkPark()) return;
+    if (MS.mountType !== 'gem') {
+        if (!isAuto) showToast('Flip non necessario per questo tipo di montatura', true);
+        return;
+    }
+    if (MS._flipSequence || MS.slewMode === 'goto' || MS.slewMode === 'park') return;
+
+    const astro = getAstroCoords();
+    
+    MS._flipSequence = 'toPole';
+    MS._flipFinalRA = astro.ra;
+    MS._flipFinalDEC = astro.dec;
+    MS.slewMode = 'goto';
+    MS.slewStartDist = 0; 
+    MS.customGotoRate = PARK_RATE;
+    
+    const poleDEC = (astro.dec >= 0) ? HALF_PI : -HALF_PI;
+    const mechPole = mechCoordsForAstro(astro.ra, poleDEC, MS.dec, true);
+    
+    if (mechPole) {
+        MS.tRA = mechPole.raMech;
+        MS.tDEC = mechPole.decMech;
+        const raDiff = MountMath.angleDiff(MS.ra, MS.tRA);
+        const decDiff = MS.tDEC - MS.dec;
+        MS._gotoRemainingRA = raDiff;
+        MS.slewStartDist = Math.sqrt(raDiff * raDiff + decDiff * decDiff);
+        
+        showSlewIndicator();
+        updateSlewIndicator('FLIP: Fase 1 (Polo)');
+        if (!isAuto) showToast('Meridian Flip: rotazione attraverso il polo');
+    } else {
+        MS._flipSequence = null;
+        MS.slewMode = (MS.tracking !== 'off') ? 'tracking' : 'idle';
+    }
+    saveFullState();
+}
+
+function stopMotion(){MS.activeDir=null;MS.tRA=MS.ra;MS.tDEC=MS.dec;MS.slewMode=(MS.tracking!=='off'&&MS.connected)?'tracking':'idle';MS.slewStartDist=0;MS._flipSequence=null;MS.customGotoRate=null;MS._gotoRemainingRA=0;hideSlewIndicator();document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));const proto=Protocols[MS.wifiDriver]||Protocols[MS.btDriver?.replace('_bt','')];if(proto?.stop)proto.stop();saveFullState();updateTrackingBtn()}
+function openGotoModal(){if(!MS.connected){showToast('Connetti prima il mount',true);return}if(checkPark())return;const astro=getAstroCoords();document.getElementById('goto-ra').value=(astro.ra*12/Math.PI).toFixed(2);document.getElementById('goto-dec').value=(astro.dec*RAD_TO_DEG).toFixed(1);document.getElementById('goto-modal').style.display='flex';setTimeout(()=>document.getElementById('goto-ra').focus(),100)}
+function closeGotoModal(){document.getElementById('goto-modal').style.display='none'}
+function confirmGoto(){const raH=parseFloat(document.getElementById('goto-ra').value),decDeg=parseFloat(document.getElementById('goto-dec').value);if(!Number.isFinite(raH)||!Number.isFinite(decDeg)){showToast('Valori non validi',true);return}_startGoto(raH*Math.PI/12,decDeg*DEG_TO_RAD);closeGotoModal();showToast('GOTO avviato')}
+
+const activePointers=new Map();
+function dPadStart(dir,btn,e){if(!MS.connected){showToast('Connetti prima il mount',true);return}if(checkPark())return;MS._gotoRemainingRA=0;MS.customGotoRate=null;MS._flipSequence=null;activePointers.set(e.pointerId,{dir,btn});MS.activeDir=dir;MS.slewMode='manual';btn.classList.add('active');try{btn.setPointerCapture(e.pointerId)}catch(err){}}
+function dPadStop(btn,e){if(btn)btn.classList.remove('active');try{if(btn&&e&&e.pointerId!==undefined)btn.releasePointerCapture(e.pointerId)}catch(err){}if(e&&e.pointerId!==undefined)activePointers.delete(e.pointerId);if(activePointers.size>0){const last=Array.from(activePointers.values()).pop();MS.activeDir=last.dir;MS.slewMode='manual'}else{MS.activeDir=null;if(MS.slewMode==='manual'){MS.slewMode=(MS.tracking!=='off'&&MS.connected)?'tracking':'idle';updateTrackingBtn()}}}
+function setupInputEvents(){document.querySelectorAll('.d-btn').forEach(btn=>{const dir=btn.dataset.dir;if(!dir)return;btn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();dPadStart(dir,btn,e)});btn.addEventListener('pointerup',(e)=>dPadStop(btn,e));btn.addEventListener('pointercancel',(e)=>dPadStop(btn,e))});const globalRelease=(e)=>{if(!e||e.pointerId===undefined)return;if(!activePointers.has(e.pointerId))return;activePointers.delete(e.pointerId);document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));if(activePointers.size===0){MS.activeDir=null;if(MS.slewMode==='manual'){MS.slewMode=(MS.tracking!=='off'&&MS.connected)?'tracking':'idle';updateTrackingBtn()}}};document.addEventListener('pointerup',globalRelease);document.addEventListener('pointercancel',globalRelease);window.addEventListener('blur',()=>{activePointers.clear();document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));if(MS.activeDir){MS.activeDir=null;if(MS.slewMode==='manual'){MS.slewMode=(MS.tracking!=='off'&&MS.connected)?'tracking':'idle';updateTrackingBtn()}}})}
+
+function updateTelemetry(){const ctAr=document.getElementById('ct-ar');if(ctAr)ctAr.textContent=MountMath.fmtRA(MS.ra);const ctDec=document.getElementById('ct-dec');if(ctDec)ctDec.textContent=MountMath.fmtDEC(MS.dec);const lat=Number.isFinite(MS.gpsLat)?MS.gpsLat:DEFAULT_LAT;const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:DEFAULT_LON;const astro=getAstroCoords();const{alt,az}=Astro.altAz(astro.ra,astro.dec,lat,lon,new Date());const ctAlt=document.getElementById('ct-alt');if(ctAlt)ctAlt.textContent=`${Math.floor(alt)}°`;const ctAz=document.getElementById('ct-az');if(ctAz)ctAz.textContent=`${Math.floor(az)}°`;const ctTrack=document.getElementById('ct-track');if(ctTrack){ctTrack.textContent=MS.tracking.toUpperCase();ctTrack.classList.toggle('track-on',MS.tracking!=='off')}let mode='IDLE';if(MS.isParked)mode='PARKED';else if(MS.slewMode==='goto')mode='GOTO';else if(MS.slewMode==='manual')mode='MANUAL';else if(MS.slewMode==='tracking')mode='TRACK';else if(MS.slewMode==='park')mode='PARK';const ctSlew=document.getElementById('ct-slew');if(ctSlew)ctSlew.textContent=mode;const ctLat=document.getElementById('ct-lat');if(ctLat)ctLat.textContent=(MS.gpsActive&&Number.isFinite(MS.gpsLat))?`${MS.gpsLat.toFixed(3)}°`:'--';const ctLon=document.getElementById('ct-lon');if(ctLon)ctLon.textContent=(MS.gpsActive&&Number.isFinite(MS.gpsLon))?`${MS.gpsLon.toFixed(3)}°`:'--';const ctVel=document.getElementById('ct-vel');if(ctVel)ctVel.textContent=MS.speedLabel;let stato='OFF';if(MS.connected){if(MS.simulated)stato='SIM';else if(MS.wifiEnabled)stato='WIFI';else if(MS.btEnabled)stato='BT';else stato='ON'}const ctState=document.getElementById('ct-state');if(ctState)ctState.textContent=stato;const ctLim=document.getElementById('ct-lim');if(ctLim)ctLim.innerHTML=`<span class="lbl">ALT</span> ${MS.minAlt}°/${MS.maxAlt}° <span class="sep">|</span> <span class="lbl">DEC</span> ${(MS.decMin*RAD_TO_DEG).toFixed(0)}°/${(MS.decMax*RAD_TO_DEG).toFixed(0)}° <span class="sep">|</span> <span class="lbl">HA</span> ${MS.haMin}°/${MS.haMax}°`;updateStateButtons()}
+
+let scene,camera,renderer,controls;let mountGroup,arGroup,decGroup,ledMesh,laserMesh,meteorGroup,skyGroup,scopeGroup;let ledRearCyl,ledGrayBox,ledBlueBox,ledRearCube,ledMountBase;
+const matBlackMetal=new THREE.MeshStandardMaterial({color:0x111111,metalness:0.8,roughness:0.3});const matRedMetal=new THREE.MeshStandardMaterial({color:0xcc2222,metalness:0.7,roughness:0.4});const matSilver=new THREE.MeshStandardMaterial({color:0xaaaaaa,metalness:0.9,roughness:0.1});const matChrome=new THREE.MeshStandardMaterial({color:0xeeeeee,metalness:0.95,roughness:0.05});const matSteelChrome=new THREE.MeshStandardMaterial({color:0xd8dde3,metalness:1.0,roughness:0.08,envMapIntensity:1.0});const matDarkGray=new THREE.MeshStandardMaterial({color:0x444444,metalness:0.5,roughness:0.6});const matGreen=new THREE.MeshStandardMaterial({color:0x2a9d8f,metalness:0.6,roughness:0.4});const matCarbon=new THREE.MeshStandardMaterial({color:0x1a1a1a,metalness:0.7,roughness:0.5});const matBlueMetal=new THREE.MeshStandardMaterial({color:0x66b2ff,metalness:0.9,roughness:0.2});const matYellow=new THREE.MeshStandardMaterial({color:0xffcc00,metalness:0.5,roughness:0.5});const matCable=new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9});const matBaseTranslucent=new THREE.MeshStandardMaterial({color:0x020203,metalness:0.6,roughness:0.28,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+function createCable(points,radius){const curve=new THREE.CatmullRomCurve3(points);const tubeGeo=new THREE.TubeGeometry(curve,64,radius,8,false);return new THREE.Mesh(tubeGeo,matCable)}
+function init3D(){if(typeof THREE==='undefined'){console.error('THREE.js non caricato!');return;}const container=document.getElementById('canvas-container');scene=new THREE.Scene();scene.background=null;scene.fog=new THREE.FogExp2(0x0a1220,0.015);renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});const w=container.clientWidth||window.innerWidth,h=container.clientHeight||window.innerHeight;renderer.setSize(w,h);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.shadowMap.enabled=true;container.appendChild(renderer.domElement);camera=new THREE.PerspectiveCamera(45,w/h,0.1,1000);controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.maxPolarAngle=Math.PI/2-0.05;scene.add(new THREE.AmbientLight(0xffffff,0.4));const spotLight=new THREE.SpotLight(0xffffff,1.5);spotLight.position.set(2,5,3);spotLight.angle=Math.PI/4;spotLight.penumbra=0.5;spotLight.castShadow=true;scene.add(spotLight);const fillLight=new THREE.DirectionalLight(0x6699ff,0.6);fillLight.position.set(-3,2,-3);scene.add(fillLight);createSpace();createCompass();buildMount();createMeteors();setupInputEvents();if(arGroup)arGroup.rotation.y=MS.ra;if(decGroup)decGroup.rotation.y=Math.PI-MS.dec;setLedsState(MS.connected);updateCameraView(true,true);updateSpeedDisplay();applyFlipToScene();animate();document.getElementById('dashboard').addEventListener('transitionend',(e)=>{if(e.propertyName==='transform'||e.propertyName==='height')recalibrateLayout()})}
+function createSpace(){skyGroup=new THREE.Group();const starsGeometry=new THREE.BufferGeometry();const starsCount=3000;const positions=new Float32Array(starsCount*3);for(let i=0;i<starsCount;i++){const r=20+Math.random()*50,theta=Math.random()*Math.PI*2,phi=Math.acos((Math.random()*2)-1);positions[i*3]=Math.sin(phi)*Math.cos(theta)*r;positions[i*3+1]=Math.sin(phi)*Math.sin(theta)*r+2;positions[i*3+2]=Math.cos(phi)*r}starsGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));const starsMaterial=new THREE.PointsMaterial({color:0xffffff,size:0.12,transparent:true,opacity:0.7});skyGroup.add(new THREE.Points(starsGeometry,starsMaterial));scene.add(skyGroup)}
+function createMeteors(){meteorGroup=new THREE.Group();for(let i=0;i<15;i++){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));const material=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0});const line=new THREE.Line(geometry,material);line.userData={active:false,nextStart:performance.now()+Math.random()*15000,duration:1000+Math.random()*1500,startPos:new THREE.Vector3(),endPos:new THREE.Vector3()};meteorGroup.add(line)}scene.add(meteorGroup)}
+function updateMeteors(time){if(!meteorGroup)return;meteorGroup.children.forEach(line=>{if(!line.userData.active){if(time>line.userData.nextStart){line.userData.active=true;line.userData.startTime=time;const r=30+Math.random()*20,theta=Math.random()*Math.PI*2,phi=Math.acos((Math.random()*2)-1);const sx=Math.sin(phi)*Math.cos(theta)*r,sy=20+Math.random()*20,sz=Math.cos(phi)*r;const ex=sx+(Math.random()-0.5)*10,ey=sy-(25+Math.random()*15),ez=sz+(Math.random()-0.5)*10;line.userData.startPos.set(sx,sy,sz);line.userData.endPos.set(ex,ey,ez)}}else{const elapsed=time-line.userData.startTime;if(elapsed>line.userData.duration){line.userData.active=false;line.userData.nextStart=time+5000+Math.random()*20000;line.material.opacity=0}else{const t=elapsed/line.userData.duration,tailT=Math.max(0,t-0.2);const pos=line.geometry.attributes.position.array;const sx=line.userData.startPos.x,sy=line.userData.startPos.y,sz=line.userData.startPos.z;const ex=line.userData.endPos.x,ey=line.userData.endPos.y,ez=line.userData.endPos.z;pos[0]=sx+(ex-sx)*t;pos[1]=sy+(ey-sy)*t;pos[2]=sz+(ez-sz)*t;pos[3]=sx+(ex-sx)*tailT;pos[4]=sy+(ey-sy)*tailT;pos[5]=sz+(ez-sz)*tailT;line.geometry.attributes.position.needsUpdate=true;line.material.opacity=Math.sin(t*Math.PI)*0.9}}})}
+function createCompass(){const compassCanvas=document.createElement('canvas');compassCanvas.width=1024;compassCanvas.height=1024;const ctx=compassCanvas.getContext('2d');ctx.clearRect(0,0,1024,1024);const goldColor='#d4af37';ctx.strokeStyle=goldColor;ctx.fillStyle=goldColor;ctx.lineWidth=6;ctx.shadowColor=goldColor;ctx.shadowBlur=15;ctx.beginPath();ctx.arc(512,512,400,0,Math.PI*2);ctx.stroke();ctx.lineWidth=2;ctx.beginPath();ctx.arc(512,512,380,0,Math.PI*2);ctx.stroke();ctx.font='bold 80px Orbitron, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('N',512,112);ctx.fillText('S',512,912);ctx.fillText('E',912,512);ctx.fillText('O',112,512);ctx.font='bold 50px Orbitron, sans-serif';ctx.fillText('NE',795,229);ctx.fillText('SE',795,795);ctx.fillText('SO',229,795);ctx.fillText('NO',229,229);const compassBodyGeo=new THREE.CylinderGeometry(2.55,2.55,0.06,64);const compassBodyMat=new THREE.MeshStandardMaterial({color:0x050508,metalness:0.5,roughness:0.55,transparent:true,opacity:0.92});const compassBody=new THREE.Mesh(compassBodyGeo,compassBodyMat);compassBody.position.y=-0.905;compassBody.receiveShadow=true;scene.add(compassBody);const compassTexture=new THREE.CanvasTexture(compassCanvas);const compassGeo=new THREE.CircleGeometry(2.5,64);const compassMat=new THREE.MeshStandardMaterial({map:compassTexture,transparent:true,emissive:0xd4af37,emissiveIntensity:0.8,color:0x000000,side:THREE.DoubleSide});const compass=new THREE.Mesh(compassGeo,compassMat);compass.rotation.x=-Math.PI/2;compass.position.y=-0.874;scene.add(compass)}
+function buildMount(){mountGroup=new THREE.Group();mountGroup.position.y=-0.9;scene.add(mountGroup);const column=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,1.3,32),matBlackMetal);column.position.y=0.65;column.castShadow=true;mountGroup.add(column);const collar=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.08,32),matBlackMetal);collar.position.y=0.55;mountGroup.add(collar);const junctionBox=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.08,0.08),matBlackMetal);junctionBox.position.set(-0.11,1.0,0);mountGroup.add(junctionBox);for(let i=0;i<3;i++){const angle=(i/3)*Math.PI*2;const legGroup=new THREE.Group();legGroup.rotation.y=angle;const topBracket=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.08),matGreen);topBracket.position.set(0.14,0.55,0);legGroup.add(topBracket);const legPivot=new THREE.Group();legPivot.position.set(0.14,0.55,0);const dx=0.45-0.14,dy=0.05-0.55,legLength=Math.sqrt(dx*dx+dy*dy);legPivot.rotation.z=Math.atan2(dx,-dy);const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,legLength,16),matBlackMetal);leg.position.y=-legLength/2;leg.castShadow=true;legPivot.add(leg);legGroup.add(legPivot);const bottomBracket=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.06),matGreen);bottomBracket.position.set(0.45,0.05,0);legGroup.add(bottomBracket);const footKnob=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.03,16),matDarkGray);footKnob.position.set(0.45,0.03,0);legGroup.add(footKnob);const footThread=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.06,12),matSilver);footThread.position.set(0.45,0.0,0);legGroup.add(footThread);const footPad=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.01,16),matSilver);footPad.position.set(0.45,-0.03,0);legGroup.add(footPad);const spreader=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.015,0.03),matGreen);spreader.position.set(0.24,0.25,0);legGroup.add(spreader);mountGroup.add(legGroup)}const groundBoxGroup=new THREE.Group();groundBoxGroup.position.set(-0.45,0.1,-0.25);const boxBody=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.2,0.25),matBlackMetal);boxBody.castShadow=true;groundBoxGroup.add(boxBody);const handleBar=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.03,0.04),matYellow);handleBar.position.set(0,0.14,0);groundBoxGroup.add(handleBar);const handleSupportL=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.06,0.04),matYellow);handleSupportL.position.set(-0.07,0.11,0);groundBoxGroup.add(handleSupportL);const handleSupportR=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.06,0.04),matYellow);handleSupportR.position.set(0.07,0.11,0);groundBoxGroup.add(handleSupportR);const ledMat=new THREE.MeshStandardMaterial({color:0x333333,emissive:0x00ff00,emissiveIntensity:0});ledMesh=new THREE.Mesh(new THREE.SphereGeometry(0.015,8,8),ledMat);ledMesh.position.set(0.12,0.0,0.13);groundBoxGroup.add(ledMesh);mountGroup.add(groundBoxGroup);mountGroup.add(createCable([new THREE.Vector3(-0.12,1.00,0),new THREE.Vector3(-0.20,0.85,-0.04),new THREE.Vector3(-0.28,0.65,-0.08),new THREE.Vector3(-0.34,0.45,-0.12),new THREE.Vector3(-0.37,0.30,-0.15),new THREE.Vector3(-0.38,0.22,-0.17),new THREE.Vector3(-0.39,0.21,-0.19)],0.005));mountGroup.add(createCable([new THREE.Vector3(-0.12,1.00,0),new THREE.Vector3(-0.145,1.06,0.010),new THREE.Vector3(-0.135,1.14,0.015),new THREE.Vector3(-0.115,1.22,0.012),new THREE.Vector3(-0.095,1.30,0.006),new THREE.Vector3(-0.075,1.37,0.002),new THREE.Vector3(-0.060,1.43,0.000)],0.004));const baseStructure=new THREE.Group();baseStructure.position.y=1.3;mountGroup.add(baseStructure);const basePlate=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.09,32),matBaseTranslucent);basePlate.position.y=0.045;basePlate.castShadow=true;baseStructure.add(basePlate);const basePlateTop=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.004,8,48),new THREE.MeshStandardMaterial({color:0xd4af37,metalness:0.9,roughness:0.2,transparent:true,opacity:0.55}));basePlateTop.rotation.x=Math.PI/2;basePlateTop.position.y=0.09;baseStructure.add(basePlateTop);const centerBody=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.12,0.18),matRedMetal);centerBody.position.y=0.09+0.06;centerBody.castShadow=true;baseStructure.add(centerBody);const cheekLeft=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.18,0.16),matRedMetal);cheekLeft.position.set(-0.09,0.14+0.06,0);baseStructure.add(cheekLeft);const cheekRight=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.18,0.16),matRedMetal);cheekRight.position.set(0.09,0.14+0.06,0);baseStructure.add(cheekRight);const knobRight=new THREE.Group();const knobRBody=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.06,16),matBlackMetal);knobRBody.rotation.z=Math.PI/2;knobRight.add(knobRBody);const knobRScrew=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.07,8),matSilver);knobRScrew.rotation.z=Math.PI/2;knobRight.add(knobRScrew);knobRight.position.set(0.14,0.09+0.06,0);baseStructure.add(knobRight);const knobLeft=new THREE.Group();const knobLBody=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.06,16),matBlackMetal);knobLBody.rotation.z=Math.PI/2;knobLeft.add(knobLBody);const knobLScrew=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.07,8),matSilver);knobLScrew.rotation.z=Math.PI/2;knobLeft.add(knobLScrew);knobLeft.position.set(-0.14,0.09+0.06,0);baseStructure.add(knobLeft);const knobBack=new THREE.Group();const knobBBody=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.06,16),matBlackMetal);knobBBody.rotation.x=Math.PI/2;knobBack.add(knobBBody);const knobBScrew=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,0.07,8),matSilver);knobBScrew.rotation.x=Math.PI/2;knobBack.add(knobBScrew);knobBack.position.set(0,0.09+0.06,0.14);baseStructure.add(knobBack);const raTiltGroup=new THREE.Group();raTiltGroup.position.set(0,0.15+0.06,0);raTiltGroup.rotation.x=-Math.PI/4;baseStructure.add(raTiltGroup);const raShaft=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.065,0.12,32),matBlackMetal);raShaft.position.y=0.06;raTiltGroup.add(raShaft);arGroup=new THREE.Group();arGroup.position.y=0.22;raTiltGroup.add(arGroup);const cube=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2),matRedMetal);cube.castShadow=true;arGroup.add(cube);window.cwGroup=new THREE.Group();window.cwGroup.position.set(-0.1,0,0);arGroup.add(window.cwGroup);const cwBar=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.42,16),matSteelChrome);cwBar.rotation.z=Math.PI/2;cwBar.position.set(-0.21,0,0);cwBar.castShadow=true;window.cwGroup.add(cwBar);const cwWeight1=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.06,32),matSteelChrome);cwWeight1.rotation.z=Math.PI/2;cwWeight1.position.set(-0.30,0,0);cwWeight1.castShadow=true;window.cwGroup.add(cwWeight1);const cwWeight2=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.06,32),matSteelChrome);cwWeight2.rotation.z=Math.PI/2;cwWeight2.position.set(-0.39,0,0);cwWeight2.castShadow=true;window.cwGroup.add(cwWeight2);const cwSafety=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.04,16),matBlackMetal);cwSafety.rotation.z=Math.PI/2;cwSafety.position.set(-0.44,0,0);window.cwGroup.add(cwSafety);const decPivot=new THREE.Group();decPivot.position.set(0.1,0,0);decPivot.rotation.z=-Math.PI/2;arGroup.add(decPivot);decGroup=new THREE.Group();decPivot.add(decGroup);const decBase=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.04,32),matBlackMetal);decBase.position.y=0.02;decGroup.add(decBase);const topPlate=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.03,0.25),matRedMetal);topPlate.position.y=0.04+0.015;decGroup.add(topPlate);scopeGroup=new THREE.Group();scopeGroup.position.set(0,0.075,0);scopeGroup.scale.set(1.3,1.3,1.3);scopeGroup.rotation.y=Math.PI;decGroup.add(scopeGroup);const dovetail=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.03,0.62),matSilver);dovetail.position.set(0,0.015,0.095);scopeGroup.add(dovetail);const blockGeo=new THREE.BoxGeometry(0.08,0.05,0.05);const blockFront=new THREE.Mesh(blockGeo,matBlackMetal);blockFront.position.set(0,0.05,0.15);scopeGroup.add(blockFront);const blockBack=new THREE.Mesh(blockGeo,matBlackMetal);blockBack.position.set(0,0.05,-0.15);scopeGroup.add(blockBack);const solidTube=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.4,32),matCarbon);solidTube.rotation.x=Math.PI/2;solidTube.position.set(0,0.22,0.0);solidTube.castShadow=true;scopeGroup.add(solidTube);const primaryCage=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.08,8),matCarbon);primaryCage.rotation.x=Math.PI/2;primaryCage.position.set(0,0.22,-0.24);scopeGroup.add(primaryCage);const newRearCyl=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.10,32),matRedMetal);newRearCyl.rotation.x=Math.PI/2;newRearCyl.position.set(0,0.22,-0.35);scopeGroup.add(newRearCyl);const mirror=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.01,32),matDarkGray);mirror.rotation.x=Math.PI/2;mirror.position.set(0,0.22,-0.27);scopeGroup.add(mirror);const frontRing=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.015,16,32),matCarbon);frontRing.position.set(0,0.22,0.45);scopeGroup.add(frontRing);const vaneGeo=new THREE.BoxGeometry(0.28,0.006,0.012);const vane1=new THREE.Mesh(vaneGeo,matSilver);vane1.position.set(0,0.22,0.45);scopeGroup.add(vane1);const vane2=new THREE.Mesh(vaneGeo,matSilver);vane2.position.set(0,0.22,0.45);vane2.rotation.z=Math.PI/2;scopeGroup.add(vane2);const centerHub=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.04,16),matBlackMetal);centerHub.rotation.x=Math.PI/2;centerHub.position.set(0,0.22,0.45);scopeGroup.add(centerHub);const trussGeo=new THREE.CylinderGeometry(0.008,0.008,0.25,8);for(let i=0;i<8;i++){const angle=(i/8)*Math.PI*2,radius=0.135;const truss=new THREE.Mesh(trussGeo,matCarbon);truss.rotation.x=Math.PI/2;truss.position.set(Math.cos(angle)*radius,0.22+Math.sin(angle)*radius,0.31);scopeGroup.add(truss)}const focuserBase=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.08,16),matBlackMetal);focuserBase.rotation.z=Math.PI/2;focuserBase.position.set(-0.15,0.22,0.1);scopeGroup.add(focuserBase);const eyepiece=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.04,16),matSilver);eyepiece.rotation.z=Math.PI/2;eyepiece.position.set(-0.2,0.22,0.1);scopeGroup.add(eyepiece);const grayBox=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.03,0.15),matDarkGray);grayBox.position.set(0,-0.015,0.25);scopeGroup.add(grayBox);const blueBox=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.10,0.15),matBlueMetal);blueBox.position.set(-0.13,0.07,0.05);scopeGroup.add(blueBox);const rearCube=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,0.06),matBlueMetal);rearCube.position.set(0.10,0.22,-0.35);scopeGroup.add(rearCube);function makeLED(parent,x,y,z,rx,ry,rz){const grp=new THREE.Group();const base=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.006,12),matBlackMetal);base.rotation.x=Math.PI/2;grp.add(base);const light=new THREE.Mesh(new THREE.SphereGeometry(0.008,12,12),new THREE.MeshStandardMaterial({color:0x555555,emissive:0xff0000,emissiveIntensity:0}));light.position.z=0.003;grp.add(light);grp.position.set(x,y,z);grp.rotation.set(rx,ry,rz);parent.add(grp);return light}ledRearCyl=makeLED(scopeGroup,0,0.22,-0.401,0,0,0);ledGrayBox=makeLED(scopeGroup,-0.05,-0.015,0.25,0,-Math.PI/2,0);ledBlueBox=makeLED(scopeGroup,-0.156,0.07,0.05,0,-Math.PI/2,0);ledRearCube=makeLED(scopeGroup,0.10,0.22,-0.381,0,0,0);ledMountBase=makeLED(baseStructure,-0.05,0.10,0.091,0,0,0);const finderGroup=new THREE.Group();finderGroup.position.set(0.20,0.32,0.1);scopeGroup.add(finderGroup);const finderTube=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.3,16),matBlackMetal);finderTube.rotation.x=Math.PI/2;finderGroup.add(finderTube);const finderHood=new THREE.Mesh(new THREE.CylinderGeometry(0.042,0.042,0.08,16),matBlackMetal);finderHood.rotation.x=Math.PI/2;finderHood.position.z=0.19;finderGroup.add(finderHood);const finderEyepiece=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.06,16),matSilver);finderEyepiece.rotation.x=Math.PI/2;finderEyepiece.position.z=-0.18;finderGroup.add(finderEyepiece);const finderRedCyl=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.04,32),matRedMetal);finderRedCyl.rotation.x=Math.PI/2;finderRedCyl.position.z=-0.23;finderGroup.add(finderRedCyl);const finderBar=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.08,0.05),matDarkGray);finderBar.position.set(0.18,0.27,0.1);scopeGroup.add(finderBar);scopeGroup.add(createCable([new THREE.Vector3(0.20,0.32,-0.13),new THREE.Vector3(0.15,0.02,-0.15),new THREE.Vector3(-0.05,-0.02,0.00),new THREE.Vector3(-0.13,0.07,0.05)],0.004));scopeGroup.add(createCable([new THREE.Vector3(0.02,0.22,-0.35),new THREE.Vector3(0.15,0.00,-0.20),new THREE.Vector3(0.10,-0.02,0.05),new THREE.Vector3(-0.13,0.07,0.05)],0.004));scopeGroup.add(createCable([new THREE.Vector3(-0.02,0.22,-0.35),new THREE.Vector3(0.20,-0.02,-0.25),new THREE.Vector3(0.12,-0.04,0.10),new THREE.Vector3(-0.13,0.07,0.05)],0.004));scopeGroup.add(createCable([new THREE.Vector3(0.10,0.22,-0.35),new THREE.Vector3(0.10,-0.02,-0.30),new THREE.Vector3(-0.10,-0.02,-0.10),new THREE.Vector3(-0.13,0.07,0.05)],0.004));scopeGroup.add(createCable([new THREE.Vector3(-0.13,0.07,0.05),new THREE.Vector3(-0.10,-0.01,0.15),new THREE.Vector3(-0.03,-0.015,0.25)],0.003));scopeGroup.add(createCable([new THREE.Vector3(-0.13,0.07,0.05),new THREE.Vector3(-0.16,-0.03,0.12),new THREE.Vector3(0.03,-0.015,0.22)],0.003));const laserGeo=new THREE.CylinderGeometry(0.015,0.015,15,8);const laserMat=new THREE.MeshBasicMaterial({color:0x00ff00,transparent:true,opacity:0.8});laserMesh=new THREE.Mesh(laserGeo,laserMat);laserMesh.rotation.x=Math.PI/2;laserMesh.position.set(0,0.22,7.5);laserMesh.visible=false;scopeGroup.add(laserMesh)}
+
+let _lastSlewMode=null;
+function animate(time){requestAnimationFrame(animate);if(!MS.lastFrameTime)MS.lastFrameTime=time;let dt=(time-MS.lastFrameTime)/1000;MS.lastFrameTime=time;if(!Number.isFinite(dt)||dt<0)dt=0;if(dt>0.1)dt=0.1;if(MS.connected)updateMount(dt);if(arGroup)arGroup.rotation.y=MS.ra;if(decGroup)decGroup.rotation.y=Math.PI-MS.dec;if(MS.connected&&MS.laserActiveTime>0&&laserMesh){if(time-MS.laserActiveTime<2000){laserMesh.visible=true;laserMesh.material.opacity=0.5+Math.random()*0.5;laserMesh.scale.z=1+Math.sin(time*0.02)*0.1}else{laserMesh.visible=false;MS.laserActiveTime=0}}if(MS.slewMode!==_lastSlewMode){_lastSlewMode=MS.slewMode;updateTrackingBtn()}if(skyGroup){const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:DEFAULT_LON;const jd=Astro.julianDate(new Date());const lstDeg=Astro.lstDeg(jd,lon);skyGroup.rotation.y=lstDeg*DEG_TO_RAD}if(camTween.active){camTween.t+=dt/camTween.duration;let progress=Math.min(camTween.t,1);let ease=progress<0.5?2*progress*progress:1-Math.pow(-2*progress+2,2)/2;camera.position.lerpVectors(camTween.startP,camTween.endP,ease);controls.target.lerpVectors(camTween.startT,camTween.endT,ease);if(progress>=1)camTween.active=false}updateMeteors(time);if(time-MS._lastTelemetryTime>100){MS._lastTelemetryTime=time;updateTelemetry()}controls.update();renderer.render(scene,camera)}
+
+function updateMount(dt){const lat=Number.isFinite(MS.gpsLat)?MS.gpsLat:DEFAULT_LAT;const lon=Number.isFinite(MS.gpsLon)?MS.gpsLon:DEFAULT_LON;const now=new Date();if(MS.slewMode==='manual'){if(MS.activeDir){const rate=MS.speedPerStep/(STEP_NOMINAL_MS/1000),step=rate*dt;const dir=MS.activeDir;let raStep=0,decStep=0;if(dir.includes('e'))raStep+=step;if(dir.includes('w'))raStep-=step;if(dir.includes('n'))decStep+=step;if(dir.includes('s'))decStep-=step;if(MS.invertEW)raStep=-raStep;if(MS.invertNS)decStep=-decStep;if(decStep!==0)MS.dec=MS.dec+decStep;if(raStep!==0)MS.ra=MountMath.normRA(MS.ra+raStep);MS.tRA=MS.ra;MS.tDEC=MS.dec}return}if(MS.slewMode==='tracking'){const rate=TRACKING_RATES[MS.tracking]||0;if(rate>0){let effectiveRate=rate;if(MS._backlashTimer>0){effectiveRate=rate*TRACK_BACKLASH_RATE;MS._backlashTimer-=dt}else if(MS._lastTrackingDir!==0&&Math.sign(rate)!==MS._lastTrackingDir){MS._backlashTimer=BACKLASH_TAKEUP_TIME}MS._lastTrackingDir=Math.sign(rate)||0;const newRA=MountMath.normRA(MS.ra+effectiveRate*dt);const astroNew=getAstroCoords();const newHA=Astro.hourAngle(MountMath.normRA(astroNew.ra+effectiveRate*dt),lon,now);if(!isHAInRange(newHA)){MS.tracking='off';document.getElementById('tracking-mode').value='off';MS.slewMode='idle';updateTrackingBtn();showToast(`Tracking fermato: HA ${newHA.toFixed(1)}° fuori limiti`,true);return}MS.tRA=newRA;MS.ra=newRA;
+if(MS.autoFlip&&MS.mountType==='gem'){const astroNow=getAstroCoords();const ha=Astro.hourAngle(astroNow.ra,lon,now);const currentPierSide=ha<0?'East':'West';MS.pierSide=currentPierSide;if(currentPierSide==='East'&&ha>MS.flipOffset&&MS.slewMode==='tracking'){if(!MS._flipSequence)meridianFlip(true)}}}}else if(MS.slewMode==='park'){const rd=MountMath.angleDiff(MS.ra,MS._parkTargetRA);const dd=MS._parkTargetDEC-MS.dec;const dist=Math.sqrt(rd*rd+dd*dd);let sf=1.0;if(dist<SLEW_RAPID_STOP_DIST)sf=Math.max(0.1,dist/SLEW_RAPID_STOP_DIST);const maxStep=PARK_RATE*dt*sf;if(dist<0.001){MS.ra=MS._parkTargetRA;MS.dec=MS._parkTargetDEC;
+MS.tRA=MS._parkTargetRA;MS.tDEC=MS._parkTargetDEC;MS._gotoRemainingRA=0;MS.isParked=true;MS.slewMode='idle';if(MS.tracking!=='off'){MS._trackingBeforePark=MS.tracking;MS.tracking='off';document.getElementById('tracking-mode').value='off';updateTrackingBtn()}hideSlewIndicator();showToast('Montatura Parcheggiata');saveFullState();updateStateButtons();return}if(Math.abs(rd)>maxStep)MS.ra=MountMath.normRA(MS.ra+Math.sign(rd)*maxStep);else MS.ra=MS._parkTargetRA;if(Math.abs(dd)>maxStep)MS.dec+=Math.sign(dd)*maxStep;else MS.dec=MS._parkTargetDEC;if(MS.slewStartDist>0.001){const curDist=Math.sqrt(Math.pow(MountMath.angleDiff(MS.ra,MS._parkTargetRA),2)+Math.pow(MS._parkTargetDEC-MS.dec,2));const pct=Math.max(0,Math.min(100,Math.round((1-curDist/MS.slewStartDist)*100)));updateSlewIndicator(`${pct}%`)}return}
+if(MS.slewMode==='idle'&&MS.isParked){return}
+if(MS.slewMode==='goto'||MS.slewMode==='idle'){let maxRate=(MS.slewMode==='goto')?(MS.customGotoRate||FOLLOW_RATE_GOTO):FOLLOW_RATE_FAST;let rd,dd;if(MS.slewMode==='goto'){rd=Math.abs(MS._gotoRemainingRA||0);dd=Math.abs(MS.tDEC-MS.dec)}else{rd=Math.abs(MountMath.raDiff(MS.ra,MS.tRA));dd=Math.abs(MS.tDEC-MS.dec)}const distRemaining=Math.sqrt(rd*rd+dd*dd);let speedFactor=1.0;if(distRemaining<SLEW_RAPID_STOP_DIST)speedFactor=Math.max(0.1,distRemaining/SLEW_RAPID_STOP_DIST);else if(MS.slewStartDist>0.001){const traveled=MS.slewStartDist-distRemaining;if(traveled<SLEW_ACCELERATION_DIST)speedFactor=Math.max(0.1,traveled/SLEW_ACCELERATION_DIST)}const maxStep=maxRate*dt*speedFactor;if(MS.slewMode==='goto'&&MS._gotoRemainingRA){if(Math.abs(MS._gotoRemainingRA)<=maxStep){MS.ra=MountMath.normRA(MS.ra+MS._gotoRemainingRA);MS._gotoRemainingRA=0}else{const s=Math.sign(MS._gotoRemainingRA)*maxStep;MS.ra=MountMath.normRA(MS.ra+s);MS._gotoRemainingRA-=s}}else{const raDiff=MountMath.raDiff(MS.ra,MS.tRA);if(Math.abs(raDiff)<=maxStep)MS.ra=MS.tRA;else MS.ra=MountMath.normRA(MS.ra+Math.sign(raDiff)*maxStep)}let ddStep=MS.tDEC-MS.dec;while(ddStep>Math.PI)ddStep-=TWO_PI;while(ddStep<-Math.PI)ddStep+=TWO_PI;if(Math.abs(ddStep)<=maxStep)MS.dec=MS.tDEC;else MS.dec=MS.dec+Math.sign(ddStep)*maxStep}if(MS.slewMode==='goto'){const rds=Math.abs(MS._gotoRemainingRA||0),dds=Math.abs(MS.tDEC-MS.dec);if(rds<0.001&&dds<0.001){if(MS._flipSequence==='toPole'){MS._flipSequence=null;MS.pierSide=(MS.pierSide==='East')?'West':'East';const finalRA=MS._flipFinalRA,finalDEC=MS._flipFinalDEC;MS._flipFinalRA=null;MS._flipFinalDEC=null;const mech=mechCoordsForAstro(finalRA,finalDEC,MS.dec,true);if(!mech){MS.slewMode=(MS.tracking!=='off')?'tracking':'idle';MS.customGotoRate=null;hideSlewIndicator();showToast('Flip: impossibile raggiungere target',true);return}const raDiff=MountMath.angleDiff(MS.ra,mech.raMech);const dist=Math.sqrt(raDiff*raDiff+(mech.decMech-MS.dec)*(mech.decMech-MS.dec));MS.tRA=mech.raMech;MS.tDEC=mech.decMech;MS._gotoRemainingRA=raDiff;MS.slewMode='goto';MS.slewStartDist=Math.max(dist,0.001);MS.customGotoRate=PARK_RATE;showSlewIndicator();updateSlewIndicator('FLIP: Fase 2 (Target)');return}MS.slewMode=(MS.tracking!=='off')?'tracking':'idle';MS.customGotoRate=null;updateSlewIndicator('Ready');saveFullState();setTimeout(()=>{if(MS.slewMode!=='goto')hideSlewIndicator()},1200)}else if(MS.slewStartDist>0.001){const curDist=Math.sqrt(rds*rds+dds*dds);const pct=Math.max(0,Math.min(100,Math.round((1-curDist/MS.slewStartDist)*100)));updateSlewIndicator(`${pct}%`)}}}
+
+function recalibrateLayout(){const container=document.getElementById('canvas-container');if(!container||!renderer||!camera)return;const cw=container.clientWidth||window.innerWidth,ch=container.clientHeight||window.innerHeight;camera.aspect=cw/ch;camera.updateProjectionMatrix();renderer.setSize(cw,ch);updateToggleBtnPosition()}
+
+window.addEventListener('resize',recalibrateLayout);
+window.addEventListener('orientationchange',()=>{setTimeout(recalibrateLayout,250);setTimeout(recalibrateLayout,600)});
+setInterval(()=>{if(MS.connected)saveFullState()},5000);
+window.addEventListener('beforeunload',saveFullState);
+window.addEventListener('pagehide',saveFullState);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveFullState()});
+
+window.addEventListener('load',()=>{
+  migrateStorage();
+  loadAllPositions();
+  init3D();
+  recalibrateLayout();
+  setTimeout(recalibrateLayout,150);
+  setTimeout(recalibrateLayout,500);
+  updateTrackingBtn();
+  updateInvertButtons();
+  updateGPSDisplay();
+  updateLinkButtons();
+  updateToggleBtnPosition();
+  showWelcomeModal();
+  
+  // Posiziona la telemetria esattamente sotto l'info-panel al caricamento
+  requestAnimationFrame(() => {
+    const ip = document.getElementById('info-panel');
+    const tel = document.querySelector('.top-telemetry-overlay');
+    if(ip && tel) { 
+      tel.style.top = (ip.getBoundingClientRect().bottom + 2) + 'px'; 
+      tel.style.left = '14px'; 
+    }
+  });
+});
+</script>
+
+<!-- SCRIPT SATELLITE (Comunicazione Master) -->
+<script>
+(function () {
+  'use strict';
+  if (typeof SyncBus === 'undefined') return;
+  let isLeader = false;
+  let isReadonly = false;
+
+  function elect() {
+    const acquired = SyncBus.requestLeader();
+    isLeader = acquired;
+    if (!acquired) {
+      isReadonly = true; window.__READONLY__ = true;
+      ['toggleConnection','disconnectMount','stopMotion','_startGoto','parkMount','unparkMount','goHome','toggleTrackingOn','changeSlewSpeed','meridianFlip','setHome','setPark'].forEach(function (fn) {
+        if (typeof window[fn] === 'function') { window[fn] = function () { if(typeof showToast==='function')showToast('Sola lettura',true); }; }
+      });
+    } else {
+      window.__READONLY__ = false; SyncBus.send('satellite_ready', {});
+    }
+  }
+
+  SyncBus.on('cmd_goto', function (d) {
+    if (isReadonly || !d || !Number.isFinite(d.ra) || !Number.isFinite(d.dec)) return;
+    if (typeof MS !== 'undefined' && !MS.connected && typeof toggleConnection === 'function') {
+      toggleConnection(); setTimeout(function () { if (typeof _startGoto === 'function') _startGoto(d.ra * Math.PI/180, d.dec * Math.PI/180); }, 600);
+    } else if (typeof _startGoto === 'function') { _startGoto(d.ra * Math.PI/180, d.dec * Math.PI/180); }
+  });
+
+  SyncBus.on('cmd_stop', function () { if (!isReadonly && typeof stopMotion === 'function') stopMotion(); });
+  SyncBus.on('cmd_park', function () { if (!isReadonly && typeof parkMount === 'function') parkMount(); });
+  SyncBus.on('cmd_unpark', function () { if (!isReadonly && typeof unparkMount === 'function') unparkMount(); });
+  SyncBus.on('cmd_home', function () { if (!isReadonly && typeof goHome === 'function') goHome(); });
+  SyncBus.on('cmd_tracking', function (d) { if (!isReadonly && d && d.on !== (typeof MS !== 'undefined' && MS.tracking !== 'off') && typeof toggleTrackingOn === 'function') toggleTrackingOn(); });
+
+  SyncBus.on('master_state', function (d) {
+    if (d && Number.isFinite(d.gpsLat) && Number.isFinite(d.gpsLon) && typeof MS !== 'undefined') {
+      MS.gpsLat = d.gpsLat; MS.gpsLon = d.gpsLon; MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+    }
+  });
+
+  function publish() {
+    if (isReadonly || typeof MS === 'undefined' || !SyncBus.isPeerAlive()) return;
+    try { SyncBus.send('mount_state', { __isState: true, connected: MS.connected, tracking: MS.tracking, isParked: MS.isParked, ra: MS.ra, dec: MS.dec, slewMode: MS.slewMode, rate: MS.speedPerStep }); } catch (e) {}
+  }
+
+  function boot() { elect(); setInterval(publish, 250); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(boot, 300); else window.addEventListener('load', () => setTimeout(boot, 300));
+})();
+</script>
+
+<script>
+(function() {
+  function u() {
+    var b=document.getElementById('syncBadge'),d=document.getElementById('syncDot'),t=document.getElementById('syncText');
+    if(!b||!d||!t||typeof SyncBus==='undefined')return;
+    if(window.__READONLY__){b.style.borderColor='#fbbf24';d.style.color='#fbbf24';t.textContent='READONLY';return;}
+    if(SyncBus.isLeader&&SyncBus.isLeader()){
+      if(SyncBus.isPeerAlive()){b.style.borderColor='#4ade80';d.style.color='#4ade80';t.textContent='LEADER ✓ MASTER';}
+      else{b.style.borderColor='#8bd3ff';d.style.color='#8bd3ff';t.textContent='LEADER';}
+      return;
+    }
+    b.style.borderColor='#6b778c';d.style.color='#6b778c';t.textContent='SLAVE';
+  }
+  setInterval(u,1000);u();
+})();
+</script>
+
+<script id="__egCore">
+/* ============================================================
+   EG-CORE v1 — Modulo condiviso Pianeta/Satellite
+   Incollare IDENTICO in entrambi gli index.html, subito dopo SyncBus
+   ============================================================ */
+(function(g){
+'use strict';
+if (g.EGCore) return;
+
+/* ---------- 1. COSTANTI UNIFICATE ---------- */
+const TWO_PI = Math.PI * 2;
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+// Velocità movimento manuale (gradi/secondo) — 4 livelli
+const MOUNT_SPEEDS = {
+  slow:    { label: 'Lento',   degPerSec: 0.5  },
+  default: { label: 'Default', degPerSec: 2.0  },
+  fast:    { label: 'Veloce',  degPerSec: 5.0  },
+  max:     { label: 'Max',     degPerSec: 10.0 }
+};
+
+// Rate di inseguimento (arcsec/secondo)
+const TRACKING_RATES = {
+  sidereal: 15.041,   // stelle
+  solar:    15.000,   // sole
+  lunar:    14.685    // luna
+};
+
+// Fattori personalizzati (× rate siderale)
+const CUSTOM_RATE_FACTORS = [0.50, 0.75, 1.00];
+
+/* ---------- 2. MATEMATICA ASTRONOMICA (riferimento = Pianeta) ---------- */
+const Astro = {
+  julianDate(d){ return d.getTime()/86400000 + 2440587.5; },
+  gmstDeg(jd){
+    const T = (jd - 2451545.0)/36525.0;
+    let gmst = 280.46061837 + 360.98564736629*(jd-2451545.0)
+             + 0.000387933*T*T - T*T*T/38710000;
+    return ((gmst % 360) + 360) % 360;
+  },
+  lstDeg(jd, lonDeg){ return ((this.gmstDeg(jd) + lonDeg) % 360 + 360) % 360; },
+  altAz(raDeg, decDeg, latDeg, lonDeg, date){
+    const jd = this.julianDate(date || new Date());
+    const lst = this.lstDeg(jd, lonDeg);
+    const haDeg = lst - raDeg;
+    const H = haDeg * DEG_TO_RAD;
+    const lat = latDeg * DEG_TO_RAD;
+    const dec = decDeg * DEG_TO_RAD;
+    const sinAlt = Math.sin(lat)*Math.sin(dec) + Math.cos(lat)*Math.cos(dec)*Math.cos(H);
+    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt))) * RAD_TO_DEG;
+    let az = Math.atan2(
+      -Math.sin(H)*Math.cos(dec),
+      Math.sin(dec)*Math.cos(lat) - Math.cos(dec)*Math.sin(lat)*Math.cos(H)
+    ) * RAD_TO_DEG;
+    az = ((az % 360) + 360) % 360;
+    return { alt, az };
+  },
+  hourAngle(raDeg, lonDeg, date){
+    const jd = this.julianDate(date || new Date());
+    const lst = this.lstDeg(jd, lonDeg);
+    let ha = lst - raDeg;
+    while (ha < -180) ha += 360;
+    while (ha > 180)  ha -= 360;
+    return ha;
+  }
+};
+
+/* ---------- 3. STATO LIMITI (default sicuri) ---------- */
+const DefaultLimits = {
+  minAlt: -5,      // gradi
+  maxAlt: 90,      // gradi
+  haMin: -180,     // gradi (HA)
+  haMax:  180,     // gradi (HA)
+  autoFlip: true,  // meridian flip automatico (solo GEM)
+  flipOffset: 2    // gradi oltre il meridiano per iniziare il flip
+};
+
+/* ---------- 4. VERIFICA LIMITI ---------- */
+function isTargetSafe(raDeg, decDeg, limits, latDeg, lonDeg){
+  const L = limits || DefaultLimits;
+  const now = new Date();
+  const { alt } = Astro.altAz(raDeg, decDeg, latDeg, lonDeg, now);
+  const ha = Astro.hourAngle(raDeg, lonDeg, now);
+  if (alt < L.minAlt || alt > L.maxAlt) return { ok:false, reason:`ALT ${alt.toFixed(1)}° fuori [${L.minAlt},${L.maxAlt}]` };
+  if (ha < L.haMin || ha > L.haMax)     return { ok:false, reason:`HA ${ha.toFixed(1)}° fuori [${L.haMin},${L.haMax}]` };
+  return { ok:true, alt, ha };
+}
+
+/* ---------- 5. SINC BUS ESTESO (comandi + stato) ---------- */
+function pushCommand(cmd, payload){
+  if (!g.SyncBus) return;
+  try { g.SyncBus.send('eg:' + cmd, payload || {}); } catch(e){}
+}
+function onCommand(cmd, handler){
+  if (!g.SyncBus) return function(){};
+  return g.SyncBus.on('eg:' + cmd, handler);
+}
+function pushState(stateObj){
+  if (!g.SyncBus) return;
+  try { g.SyncBus.send('eg:state', Object.assign({__isState:true, ts:Date.now()}, stateObj)); } catch(e){}
+}
+function onState(handler){
+  if (!g.SyncBus) return function(){};
+  return g.SyncBus.on('eg:state', handler);
+}
+
+/* ---------- 6. VELOCITÀ ---------- */
+function getSpeed(key){ return MOUNT_SPEEDS[key] || MOUNT_SPEEDS.default; }
+function nextSpeed(currentKey){
+  const keys = Object.keys(MOUNT_SPEEDS);
+  const i = keys.indexOf(currentKey);
+  return keys[(i+1) % keys.length];
+}
+
+/* ---------- 7. RATE PERSONALIZZATO ---------- */
+function computeTrackingRate(mode, customFactor){
+  const base = TRACKING_RATES[mode] || TRACKING_RATES.sidereal;
+  const f = customFactor ? parseFloat(customFactor) : 1.0;
+  return base * f; // arcsec/sec
+}
+
+/* ---------- 8. UTILS UI ---------- */
+function fmtRA(raDeg){
+  const h = ((raDeg % 360) + 360) % 360 / 15;
+  const hh = Math.floor(h);
+  const mm = Math.floor((h-hh)*60);
+  const ss = Math.floor(((h-hh)*60-mm)*60);
+  return `${String(hh).padStart(2,'0')}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+}
+function fmtDEC(decDeg){
+  const sign = decDeg >= 0 ? '+' : '−';
+  const a = Math.abs(decDeg);
+  const dd = Math.floor(a);
+  const mm = Math.floor((a-dd)*60);
+  const ss = Math.floor(((a-dd)*60-mm)*60);
+  return `${sign}${String(dd).padStart(2,'0')}° ${String(mm).padStart(2,'0')}' ${String(ss).padStart(2,'0')}"`;
+}
+
+/* ---------- 9. MERIDIAN FLIP (sequenza a 2 fasi) ---------- */
+async function executeMeridianFlip(api){
+  // api deve esporre: getCurrentRaDec(), slewTo(ra, dec), getMountType(), showToast()
+  if (!api || typeof api.slewTo !== 'function') return false;
+  if (api.getMountType && api.getMountType() !== 'gem') {
+    if (api.showToast) api.showToast('Flip non necessario per questo tipo di montatura', true);
+    return false;
+  }
+  const cur = api.getCurrentRaDec();
+  if (!cur) return false;
+  // Fase 1: vai al polo (DEC = +90 o -90)
+  const poleDec = cur.dec >= 0 ? 90 : -90;
+  if (api.showToast) api.showToast('Flip fase 1: verso il polo...');
+  await api.slewTo(cur.ra, poleDec);
+  // Fase 2: dal polo al target originale
+  if (api.showToast) api.showToast('Flip fase 2: verso il target...');
+  await api.slewTo(cur.ra, cur.dec);
+  if (api.showToast) api.showToast('✅ Meridian flip completato');
+  return true;
+}
+
+/* ---------- 10. EXPORT ---------- */
+g.EGCore = {
+  VERSION: 1,
+  TWO_PI, DEG_TO_RAD, RAD_TO_DEG,
+  MOUNT_SPEEDS, TRACKING_RATES, CUSTOM_RATE_FACTORS, DefaultLimits,
+  Astro,
+  isTargetSafe,
+  pushCommand, onCommand, pushState, onState,
+  getSpeed, nextSpeed, computeTrackingRate,
+  fmtRA, fmtDEC,
+  executeMeridianFlip
+};
+
+console.log('[EG-CORE v1] ✅ Modulo condiviso caricato');
+})(window);
+</script>  
+
+
+
+
+
+
+
+
+
+
+
+<!-- SCRIPT MAPPA ISOLATA E TRACKING SICURO -->
+
+
+
+
+
+
+
+<!-- TUNNEL V2 — incollare IDENTICO in ENTRAMBI i file, sopra <script id="__oneBtnScript">
+(function(){
+'use strict';
+if (window.__oneButton) return;
+window.__oneButton = true;
+
+var URLS = { observatory: 'https://egastrodiscover.github.io/EGASTRO/', mount: 'https://egastrodiscover.github.io/EGASTROmount/' };
+var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+var SVG_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
+
+var OLD_IDS = ['tunnel-menu','tunnel-panel','tunnel-toggle','tunnel-frame-container','app-switcher-container','app-switcher-menu','app-switcher-toggle','planet-menu-ultimate','app-frame-container','app-frame','btn-goto-dome','btn-goto-telescope'];
+
+// Override getElementById: ritorna null per ID vecchi (blocca script vecchi)
+var _origGEBI = document.getElementById.bind(document);
+document.getElementById = function(id) {
+  if (OLD_IDS.indexOf(id) !== -1) return null;
+  return _origGEBI(id);
+};
+// Override setInterval: blocca callback che contengono marker tunnel
+var _origSI = window.setInterval;
+window.setInterval = function(fn, ms) {
+  try {
+    var src = (typeof fn === 'function') ? fn.toString() : String(fn);
+    if (src.indexOf('app-switcher') !== -1 || src.indexOf('planet-menu-ultimate') !== -1) {
+      return 0;
+    }
+  } catch(e) {}
+  return _origSI.apply(this, arguments);
+};
+
+function cleanup() {
+  OLD_IDS.forEach(function(id){ var e = _origGEBI(id); if (e) e.remove(); });
+  document.querySelectorAll('.app-switch-btn,.tab').forEach(function(e){ e.remove(); });
+}
+
+function buildOne(win, doc, myApp) {
+  var iconToShow = myApp === 'mount' ? SVG_DOME : SVG_TEL;
+  var title = myApp === 'mount' ? 'Torna al Pianeta' : 'Vai al Telescopio';
+  cleanup();
+  var ob = _origGEBI('__oneBtn'); if (ob) ob.remove();
+  var of = _origGEBI('__oneFrame'); if (of) of.remove();
+  if (!_origGEBI('__oneCSS')) {
+    var st = doc.createElement('style'); st.id = '__oneCSS';
+    st.textContent = '#__oneBtn{position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:52px!important;height:52px!important;border-radius:0 12px 12px 0!important;background:rgba(10,18,32,.95)!important;border:2px solid #d4af37!important;border-left:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 0 20px rgba(212,175,55,.5)!important;color:#d4af37!important;padding:0!important}#__oneBtn:hover{background:#d4af37!important;color:#000!important}#__oneBtn svg{width:24px!important;height:24px!important;pointer-events:none!important}#__oneFrame{position:fixed!important;inset:0!important;z-index:2147483645!important;background:#05070a!important;display:none!important}#__oneFrame iframe{width:100%!important;height:100%!important;border:none!important}';
+    doc.head.appendChild(st);
+  }
+  var btn = doc.createElement('button'); btn.id = '__oneBtn'; btn.title = title; btn.innerHTML = iconToShow; doc.body.appendChild(btn);
+  var fc = doc.createElement('div'); fc.id = '__oneFrame';
+  var fr = doc.createElement('iframe'); fr.setAttribute('allow','geolocation; camera; microphone; fullscreen'); fc.appendChild(fr); doc.body.appendChild(fc);
+  btn.onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    if (myApp === 'mount') {
+      if (win.self !== win.top) { try { win.parent.postMessage({type:'one-back'},'*'); } catch(err){} }
+      else { win.location.href = URLS.observatory; }
+    } else {
+      if (!fr.src || fr.src === 'about:blank') {
+        var sep = URLS.mount.indexOf('?') === -1 ? '?' : '&';
+        fr.src = URLS.mount + sep + 't=' + Date.now();
+        fr.addEventListener('load', function(){ setTimeout(function(){ try { if (fr.contentDocument && fr.contentDocument.body) buildOne(fr.contentWindow, fr.contentDocument, 'mount'); } catch(e){} }, 300); }, {once:true});
+      }
+      fc.style.display = 'block'; btn.style.display = 'none';
+    }
+  };
+  win.addEventListener('message', function(e){ if (e.data === 'one-back') { fc.style.display='none'; btn.style.display=''; } });
+}
+
+var detected = (_origGEBI && document.querySelector('meta[name="app-id"]')?.content === 'mount') ? 'mount' : 'observatory';
+
+function init() {
+  if (!document.body) { setTimeout(init, 50); return; }
+  buildOne(window, document, detected);
+  _origSI.call(window, function(){
+    cleanup();
+    var btn = _origGEBI('__oneBtn');
+    if (!btn) { buildOne(window, document, detected); return; }
+    var correct = detected === 'mount' ? SVG_DOME : SVG_TEL;
+    if (btn.innerHTML !== correct) btn.innerHTML = correct;
+    btn.style.display = '';
+  }, 100);
+  try {
+    new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+          if (n && n.nodeType === 1 && n.id && OLD_IDS.indexOf(n.id) !== -1) n.remove();
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  } catch(e) {}
+}
+init();
+console.log('[ONE-BTN-BLINDATO] Ready:', detected);
+})();
+</script>
+<script id="__oneBtnScript">
+(function(){
+'use strict';
+if (window.__oneButton) return;
+window.__oneButton = true;
+var URLS = { observatory: 'https://egastrodiscover.github.io/EGASTRO/', mount: 'https://egastrodiscover.github.io/EGASTROmount/' };
+var SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+var SVG_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
+var OLD_IDS = ['tunnel-menu','tunnel-panel','tunnel-toggle','tunnel-frame-container','app-switcher-container','app-switcher-menu','app-switcher-toggle','planet-menu-ultimate','app-frame-container','app-frame','btn-goto-dome','btn-goto-telescope'];
+var _origGEBI = document.getElementById.bind(document);
+document.getElementById = function(id) { if (OLD_IDS.indexOf(id) !== -1) return null; return _origGEBI(id); };
+var _origSI = window.setInterval;
+window.setInterval = function(fn, ms) {
+  try { var src = (typeof fn === 'function') ? fn.toString() : String(fn); if (src.indexOf('app-switcher') !== -1 || src.indexOf('planet-menu-ultimate') !== -1 || src.indexOf('showFrame') !== -1) return 0; } catch(e) {}
+  return _origSI.apply(this, arguments);
+};
+function cleanup() {
+  OLD_IDS.forEach(function(id){ var e = _origGEBI(id); if (e) e.remove(); });
+  document.querySelectorAll('.app-switch-btn,.tab').forEach(function(e){ e.remove(); });
+  var badIframes = document.querySelectorAll('iframe');
+  badIframes.forEach(function(f){
+    var id = f.id || '';
+    if (id !== '__oneFrameInner' && id !== '__oneIframe') {
+      var p = f.parentElement;
+      if (p && p.id === '__oneFrame') return;
+      f.remove();
+    }
+  });
+}
+function buildOne(win, doc, myApp) {
+  var iconToShow = myApp === 'mount' ? SVG_DOME : SVG_TEL;
+  var title = myApp === 'mount' ? 'Torna al Pianeta' : 'Vai al Telescopio';
+  cleanup();
+  var ob = _origGEBI('__oneBtn'); if (ob) ob.remove();
+  var of = _origGEBI('__oneFrame'); if (of) of.remove();
+  if (!_origGEBI('__oneCSS')) {
+    var st = doc.createElement('style'); st.id = '__oneCSS';
+    st.textContent = '#__oneBtn{position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:52px!important;height:52px!important;border-radius:0 12px 12px 0!important;background:rgba(10,18,32,.95)!important;border:2px solid #d4af37!important;border-left:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 0 20px rgba(212,175,55,.5)!important;color:#d4af37!important;padding:0!important}#__oneBtn:hover{background:#d4af37!important;color:#000!important}#__oneBtn svg{width:24px!important;height:24px!important;pointer-events:none!important}#__oneFrame{position:fixed!important;inset:0!important;z-index:2147483645!important;background:#05070a!important;display:none!important}#__oneFrame iframe{width:100%!important;height:100%!important;border:none!important}';
+    doc.head.appendChild(st);
+  }
+  var btn = doc.createElement('button'); btn.id = '__oneBtn'; btn.title = title; btn.innerHTML = iconToShow; doc.body.appendChild(btn);
+  var fc = doc.createElement('div'); fc.id = '__oneFrame';
+  var fr = doc.createElement('iframe'); fr.id = '__oneIframe'; fr.setAttribute('allow','geolocation; camera; microphone; fullscreen'); fc.appendChild(fr); doc.body.appendChild(fc);
+  btn.onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    if (myApp === 'mount') {
+      if (win.self !== win.top) { try { win.parent.postMessage({type:'one-back'},'*'); } catch(err){} }
+      else { win.location.href = URLS.observatory; }
+    } else {
+      if (!fr.src || fr.src === 'about:blank') {
+        var sep = URLS.mount.indexOf('?') === -1 ? '?' : '&';
+        fr.src = URLS.mount + sep + 't=' + Date.now();
+        fr.addEventListener('load', function(){ setTimeout(function(){ try { if (fr.contentDocument && fr.contentDocument.body) buildOne(fr.contentWindow, fr.contentDocument, 'mount'); } catch(e){} }, 300); }, {once:true});
+      }
+      fc.style.display = 'block'; btn.style.display = 'none';
+    }
+  };
+  win.addEventListener('message', function(e){ if (e.data === 'one-back') { fc.style.display='none'; btn.style.display=''; } });
+}
+var detected = (document.querySelector('meta[name="app-id"]')?.content === 'mount') ? 'mount' : 'observatory';
+function init() {
+  if (!document.body) { setTimeout(init, 50); return; }
+  buildOne(window, document, detected);
+  _origSI.call(window, function(){
+    cleanup();
+    var btn = _origGEBI('__oneBtn');
+    if (!btn) { buildOne(window, document, detected); return; }
+    var correct = detected === 'mount' ? SVG_DOME : SVG_TEL;
+    if (btn.innerHTML !== correct) btn.innerHTML = correct;
+    btn.style.display = '';
+  }, 100);
+  try { new MutationObserver(function(muts){ muts.forEach(function(m){ m.addedNodes.forEach(function(n){ if (n && n.nodeType === 1 && n.id && OLD_IDS.indexOf(n.id) !== -1) n.remove(); if (n && n.tagName === 'IFRAME' && n.id !== '__oneIframe') { var p = n.parentElement; if (!p || p.id !== '__oneFrame') n.remove(); } }); }); }).observe(document.body, { childList: true, subtree: true }); } catch(e) {}
+}
+init();
+console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
+})();
+</script>
+
+<script id="satellite-mappa-v3">
+(function () {
+  'use strict';
+  if (window.__sV3) return; window.__sV3 = true;
+  function initTracking() {
+    if (typeof MS === 'undefined') { setTimeout(initTracking, 100); return; }
+    var origStartGoto = window._startGoto;
+    window._startGoto = function (ra, dec, rate, skip, bypass) {
+      if (window._isHomeSlew) { MS._pendingAutoTrack = false; window._isHomeSlew = false; }
+      else { MS._pendingAutoTrack = true; }
+      return origStartGoto.apply(this, arguments);
+    };
+    var origGoHome = window.goHome;
+    window.goHome = function () { window._isHomeSlew = true; return origGoHome.apply(this, arguments); };
+    setInterval(function () {
+      if (typeof MS === 'undefined') return;
+      if (MS.slewMode === 'manual') {
+        if (MS._trackingBeforeManual === undefined) {
+          MS._trackingBeforeManual = MS.tracking;
+          if (MS.tracking !== 'off') { MS.tracking = 'off'; if (typeof updateTrackingBtn === 'function') updateTrackingBtn(); }
+        }
+      } else {
+        if (MS._trackingBeforeManual !== undefined) {
+          if (MS._trackingBeforeManual !== 'off') {
+            MS.tracking = MS._trackingBeforeManual;
+            if (MS.slewMode === 'idle') MS.slewMode = 'tracking';
+            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+          }
+          MS._trackingBeforeManual = undefined;
+        }
+      }
+      if (MS._pendingAutoTrack !== undefined) {
+        if (MS.slewMode === 'idle' || MS.slewMode === 'tracking') {
+          if (MS._pendingAutoTrack === true && MS.tracking === 'off') {
+            MS.tracking = 'sidereal'; MS.slewMode = 'tracking';
+            var tm = document.getElementById('tracking-mode');
+            if (tm) tm.value = 'sidereal';
+            if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+            if (typeof showToast === 'function') showToast('Tracking ON: siderale');
+          }
+          MS._pendingAutoTrack = undefined;
+        }
+      }
+    }, 100);
+  }
+  initTracking();
+  function initMap() {
+    if (typeof Astro === 'undefined' || typeof getAstroCoords !== 'function') {
+      setTimeout(initMap, 200); return;
+    }
+    var CONST_URL = 'https://egastrodiscover.github.io/EGASTRO/constellations.json';
+    var isMobile = window.innerWidth < 600;
+    var BASE = isMobile ? 260 : 340;
+    var SIZES = { 100: 1.0, 75: 0.75, 50: 0.5 };
+    var currentSize = 100;
+    var scaleFactor = SIZES[100];
+    var internalZoom = 1.0;
+    var SIZE = Math.round(BASE * scaleFactor);
+    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var isOpen = false;
+    var rafId = null;
+    var container = document.createElement('div');
+    container.id = '__myPolarContainer';
+    container.style.cssText = 'position:fixed;right:15px;top:140px;z-index:9000;border-radius:50%;filter:drop-shadow(0 8px 30px rgba(0,0,0,.75));background:transparent;display:none;cursor:grab;';
+    var sizeSel = document.createElement('div');
+    sizeSel.id = '__myPolarSizeSel';
+    sizeSel.style.cssText = 'position:absolute;top:-38px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(13,18,28,0.95);padding:4px 6px;border-radius:14px;border:1px solid #d4af37;z-index:10;backdrop-filter:blur(10px);';
+    ['100', '75', '50'].forEach(function (sz) {
+      var b = document.createElement('button');
+      b.textContent = sz; b.dataset.sz = sz;
+      b.style.cssText = 'background:transparent;border:1px solid #6b778c;color:#6b778c;padding:3px 10px;border-radius:10px;cursor:pointer;font-family:Orbitron,sans-serif;font-weight:700;font-size:10px;';
+      b.onclick = function (e) {
+        e.stopPropagation(); currentSize = parseInt(sz, 10); scaleFactor = SIZES[currentSize]; SIZE = Math.round(BASE * scaleFactor);
+        container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px'; cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+        cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateBtnState();
+        if (isOpen) drawPolar();
+      };
+      sizeSel.appendChild(b);
+    });
+    container.appendChild(sizeSel);
+    function updateBtnState() {
+      sizeSel.querySelectorAll('button').forEach(function (b) {
+        var on = parseInt(b.dataset.sz, 10) === currentSize;
+        b.style.background = on ? '#d4af37' : 'transparent';
+        b.style.color = on ? '#000' : '#6b778c';
+        b.style.borderColor = on ? '#d4af37' : '#6b778c';
+      });
+    }
+    var cv = document.createElement('canvas'); cv.style.cssText = 'display:block;border-radius:50%;'; container.appendChild(cv);
+    var ctx = cv.getContext('2d');
+    var zoomBox = document.createElement('div');
+    zoomBox.style.cssText = 'position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:5;';
+    ['+', '−'].forEach(function (s, i) {
+      var b = document.createElement('button'); b.textContent = s;
+      b.style.cssText = 'width:26px;height:26px;background:rgba(13,18,28,.9);border:1px solid rgba(212,175,55,.7);border-radius:50%;color:#d4af37;font-size:14px;font-weight:bold;cursor:pointer;padding:0;';
+      b.onclick = function (e) { e.stopPropagation(); internalZoom = Math.max(0.5, Math.min(3, internalZoom + (i === 0 ? 0.3 : -0.3))); if (isOpen) drawPolar(); };
+      zoomBox.appendChild(b);
+    });
+    container.appendChild(zoomBox); document.body.appendChild(container);
+    container.style.width = SIZE + 'px'; container.style.height = SIZE + 'px'; cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+    cv.width = Math.floor(SIZE * DPR); cv.height = Math.floor(SIZE * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateBtnState();
+    var toggleBtn = document.createElement('div');
+    toggleBtn.id = '__myPolarBtn'; toggleBtn.className = 'circle-btn'; toggleBtn.title = 'Mappa Polare';
+    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></svg>';
+    toggleBtn.style.cssText = 'border-color:rgba(212,175,55,.65);color:#d4af37;';
+    toggleBtn.onclick = function () { isOpen = !isOpen; container.style.display = isOpen ? 'block' : 'none'; if (isOpen) { if (!rafId) drawPolar(); } else { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } } };
+    var topRight = document.querySelector('.top-right-buttons'); if (topRight) topRight.appendChild(toggleBtn); else document.body.appendChild(toggleBtn);
+    var CONST = [];
+    fetch(CONST_URL + '?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.features) return;
+      CONST = d.features.map(function (f) {
+        var segs = (f.geometry && f.geometry.coordinates) || []; var stars = [], map = {};
+        var add = function (ra, dec) { if (!isFinite(ra) || !isFinite(dec)) return -1; var k = ra.toFixed(4) + ',' + dec.toFixed(4); if (map[k] !== undefined) return map[k]; var i = stars.length; stars.push({ ra: ra, dec: dec }); map[k] = i; return i; };
+        return { name: (f.properties && f.properties.name) || f.id, s: stars, l: segs.map(function (seg) { if (!Array.isArray(seg)) return []; return seg.map(function (pt) { if (!Array.isArray(pt) || pt.length < 2) return -1; return add(pt[0], pt[1]); }).filter(function (i) { return i >= 0; }); }).filter(function (l) { return l.length >= 2; }) };
+      }).filter(function (c) { return c.l.length > 0; });
+      if (isOpen) drawPolar();
+    }).catch(function (e) {});
+    var STARS_L = [{ n: "Polaris", ra: 37.95, dec: 89.26, mag: 1.98 },{ n: "Kochab", ra: 222.68, dec: 74.16, mag: 2.08 },{ n: "Dubhe", ra: 165.93, dec: 61.75, mag: 1.79 },{ n: "Merak", ra: 165.46, dec: 56.38, mag: 2.37 },{ n: "Vega", ra: 279.23, dec: 38.78, mag: 0.03 },{ n: "Deneb", ra: 310.36, dec: 45.28, mag: 1.25 },{ n: "Arturo", ra: 213.92, dec: 19.18, mag: -0.05 },{ n: "Sirio", ra: 101.29, dec: -16.72, mag: -1.46 }];
+    var DSO_L = [{ n: "M31", ra: 10.68, dec: 41.26, t: "G" },{ n: "M42", ra: 83.82, dec: -5.39, t: "N" },{ n: "M45", ra: 56.75, dec: 24.11, t: "C" },{ n: "M13", ra: 250.42, dec: 36.46, t: "C" }];
+    function polar(alt, az) { var r = (SIZE / 2 - 6) * internalZoom * (90 - alt) / 90; var azR = az * Math.PI / 180; return { x: SIZE / 2 + r * Math.sin(azR), y: SIZE / 2 - r * Math.cos(azR), r: r }; }
+    function drawMilkyWay(date, lat, lon) { var ngpRa = 192.86, ngpDec = 27.13; var seed = 777; var rand = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }; ctx.save(); for (var i = 0; i < 600; i++) { var l = rand() * 360, b = (rand() - 0.5) * 20; var bR = b * Math.PI / 180, lR = l * Math.PI / 180; var sinDec = Math.sin(ngpDec * Math.PI / 180) * Math.sin(bR) + Math.cos(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var dec = Math.asin(sinDec) * 180 / Math.PI; var yv = Math.cos(bR) * Math.sin(lR); var xv = Math.cos(ngpDec * Math.PI / 180) * Math.sin(bR) - Math.sin(ngpDec * Math.PI / 180) * Math.cos(bR) * Math.cos(lR); var ra = ((ngpRa + Math.atan2(yv, xv) * 180 / Math.PI) % 360 + 360) % 360; var p = Astro.altAz(ra * Math.PI / 180, dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) continue; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) continue; var sz = 3 + rand() * 8, al = 0.05 + rand() * 0.08; ctx.fillStyle = (i % 3 === 0) ? 'rgba(200,170,180,' + al + ')' : 'rgba(160,200,255,' + al + ')'; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+    function drawPolar() {
+      if (!isOpen) { rafId = null; return; }
+      var lat = (typeof MS !== 'undefined' && MS.gpsLat) || 41.9; var lon = (typeof MS !== 'undefined' && MS.gpsLon) || 12.5; var date = new Date();
+      ctx.clearRect(0, 0, SIZE, SIZE); ctx.save(); ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 2, 0, Math.PI * 2); ctx.clip();
+      var bg = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 4, SIZE / 2, SIZE / 2, SIZE / 2); bg.addColorStop(0, 'rgba(22,32,68,0.35)'); bg.addColorStop(1, 'rgba(4,8,20,0.5)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, SIZE, SIZE);
+      drawMilkyWay(date, lat, lon);
+      ctx.strokeStyle = 'rgba(139,180,255,0.18)'; ctx.lineWidth = 0.8;
+      [30, 60].forEach(function (alt) { var r = (SIZE / 2 - 2) * internalZoom * (90 - alt) / 90; if (r > 0 && r < SIZE / 2) { ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, r, 0, Math.PI * 2); ctx.stroke(); } });
+      for (var az = 0; az < 360; az += 30) { var a = az * Math.PI / 180; ctx.beginPath(); ctx.moveTo(SIZE / 2, SIZE / 2); ctx.lineTo(SIZE / 2 + SIZE / 2 * Math.sin(a), SIZE / 2 - SIZE / 2 * Math.cos(a)); ctx.stroke(); }
+      if (CONST.length > 0) { ctx.strokeStyle = 'rgba(150,200,255,0.5)'; ctx.lineWidth = 1; CONST.forEach(function (c) { c.l.forEach(function (line) { var st = false; ctx.beginPath(); line.forEach(function (idx) { var s = c.s[idx]; if (!s) return; var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) { st = false; return; } var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) { st = false; return; } if (!st) { ctx.moveTo(pt.x, pt.y); st = true; } else ctx.lineTo(pt.x, pt.y); }); ctx.stroke(); }); }); }
+      STARS_L.forEach(function (s) { var p = Astro.altAz(s.ra * Math.PI / 180, s.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) return; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) return; var sz = Math.max(0.8, 2.5 - s.mag * 0.5); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); });
+      if (typeof Astronomy !== 'undefined') { try { var obs = new Astronomy.Observer(lat, lon, 0); var time = new Astronomy.AstroTime(date); ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].forEach(function (bn) { var body = Astronomy.Body[bn]; var eq = Astronomy.Equator(body, time, obs, true, true); var hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, 'normal'); if (hor.altitude < 0) return; var pt = polar(hor.altitude, hor.azimuth); if (pt.r > SIZE / 2) return; var col = '#ffd700', sz = 4, lbl = bn; if (bn === 'Sun') { col = '#ffe600'; sz = 6; lbl = 'Sole'; } if (bn === 'Moon') { col = '#e2e8f0'; sz = 5; lbl = 'Luna'; } ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(pt.x, pt.y, sz, 0, Math.PI * 2); ctx.fill(); ctx.restore(); if (SIZE > 200) { ctx.fillStyle = col; ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'left'; ctx.fillText(lbl, pt.x + 7, pt.y + 3); } }); } catch (e) {} }
+      DSO_L.forEach(function (m) { var p = Astro.altAz(m.ra * Math.PI / 180, m.dec * Math.PI / 180, lat, lon, date); if (p.alt < 0) return; var pt = polar(p.alt, p.az); if (pt.r > SIZE / 2) return; ctx.beginPath(); if (m.t === 'G') ctx.ellipse(pt.x, pt.y, 4, 2, 0, 0, Math.PI * 2); else if (m.t === 'N') ctx.rect(pt.x - 3, pt.y - 3, 6, 6); else ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(139,211,255,0.85)'; ctx.fill(); });
+      try { var astro = getAstroCoords(); var p = Astro.altAz(astro.ra, astro.dec, lat, lon, date); if (p.alt >= 0) { var pt = polar(p.alt, p.az); if (pt.r <= SIZE / 2) { ctx.strokeStyle = '#ff4466'; ctx.shadowColor = '#ff4466'; ctx.shadowBlur = 10; ctx.lineWidth = 1.8; var cr = 7 + Math.sin(Date.now() / 400) * 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y, cr, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pt.x - cr - 4, pt.y); ctx.lineTo(pt.x - cr + 2, pt.y); ctx.moveTo(pt.x + cr - 2, pt.y); ctx.lineTo(pt.x + cr + 4, pt.y); ctx.moveTo(pt.x, pt.y - cr - 4); ctx.lineTo(pt.x, pt.y - cr + 2); ctx.moveTo(pt.x, pt.y + cr - 2); ctx.lineTo(pt.x, pt.y + cr + 4); ctx.stroke(); ctx.shadowBlur = 0; } } } catch (e) {}
+      ctx.restore();
+      ['N', 'E', 'S', 'O'].forEach(function (lbl, i) { var a = i * 90 * Math.PI / 180; var r = SIZE / 2 - (SIZE < 200 ? 10 : 12); ctx.fillStyle = '#d4af37'; ctx.font = 'bold ' + (SIZE < 200 ? 9 : 11) + 'px Orbitron,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, SIZE / 2 + r * Math.sin(a), SIZE / 2 - r * Math.cos(a)); });
+      rafId = requestAnimationFrame(drawPolar);
+    }
+    var isDragging = false, lastX = 0, lastY = 0, touchDist = 0;
+    container.addEventListener('mousedown', function (e) { if (e.target.tagName === 'BUTTON') return; isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
+    window.addEventListener('mousemove', function (e) { if (!isDragging) return; var dx = e.clientX - lastX, dy = e.clientY - lastY; var r = container.getBoundingClientRect(); container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px'; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mouseup', function () { isDragging = false; });
+    container.addEventListener('touchstart', function (e) { if (e.touches.length === 1 && e.target.tagName !== 'BUTTON') { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { touchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); } }, { passive: true });
+    container.addEventListener('touchmove', function (e) { if (isDragging && e.touches.length === 1) { var dx = e.touches[0].clientX - lastX; var dy = e.touches[0].clientY - lastY; var r = container.getBoundingClientRect(); container.style.right = 'auto'; container.style.left = (r.left + dx) + 'px'; container.style.top = (r.top + dy) + 'px'; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } else if (e.touches.length === 2 && touchDist > 0) { var dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); internalZoom = Math.max(0.5, Math.min(3, internalZoom + (touchDist - dist) * 0.005)); touchDist = dist; } }, { passive: true });
+    container.addEventListener('touchend', function () { isDragging = false; touchDist = 0; });
+    console.log('[SAT] ✅ Mappa 100/75/50 pronta');
+  }
+  initMap();
+})();
+</script>
+
+<script id="satellite-tunnel-v1">
+(function() {
+  if (window.__tunnelV1) return; window.__tunnelV1 = true;
+  var styleHide = document.createElement("style"); 
+  styleHide.textContent = "#app-switcher-container, #app-switcher-menu, #app-switcher-toggle { display: none !important; }"; 
+  document.head.appendChild(styleHide);
+  var host = document.createElement("div"); 
+  host.id = "tunnel-host";
+  host.style.cssText = "position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 2147483647;"; 
+  document.body.appendChild(host);
+  var shadow = host.attachShadow({ mode: "open" });
+  
+  shadow.innerHTML = `
+    <style>
+      .container { display: flex; align-items: center; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translateX(calc(-100% + 26px)); }
+      .container.open { transform: translateX(0); }
+      .menu { background: rgba(10, 18, 32, 0.95); border: 1px solid rgba(212, 175, 55, 0.4); border-left: none; border-radius: 0 12px 12px 0; padding: 14px 8px; display: flex; flex-direction: column; gap: 12px; backdrop-filter: blur(15px); box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+      .toggle { width: 26px; height: 82px; writing-mode: vertical-rl; text-orientation: mixed; font-size: 11px; font-weight: 800; letter-spacing: 3px; font-family: "Orbitron", sans-serif; color: #d4af37; background: rgba(10, 18, 32, 0.95); border: 1px solid #d4af37; border-left: none; border-radius: 0 8px 8px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
+      .icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; }
+      .icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+      .active { border: 2px solid #d4af37 !important; background: #0a1220 !important; color: #d4af37 !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; opacity: 1 !important; pointer-events: auto !important; }
+      .inactive { border: 2px solid #8bd3ff !important; background: #0a1220 !important; color: #8bd3ff !important; opacity: 0.35 !important; pointer-events: none !important; }
+    </style>
+    <div class="container" id="box">
+      <div class="menu">
+        <div class="icon inactive" id="tel"><svg viewBox="0 0 24 24"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg></div>
+        <div class="icon active" id="dome"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg></div>
+      </div>
+      <button class="toggle" id="btn">TUNNEL</button>
+    </div>
+  `;
+
+  var box = shadow.getElementById("box"); 
+  var btn = shadow.getElementById("btn"); 
+  var tel = shadow.getElementById("tel"); 
+  var dome = shadow.getElementById("dome");
+  
+  btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); box.classList.toggle("open"); };
+  tel.onclick = function(e) { e.preventDefault(); e.stopPropagation(); };
+  dome.onclick = function(e) {
+    e.preventDefault(); e.stopPropagation(); box.classList.remove("open");
+    if (window.parent !== window) { window.parent.postMessage("hide-satellite-frame", "*"); }
+    else { window.location.href = "https://egastrodiscover.github.io/EGASTRO/"; }
+  };
+  window.addEventListener("message", function(e) {
+    if (e.data === "hide-satellite-frame" || e.data === "show-master") {
+      var fc = document.getElementById("app-frame-container"); if (fc) fc.style.display = "none";
+      if (box) box.classList.remove("open"); 
+      if (dome) dome.className = "icon inactive"; 
+      if (tel) tel.className = "icon active";
+    }
+  }, true);
+})();
+</script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function(){
+    let b=document.createElement('button');
+    b.style.cssText='position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:9999;width:52px;height:52px;border-radius:0 12px 12px 0;background:#0a1220;border:2px solid #d4af37;border-left:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#d4af37;padding:0;box-shadow:0 0 15px rgba(212,175,55,.5)';
+    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+    b.onclick=function(){ 
+      if(window.parent!==window){ window.parent.postMessage('hide-satellite-frame','*'); }
+      else { window.location.href='https://egastrodiscover.github.io/EGASTRO/'; } 
+    };
+    document.body.appendChild(b);
+  });
+  if (typeof meridianFlip === 'function') {
+    const _origFlip = meridianFlip;
+    window.meridianFlip = function(isAuto) {
+      if (window.EGCore && window.__mountApi && MS.autoFlip && MS.mountType === 'gem') {
+        return EGCore.executeMeridianFlip(window.__mountApi).then(ok => {
+          if (window.showToast) showToast(ok ? '✅ Flip completato' : 'Flip annullato');
+        });
+      }
+      return _origFlip.apply(this, arguments);
+    };
+  }
+})();
+</script> <!-- ✅ CHIUSURA DEFINITIVA DEL PRIMO SCRIPT -->
+
+<script> <!-- ✅ APERTURA DEL NUOVO SCRIPT -->
+/* ============================================================
+   SATELLITE — Listener comandi dal Pianeta + pannello standalone
+   ============================================================ */
+(function(){
+  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
+
+  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
+  EGCore.onCommand('connect', (cfg) => {
+    if (window.__READONLY__) return;
+    console.log('[SAT] Comando connect da Pianeta:', cfg);
+    applyConnectionFromMaster(cfg);
+  });
+
+  EGCore.onCommand('goto', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof _startGoto === 'function') {
+      const raRad = data.ra * EGCore.DEG_TO_RAD;
+      const decRad = data.dec * EGCore.DEG_TO_RAD;
+      _startGoto(raRad, decRad);
+      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
+    }
+  });
+
+  EGCore.onCommand('stop', () => {
+    if (window.__READONLY__) return;
+    if (typeof stopMotion === 'function') stopMotion();
+  });
+
+  EGCore.onCommand('park', () => {
+    if (window.__READONLY__) return;
+    if (typeof parkMount === 'function') parkMount();
+  });
+
+  EGCore.onCommand('unpark', () => {
+    if (window.__READONLY__) return;
+    if (typeof unparkMount === 'function') unparkMount();
+  });
+
+  EGCore.onCommand('home', () => {
+    if (window.__READONLY__) return;
+    if (typeof goHome === 'function') goHome();
+  });
+
+  EGCore.onCommand('speed', (data) => {
+    if (window.__READONLY__ || !data) return;
+    const sp = EGCore.getSpeed(data.key);
+    if (typeof MS !== 'undefined') {
+      MS.speedPerStep = sp.degPerSec / 60; 
+      MS.speedLabel = sp.label;
+      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+    }
+  });
+
+  EGCore.onCommand('rate', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.tracking = data.mode || 'sidereal';
+      const tm = document.getElementById('tracking-mode');
+      if (tm) tm.value = MS.tracking;
+      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+    }
+  });
+
+  EGCore.onCommand('limits', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.minAlt = data.minAlt ?? MS.minAlt;
+      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
+      MS.haMin  = data.haMin  ?? MS.haMin;
+      MS.haMax  = data.haMax  ?? MS.haMax;
+      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
+      if (typeof saveFullState === 'function') saveFullState();
+    }
+  });
+
+  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
+  function publishMountState() {
+    if (window.__READONLY__) return;
+    if (typeof MS === 'undefined' || !MS.connected) return;
+    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+    let astroRa = MS.ra, astroDec = MS.dec;
+    if (typeof getAstroCoords === 'function') {
+      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
+    }
+    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
+    EGCore.pushState({
+      connected: MS.connected,
+      isParked: MS.isParked,
+      tracking: MS.tracking,
+      slewMode: MS.slewMode,
+      ra: astroRa * EGCore.RAD_TO_DEG,
+      dec: astroDec * EGCore.RAD_TO_DEG,
+      alt: pos.alt,
+      az: pos.az,
+      speed: MS.speedLabel,
+      mountType: MS.mountType,
+      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
+    });
+  }
+  setInterval(publishMountState, 300);
+
+  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
+  function applyConnectionFromMaster(cfg) {
+    if (!cfg || !cfg.type) return;
+    if (cfg.type === 'sim') {
+      MS.simulated = true;
+      MS.connected = true;
+      MS.wifiEnabled = false;
+      MS.btEnabled = false;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof finishConnect === 'function') finishConnect();
+      if (window.showToast) showToast('SIM attivato da Pianeta');
+      return;
+    }
+    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
+    if (!proto) return;
+    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
+    try {
+      proto.connect(protoCfg,
+        () => {
+          MS.connected = true;
+          MS.wifiEnabled = cfg.type === 'wifi';
+          MS.btEnabled = cfg.type === 'bt';
+          MS.simulated = false;
+          if (typeof updateLinkButtons === 'function') updateLinkButtons();
+          if (typeof finishConnect === 'function') finishConnect();
+          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
+        },
+        (err) => {
+          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
+        }
+      );
+    } catch(e) {
+      if (window.showToast) showToast('Errore connessione', true);
+    }
+  }
+  window.applyConnectionFromMaster = applyConnectionFromMaster;
+})();
+</script>
+</body>
+</html>
