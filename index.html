@@ -19,7 +19,7 @@ body::after{content:'';position:absolute;bottom:110px;left:0;width:100%;height:2
 body.dash-collapsed::after{display:none}
 #canvas-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
 .top-bar{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:10;pointer-events:none;flex-wrap:wrap}
-.info-panel{background:rgba(13,18,28,0.82);backdrop-filter:blur(15px);border:1px solid rgba(212,175,55,0.4);border-radius:8px;padding:6px 10px;box-shadow:0 6px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:6px;pointer-events:auto;flex-shrink:1;min-width:0;max-width:calc(100vw - 70px);flex-wrap:wrap}
+<button class="btn primary" onclick="openConnectionPanel()" title="Connetti">🔌 Connetti</button>
 .connect-block{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-right:10px;border-right:none;flex-shrink:0}
 .connect-row{display:flex;align-items:center;gap:6px}
 #syncBadge{display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;transition:all 0.3s;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px}
@@ -198,6 +198,149 @@ g.addEventListener('focus',function(){snd('hello')});
 g.SyncBus={version:V,appId:A,instanceId:I,isSatellite:A==='mount',transport:bc?'broadcast':'localStorage',send:snd,sendWithAck:swa,on:on,start:st,stop:sp,isLeader:il,requestLeader:rl,isPeerAlive:function(){return pr.alive},getPeerId:function(){return pr.id},getAppId:function(){return A}};
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(st,100);else g.addEventListener('load',function(){setTimeout(st,100)})})(window);
 </script>
+
+ /* ============================================================
+   SATELLITE — Listener comandi dal Pianeta + pannello standalone
+   ============================================================ */
+(function(){
+  if (!window.EGCore) { console.warn('[SAT] EGCore non caricato'); return; }
+
+  // --- 1. RICEZIONE COMANDI DAL PIANETA ---
+  EGCore.onCommand('connect', (cfg) => {
+    if (window.__READONLY__) return;
+    console.log('[SAT] Comando connect da Pianeta:', cfg);
+    applyConnectionFromMaster(cfg);
+  });
+
+  EGCore.onCommand('goto', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof _startGoto === 'function') {
+      const raRad = data.ra * EGCore.DEG_TO_RAD;
+      const decRad = data.dec * EGCore.DEG_TO_RAD;
+      _startGoto(raRad, decRad);
+      if (window.showToast) showToast('GOTO da Pianeta: ' + (data.name || 'target'));
+    }
+  });
+
+  EGCore.onCommand('stop', () => {
+    if (window.__READONLY__) return;
+    if (typeof stopMotion === 'function') stopMotion();
+  });
+
+  EGCore.onCommand('park', () => {
+    if (window.__READONLY__) return;
+    if (typeof parkMount === 'function') parkMount();
+  });
+
+  EGCore.onCommand('unpark', () => {
+    if (window.__READONLY__) return;
+    if (typeof unparkMount === 'function') unparkMount();
+  });
+
+  EGCore.onCommand('home', () => {
+    if (window.__READONLY__) return;
+    if (typeof goHome === 'function') goHome();
+  });
+
+  EGCore.onCommand('speed', (data) => {
+    if (window.__READONLY__ || !data) return;
+    const sp = EGCore.getSpeed(data.key);
+    if (typeof MS !== 'undefined') {
+      MS.speedPerStep = sp.degPerSec / 60; // approssimazione per step 60ms
+      MS.speedLabel = sp.label;
+      if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+    }
+  });
+
+  EGCore.onCommand('rate', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.tracking = data.mode || 'sidereal';
+      const tm = document.getElementById('tracking-mode');
+      if (tm) tm.value = MS.tracking;
+      if (typeof updateTrackingBtn === 'function') updateTrackingBtn();
+    }
+  });
+
+  EGCore.onCommand('limits', (data) => {
+    if (window.__READONLY__ || !data) return;
+    if (typeof MS !== 'undefined') {
+      MS.minAlt = data.minAlt ?? MS.minAlt;
+      MS.maxAlt = data.maxAlt ?? MS.maxAlt;
+      MS.haMin  = data.haMin  ?? MS.haMin;
+      MS.haMax  = data.haMax  ?? MS.haMax;
+      MS.autoFlip = data.autoFlip ?? MS.autoFlip;
+      if (typeof saveFullState === 'function') saveFullState();
+    }
+  });
+
+  // --- 2. INVIO PERIODICO STATO AL PIANETA ---
+  function publishMountState() {
+    if (window.__READONLY__) return;
+    if (typeof MS === 'undefined' || !MS.connected) return;
+    const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+    const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+    // Converti RA meccanica in astro
+    let astroRa = MS.ra, astroDec = MS.dec;
+    if (typeof getAstroCoords === 'function') {
+      try { const a = getAstroCoords(); astroRa = a.ra; astroDec = a.dec; } catch(e){}
+    }
+    const pos = EGCore.Astro.altAz(astroRa * EGCore.RAD_TO_DEG, astroDec * EGCore.RAD_TO_DEG, lat, lon, new Date());
+    EGCore.pushState({
+      connected: MS.connected,
+      isParked: MS.isParked,
+      tracking: MS.tracking,
+      slewMode: MS.slewMode,
+      ra: astroRa * EGCore.RAD_TO_DEG,
+      dec: astroDec * EGCore.RAD_TO_DEG,
+      alt: pos.alt,
+      az: pos.az,
+      speed: MS.speedLabel,
+      mountType: MS.mountType,
+      limits: { minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax }
+    });
+  }
+  setInterval(publishMountState, 300);
+
+  // --- 3. APPLICA CONNESSIONE RICEVUTA DAL MASTER ---
+  function applyConnectionFromMaster(cfg) {
+    if (!cfg || !cfg.type) return;
+    if (cfg.type === 'sim') {
+      MS.simulated = true;
+      MS.connected = true;
+      MS.wifiEnabled = false;
+      MS.btEnabled = false;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      if (typeof finishConnect === 'function') finishConnect();
+      if (window.showToast) showToast('SIM attivato da Pianeta');
+      return;
+    }
+    // WiFi / BT: prova la connessione
+    const proto = (typeof Protocols !== 'undefined') ? (Protocols[cfg.proto] || Protocols.onstep) : null;
+    if (!proto) return;
+    const protoCfg = { ip: cfg.ip, port: cfg.port, bridge: cfg.bridge };
+    try {
+      proto.connect(protoCfg,
+        () => {
+          MS.connected = true;
+          MS.wifiEnabled = cfg.type === 'wifi';
+          MS.btEnabled = cfg.type === 'bt';
+          MS.simulated = false;
+          if (typeof updateLinkButtons === 'function') updateLinkButtons();
+          if (typeof finishConnect === 'function') finishConnect();
+          if (window.showToast) showToast('Connesso da Pianeta via ' + cfg.type.toUpperCase());
+        },
+        (err) => {
+          if (window.showToast) showToast('Connessione da Pianeta fallita: ' + (err && err.message || ''), true);
+        }
+      );
+    } catch(e) {
+      if (window.showToast) showToast('Errore connessione', true);
+    }
+  }
+  window.applyConnectionFromMaster = applyConnectionFromMaster;
+})(); 
+  
 <style id="mobile-fix">
 @media (max-width: 768px) {
   html, body { height: 100dvh !important; min-height: 100dvh !important; overflow: hidden; }
@@ -1329,6 +1472,15 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
 </div>
   <!-- SCRIPT MAPPA POLARE COMPLETA -->
 <script id="satellite-mappa-v3">
+  // Alias: usa EGCore.Astro (gradi) — converte automaticamente
+if (window.EGCore) {
+  window.Astro_deg = window.EGCore.Astro;
+  // Patch: la mappa usa Astro.altAz(raRad, decRad, ...) → convertiamo
+  const _origAltAz = Astro.altAz.bind(Astro);
+  Astro.altAz = function(raRad, decRad, latDeg, lonDeg, date) {
+    return _origAltAz(raRad, decRad, latDeg, lonDeg, date);
+  };
+}
 (function () {
   'use strict';
   if (window.__sV3) return; window.__sV3 = true;
@@ -1494,6 +1646,174 @@ console.log('[ONE-BTN-NUCLEAR] Ready:', detected);
   }
   initMap();
 })();
+
+/* ============================================================
+   SATELLITE — Limiti di sicurezza + Meridian Flip
+   ============================================================ */
+(function(){
+  if (!window.EGCore) return;
+
+  // Override di _startGoto: verifica limiti prima di partire
+  const _orig = window._startGoto;
+  if (typeof _orig === 'function') {
+    window._startGoto = function(raRad, decRad, rate, skipFlip, bypassLimits) {
+      const lat = (typeof MS !== 'undefined' && Number.isFinite(MS.gpsLat)) ? MS.gpsLat : 41.9;
+      const lon = (typeof MS !== 'undefined' && Number.isFinite(MS.gpsLon)) ? MS.gpsLon : 12.5;
+      const raDeg = raRad * EGCore.RAD_TO_DEG;
+      const decDeg = decRad * EGCore.RAD_TO_DEG;
+      if (!bypassLimits && typeof MS !== 'undefined') {
+        const check = EGCore.isTargetSafe(raDeg, decDeg, {
+          minAlt: MS.minAlt, maxAlt: MS.maxAlt, haMin: MS.haMin, haMax: MS.haMax
+        }, lat, lon);
+        if (!check.ok) {
+          if (window.showToast) showToast('GOTO bloccato: ' + check.reason, true);
+          return;
+        }
+      }
+      return _orig.apply(this, arguments);
+    };
+  }
+
+  // Espone un'API per il flip
+  window.__mountApi = {
+    getCurrentRaDec: function(){
+      if (typeof getAstroCoords !== 'function') return null;
+      const a = getAstroCoords();
+      return { ra: a.ra * EGCore.RAD_TO_DEG, dec: a.dec * EGCore.RAD_TO_DEG };
+    },
+    slewTo: function(raDeg, decDeg){
+      return new Promise((resolve) => {
+        if (typeof _startGoto !== 'function') return resolve(false);
+        _startGoto(raDeg * EGCore.DEG_TO_RAD, decDeg * EGCore.DEG_TO_RAD, null, true, true);
+        // attesa stimata
+        setTimeout(() => resolve(true), 1500);
+      });
+    },
+    getMountType: function(){ return (typeof MS !== 'undefined') ? MS.mountType : 'gem'; },
+    showToast: window.showToast
+  };
+
+  // Pulsante flip nel pannello Satellite
+  if (typeof meridianFlip === 'function') {
+    const _origFlip = meridianFlip;
+    window.meridianFlip = function(isAuto) {
+      if (window.EGCore && window.__mountApi && MS.autoFlip && MS.mountType === 'gem') {
+        return EGCore.executeMeridianFlip(window.__mountApi).then(ok => {
+          if (window.showToast) showToast(ok ? '✅ Flip completato' : 'Flip annullato');
+        });
+      }
+      return _origFlip.apply(this, arguments);
+    };
+  }
+})();
+  /* ============================================================
+   SATELLITE — Pannello connessione (standalone)
+   ============================================================ */
+let __connPanelOpen = false;
+
+function openConnectionPanel() {
+  let panel = document.getElementById('__connPanel');
+  if (panel) { panel.remove(); return; }
+  panel = document.createElement('div');
+  panel.id = '__connPanel';
+  panel.style.cssText = `
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:99999; width:min(92vw,440px); background:#0d121c;
+    border:2px solid #d4af37; border-radius:16px; padding:20px;
+    box-shadow:0 0 60px rgba(212,175,55,0.35); color:#c9d1e3;
+    font-family:'Inter',sans-serif;
+  `;
+  panel.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="font-family:'Orbitron'; color:#d4af37; font-size:16px; letter-spacing:1px;">🔌 Connetti Montatura</h3>
+      <button id="__connClose" style="background:none;border:none;color:#6b778c;font-size:22px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:14px;">
+      <button class="__connTab" data-tab="wifi" style="flex:1; padding:8px; border-radius:8px; border:1px solid #d4af37; background:#d4af37; color:#000; font-weight:700; cursor:pointer; font-size:12px;">📶 WiFi</button>
+      <button class="__connTab" data-tab="bt" style="flex:1; padding:8px; border-radius:8px; border:1px solid #334155; background:#151b26; color:#cbd5e1; font-weight:700; cursor:pointer; font-size:12px;">📡 BT</button>
+      <button class="__connTab" data-tab="sim" style="flex:1; padding:8px; border-radius:8px; border:1px solid #334155; background:#151b26; color:#cbd5e1; font-weight:700; cursor:pointer; font-size:12px;">🧪 Sim</button>
+    </div>
+    <div id="__connBody"></div>
+    <div id="__connStatus" style="margin-top:12px; font-size:11px; color:#8a9bb5; text-align:center;"></div>
+  `;
+  document.body.appendChild(panel);
+  panel.querySelector('#__connClose').onclick = () => panel.remove();
+  panel.querySelectorAll('.__connTab').forEach(tab => {
+    tab.onclick = () => {
+      panel.querySelectorAll('.__connTab').forEach(t => {
+        t.style.background = '#151b26'; t.style.color = '#cbd5e1'; t.style.borderColor = '#334155';
+      });
+      tab.style.background = '#d4af37'; tab.style.color = '#000'; tab.style.borderColor = '#d4af37';
+      renderConnTabSat(tab.dataset.tab, panel);
+    };
+  });
+  renderConnTabSat('wifi', panel);
+}
+
+function renderConnTabSat(type, panel) {
+  const body = panel.querySelector('#__connBody');
+  const saved = JSON.parse(localStorage.getItem('eg:connConfig') || '{}');
+  if (type === 'wifi') {
+    body.innerHTML = `
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Protocollo</label>
+      <select id="__wifiProto" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
+        <option value="onstep">OnStep / LX200</option>
+        <option value="ascom_alpaca">ASCOM Alpaca</option>
+        <option value="synscan">SynScan UDP</option>
+      </select>
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">IP</label>
+      <input id="__wifiIp" type="text" value="${saved.wifiIp || '192.168.4.1'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Porta</label>
+      <input id="__wifiPort" type="number" value="${saved.wifiPort || 9998}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Bridge WS</label>
+      <input id="__wifiBridge" type="text" value="${saved.wifiBridge || 'ws://localhost:8080'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:14px;font-family:'Orbitron';">
+      <button id="__wifiConnect" style="width:100%;padding:12px;background:#4ade80;color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">CONNETTI</button>
+    `;
+    body.querySelector('#__wifiConnect').onclick = () => {
+      const cfg = {
+        type: 'wifi',
+        proto: body.querySelector('#__wifiProto').value,
+        ip: body.querySelector('#__wifiIp').value.trim(),
+        port: parseInt(body.querySelector('#__wifiPort').value, 10),
+        bridge: body.querySelector('#__wifiBridge').value.trim()
+      };
+      localStorage.setItem('eg:connConfig', JSON.stringify({ wifiIp: cfg.ip, wifiPort: cfg.port, wifiBridge: cfg.bridge }));
+      window.applyConnectionFromMaster(cfg);
+      panel.querySelector('#__connStatus').textContent = '⏳ Connessione...';
+    };
+  } else if (type === 'bt') {
+    body.innerHTML = `
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Protocollo</label>
+      <select id="__btProto" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;">
+        <option value="onstep">OnStep BT</option>
+        <option value="synscan">SynScan BT</option>
+      </select>
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Nome / MAC</label>
+      <input id="__btDev" type="text" value="${saved.btDev || ''}" placeholder="HC-05" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:10px;font-family:'Orbitron';">
+      <label style="display:block;font-size:11px;color:#8a9bb5;text-transform:uppercase;margin-bottom:4px;">Bridge WS</label>
+      <input id="__btBridge" type="text" value="${saved.btBridge || 'ws://localhost:8081'}" style="width:100%;padding:10px;background:#151b26;border:1px solid #334155;color:#fff;border-radius:8px;margin-bottom:14px;font-family:'Orbitron';">
+      <button id="__btConnect" style="width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">CONNETTI</button>
+    `;
+    body.querySelector('#__btConnect').onclick = () => {
+      const cfg = {
+        type: 'bt',
+        proto: body.querySelector('#__btProto').value,
+        dev: body.querySelector('#__btDev').value.trim(),
+        bridge: body.querySelector('#__btBridge').value.trim()
+      };
+      localStorage.setItem('eg:connConfig', JSON.stringify({ btDev: cfg.dev, btBridge: cfg.bridge }));
+      window.applyConnectionFromMaster(cfg);
+    };
+  } else {
+    body.innerHTML = `
+      <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:14px;">Modalità simulatore per test.</p>
+      <button id="__simConnect" style="width:100%;padding:12px;background:#eab308;color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-family:'Orbitron';">ATTIVA SIM</button>
+    `;
+    body.querySelector('#__simConnect').onclick = () => {
+      window.applyConnectionFromMaster({ type: 'sim' });
+    };
+  }
+}
 </script>
 </body>
 </html>
