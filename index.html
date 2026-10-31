@@ -262,7 +262,7 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 </div>
 <div class="dash-section tracking-section">
 <h3>Inseguimento / Velocità</h3>
-<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">1x</option><option value="0.02" selected="">8x</option><option value="0.06">32x</option><option value="0.2">128x</option></select></div>
+<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="tracking-multiplier" onchange="changeTrackingMultiplier(this.value)" style="width: 75px; font-size: 11px;"><option value="0.5">0.50x</option><option value="0.75">0.75x</option><option value="1" selected>1.00x</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)" style="width: 100px; font-size: 11px;"><option value="0.005">Lento</option><option value="0.02" selected>Default</option><option value="0.06">Veloce</option><option value="0.2">Veloce Max</option></select></div>
 <div class="control-row"><button class="btn primary" id="trackingOnBtn" onclick="toggleTrackingOn()">TRACKING ON</button></div>
 <div class="control-row"><button class="btn" id="invNSBtn" onclick="toggleInvertNS()">INV N/S</button><button class="btn" id="invEWBtn" onclick="toggleInvertEW()">INV E/O</button></div>
 </div>
@@ -1029,5 +1029,230 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+
+<style id="__patch_css_trriton">
+  #advanced-settings-panel {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(13,18,28,0.98); backdrop-filter: blur(15px);
+    border-top: 2px solid var(--accent); z-index: 9999;
+    display: none; max-height: 70vh; overflow-y: auto;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+    transition: transform 0.3s ease;
+    font-family: 'Inter', sans-serif;
+  }
+  #advanced-settings-panel .panel-header {
+    padding: 15px 20px; border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; background: rgba(13,18,28,0.98); z-index: 10;
+  }
+  #advanced-settings-panel .panel-header h3 { color: var(--accent); font-family: 'Orbitron', sans-serif; margin: 0; font-size: 16px; }
+  .settings-accordion { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .accordion-btn { background: rgba(0,0,0,0.3); color: var(--text); border: none; width: 100%; padding: 14px; text-align: left; cursor: pointer; font-weight: 700; font-family: 'Inter', sans-serif; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+  .accordion-btn:hover { background: rgba(212,175,55,0.1); }
+  .accordion-btn.active { color: var(--accent); }
+  .accordion-content { display: none; padding: 15px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--line); }
+  .accordion-content.show { display: block; animation: slideUp 0.3s ease; }
+  .accordion-content label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; margin-top: 8px; text-transform: uppercase; }
+  .accordion-content input, .accordion-content select { width: 100%; padding: 8px; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); margin-bottom: 10px; font-family: 'Inter'; }
+  .accordion-content input:focus { border-color: var(--accent); outline: none; }
+</style>
+<div id="advanced-settings-panel">
+  <div class="panel-header">
+    <h3>⚙️ Impostazioni Avanzate</h3>
+    <button onclick="toggleAdvancedPanel()" style="background:var(--bad); color:#000; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:18px; font-weight:bold; display:flex; align-items:center; justify-content:center;">×</button>
+  </div>
+  <div style="padding: 20px;">
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">📐 Limiti di Movimento <span>▼</span></button>
+      <div class="accordion-content">
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Min Altitudine</label><input type="number" id="set-min-alt" value="-5" step="1"></div>
+          <div style="flex:1;"><label>Max Altitudine</label><input type="number" id="set-max-alt" value="90" step="1"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Min DEC (°)</label><input type="number" id="set-dec-min" value="-180" step="1"></div>
+          <div style="flex:1;"><label>Max DEC (°)</label><input type="number" id="set-dec-max" value="180" step="1"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">🔄 Meridian Flip <span>▼</span></button>
+      <div class="accordion-content">
+        <label>Flip Automatico</label>
+        <select id="set-auto-flip"><option value="true">ON</option><option value="false">OFF</option></select>
+        <label>Offset Flip (°)</label>
+        <input type="number" id="set-flip-offset" value="2" step="0.5">
+      </div>
+    </div>
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">⭐ Allineamento <span>▼</span></button>
+      <div class="accordion-content">
+        <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">La procedura di allineamento a 3 stelle sarà disponibile a breve.</p>
+        <button class="btn" disabled style="width:100%; margin-bottom:5px; opacity:0.5;">Allineamento 1 Stella</button>
+        <button class="btn" disabled style="width:100%; opacity:0.5;">Allineamento 3 Stelle</button>
+      </div>
+    </div>
+    <button class="btn primary" onclick="saveAdvancedSettings()" style="width:100%; padding:12px; font-size:14px;">💾 Salva Impostazioni</button>
+  </div>
+</div>
+<div style="position:fixed; bottom:15px; left:15px; z-index:1000;">
+  <button class="btn btn-ghost" onclick="toggleAdvancedPanel()" style="background:var(--bg2); border:1px solid var(--accent); box-shadow:0 0 15px rgba(212,175,55,0.3);">⚙️ Impostazioni</button>
+</div>
+
+<script id="__patch_satellite_core">
+(function(){
+  // A. FIX MATEMATICO POSIZIONE HOME
+  if (typeof getLST === 'function') {
+    const currentLST = getLST(new Date()) * Math.PI / 180;
+    MS.ra = currentLST; MS.tRA = currentLST; MS.dec = Math.PI / 2; MS.tDEC = Math.PI / 2;
+    MS.homeRA = currentLST; MS.homeDEC = Math.PI / 2;
+  }
+
+  // B. SIMULATORE PERFETTO
+  if (typeof Protocols !== 'undefined') {
+    Protocols.sim.sendGoto = function(raHours, decDeg) {
+      const targetRA = raHours * 15 * Math.PI / 180;
+      const targetDEC = decDeg * Math.PI / 180;
+      const mech = mechCoordsForAstro(targetRA, targetDEC, MS.dec, false);
+      if (mech) {
+        MS.tRA = mech.raMech; MS.tDEC = mech.decMech;
+        MS.slewMode = 'goto';
+        const raDiff = MountMath.angleDiff(MS.ra, MS.tRA);
+        const decDiff = MS.tDEC - MS.dec;
+        MS.slewStartDist = Math.sqrt(raDiff*raDiff + decDiff*decDiff);
+        if (typeof showSlewIndicator === 'function') showSlewIndicator();
+      }
+    };
+    Protocols.sim.sync = function(raHours, decDeg) {
+      MS.ra = raHours * 15 * Math.PI / 180; MS.dec = decDeg * Math.PI / 180;
+      MS.tRA = MS.ra; MS.tDEC = MS.dec;
+    };
+    Protocols.sim.stop = function() { MS.slewMode = 'idle'; MS.slewCancelled = true; };
+    Protocols.sim.tracking = function(on) { MS.tracking = on ? 'sidereal' : 'off'; };
+    Protocols.sim.park = function() { MS.slewMode = 'park'; };
+    Protocols.sim.unpark = function() { MS.isParked = false; };
+  }
+
+  // C. GESTIONE VELOCITÀ E RATE (Identica a Pianeta)
+  MS.trackingMultiplier = 1.0;
+
+  window.changeTrackingMultiplier = function(val) {
+    MS.trackingMultiplier = parseFloat(val);
+    if (typeof scopeLog === 'function') scopeLog('Tracking rate: ' + val + 'x', 'ok');
+  };
+
+  window.changeSlewSpeed = function(val) {
+    const v = parseFloat(val);
+    MS.speedPerStep = v;
+    const labels = { '0.005': 'Lento', '0.02': 'Default', '0.06': 'Veloce', '0.2': 'Veloce Max' };
+    MS.speedLabel = labels[val] || v;
+    if (val == '0.005') scopeState.rate = 0.5;
+    else if (val == '0.02') scopeState.rate = 1.0;
+    else if (val == '0.06') scopeState.rate = 2.0;
+    else if (val == '0.2') scopeState.rate = 4.0;
+    if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay();
+    if (typeof saveFullState === 'function') saveFullState();
+    if (typeof showToast === 'function') showToast('Slewing: ' + MS.speedLabel);
+  };
+
+  window.scopeChangeRate = function(dir) {
+    const rates = [0.5, 0.75, 1.0];
+    let idx = rates.indexOf(MS.trackingMultiplier || 1.0);
+    idx = Math.max(0, Math.min(rates.length - 1, idx + dir));
+    MS.trackingMultiplier = rates[idx];
+    const sel = document.getElementById('tracking-multiplier');
+    if (sel) sel.value = MS.trackingMultiplier;
+    if (typeof scopeUpdateUI === 'function') scopeUpdateUI();
+    if (typeof scopeLog === 'function') scopeLog('Tracking rate: ' + MS.trackingMultiplier + 'x', '');
+  };
+
+  // D. OVERRIDE DEL TRACKING LOOP
+  const origTrackingLoop = window.trackingLoop;
+  window.trackingLoop = function(time) {
+    if (!trackingRAF) return;
+    if (!MS.connected || !MS.tracking || MS.isParked) { trackingRAF = null; return; }
+    const dt = trackingLastTime ? Math.min((time - trackingLastTime) / 1000, 0.2) : 0;
+    trackingLastTime = time;
+    if (dt > 0 && !MS.slewing && document.getElementById('tab-scope').classList.contains('active')) {
+      if (MS.trackingTarget && MS.target) {
+        const p = getAltAz(MS.target.ra, MS.target.dec, state.currentTime);
+        if (p.alt > 0) { MS.mountAlt = p.alt; MS.mountAz = p.az; }
+      } else {
+        const baseRate = TRACKING_RATES[MS.trackRate] || TRACKING_RATES.sidereal;
+        const multiplier = MS.trackingMultiplier || 1.0;
+        MS.mountAz = norm360(MS.mountAz + baseRate * multiplier * dt);
+      }
+      if (typeof scopeUpdateUI === 'function') scopeUpdateUI();
+      if (typeof scopeDraw === 'function') scopeDraw();
+    }
+    trackingRAF = requestAnimationFrame(window.trackingLoop);
+  };
+
+  const origUpdateUI = window.scopeUpdateUI;
+  window.scopeUpdateUI = function() {
+    if (origUpdateUI) origUpdateUI();
+    const rd = document.getElementById('scopeRateDisplay');
+    if (rd) rd.innerText = MS.speedLabel || 'Default';
+  };
+
+  // E. SINCRONIZZAZIONE
+  if (typeof SyncBus !== 'undefined') {
+    setInterval(function() {
+      if (MS.connected) SyncBus.send('mount_position', { ra: MS.ra, dec: MS.dec, alt: scopeState.mountAlt, az: scopeState.mountAz });
+    }, 500);
+
+    SyncBus.on('cmd_connect', function() { if (typeof toggleConnection === 'function') toggleConnection(); });
+    SyncBus.on('cmd_goto', function(d) { if (d && d.ra) _startGoto(d.ra * Math.PI/180, d.dec * Math.PI/180); });
+    SyncBus.on('cmd_stop', function() { if (typeof stopMotion === 'function') stopMotion(); });
+    SyncBus.on('cmd_park', function() { if (typeof parkMount === 'function') parkMount(); });
+    SyncBus.on('cmd_unpark', function() { if (typeof unparkMount === 'function') unparkMount(); });
+    SyncBus.on('cmd_home', function() { if (typeof goHome === 'function') goHome(); });
+    SyncBus.on('cmd_tracking', function(d) { if (d && d.on !== (MS.tracking !== 'off') && typeof toggleTrackingOn === 'function') toggleTrackingOn(); });
+    
+    SyncBus.on('new_target', function(target) {
+      if (!target || !target.ra) return;
+      if (!MS.connected) { showToast('Connetti la montatura per il GOTO', true); return; }
+      scopeSelectTarget(target.name, target.name, target.type, target.ra, target.dec, {});
+      setTimeout(function() { if (typeof scopeStepAction === 'function') scopeStepAction(); }, 300);
+    });
+  }
+
+  // F. UI IMPOSTAZIONI TRITON
+  window.toggleAdvancedPanel = function() {
+    var panel = document.getElementById('advanced-settings-panel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    if (panel.style.display === 'block') {
+      document.getElementById('set-min-alt').value = MS.minAlt;
+      document.getElementById('set-max-alt').value = MS.maxAlt;
+      document.getElementById('set-dec-min').value = (MS.decMin * 180 / Math.PI).toFixed(0);
+      document.getElementById('set-dec-max').value = (MS.decMax * 180 / Math.PI).toFixed(0);
+      document.getElementById('set-auto-flip').value = MS.autoFlip.toString();
+      document.getElementById('set-flip-offset').value = MS.flipOffset;
+    }
+  };
+  window.toggleAccordion = function(btn) {
+    var content = btn.nextElementSibling;
+    content.classList.toggle('show');
+    btn.classList.toggle('active');
+  };
+  window.saveAdvancedSettings = function() {
+    const minAlt = parseFloat(document.getElementById('set-min-alt').value);
+    const maxAlt = parseFloat(document.getElementById('set-max-alt').value);
+    const decMin = parseFloat(document.getElementById('set-dec-min').value);
+    const decMax = parseFloat(document.getElementById('set-dec-max').value);
+    const autoFlip = document.getElementById('set-auto-flip').value === 'true';
+    const flipOffset = parseFloat(document.getElementById('set-flip-offset').value);
+    if (minAlt >= maxAlt) { showToast('Altitudine max deve essere > min', true); return; }
+    if (decMin >= decMax) { showToast('DEC max deve essere > min', true); return; }
+    MS.minAlt = minAlt; MS.maxAlt = maxAlt;
+    MS.decMin = decMin * Math.PI / 180; MS.decMax = decMax * Math.PI / 180;
+    MS.autoFlip = autoFlip; MS.flipOffset = flipOffset;
+    if (typeof saveFullState === 'function') saveFullState();
+    if (typeof updateTelemetry === 'function') updateTelemetry();
+    showToast('✅ Impostazioni Salvate');
+    toggleAdvancedPanel();
+  };
+})();
+</script>
 </body>
 </html>
