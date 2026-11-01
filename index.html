@@ -1345,47 +1345,41 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_v43">
+
+
+<script id="__sync_mount_v44">
 (function() {
-  console.log("🚀 [Mount] Sync Blindato v43 avviato");
+  console.log("🚀 [Mount] Motore Sync v44 attivo");
+  if (window.SyncBus) { window.SyncBus.stop(); }
 
-  // 1. BLINDIAMO IL BADGE (Impediamo a vecchi script di sovrascriverlo)
-  const t = document.getElementById('syncText');
-  if (t && !t._locked) {
-      t._locked = true;
-      let _txt = 'WAIT MASTER...';
-      const block = (v) => v.includes('SYNC') || v.includes('LEADER') || v.includes('SLAVE') || v.includes('OFF') || v.includes('ONLINE');
-      Object.defineProperty(t, 'textContent', { get: () => _txt, set: (v) => { if (block(v)) return; _txt = v; } });
-      Object.defineProperty(t, 'innerText', { get: () => _txt, set: (v) => { if (block(v)) return; _txt = v; } });
-      t.textContent = 'WAIT MASTER...';
-  }
-  const d = document.getElementById('syncDot');
-  if (d) d.style.color = '#fbbf24';
-  const b = document.getElementById('syncBadge');
-  if (b) b.style.borderColor = '#fbbf24';
+  const badge = document.getElementById('syncBadge');
+  const dot = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  let isOnline = false;
 
-  // 2. FUNZIONE PER CAMBIARE STATO BADGE
   function setBadge(online) {
-    if (!t) return;
+    if (isOnline === online) return;
+    isOnline = online;
+    if (!text) return;
     if (online) {
-      t.textContent = 'LINK ON'; t.style.color = '#4ade80';
-      if(d) d.style.color = '#4ade80'; if(b) b.style.borderColor = '#4ade80';
+      text.textContent = 'LINK ON'; text.style.color = '#4ade80';
+      if(dot) dot.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80';
     } else {
-      t.textContent = 'WAIT MASTER...'; t.style.color = '#fbbf24';
-      if(d) d.style.color = '#fbbf24'; if(b) b.style.borderColor = '#fbbf24';
+      text.textContent = 'WAIT MASTER...'; text.style.color = '#fbbf24';
+      if(dot) dot.style.color = '#fbbf24'; if(badge) badge.style.borderColor = '#fbbf24';
     }
   }
+  setBadge(false);
 
-  // 3. POLLING: Motore di Sincronizzazione
-  let lastGpsTs = 0, lastConnTs = 0, lastGotoTs = 0, lastParkTs = 0, lastUnparkTs = 0;
+  let lastGpsTs = 0, lastConnTs = 0, lastCmdTs = { goto:0, park:0, unpark:0, stop:0, tracking:0 };
   let lastActivity = 0;
 
-  if (window._mountPolling) clearInterval(window._mountPolling);
-  window._mountPolling = setInterval(() => {
+  // 1. Motore di Sincronizzazione (Polling)
+  setInterval(() => {
     let activity = false;
 
     // A. Ricevi GPS
-    const gpsRaw = localStorage.getItem('v43_gps');
+    const gpsRaw = localStorage.getItem('v44_gps');
     if (gpsRaw) {
       try {
         const gps = JSON.parse(gpsRaw);
@@ -1395,15 +1389,14 @@ window.addEventListener('load',()=>{
             MS.gpsLat = gps.lat; MS.gpsLon = gps.lon; MS.gpsActive = true;
             if (typeof updateTelemetry === 'function') updateTelemetry();
             if (typeof applyMountTilt === 'function') applyMountTilt();
-            if (typeof saveFullState === 'function') saveFullState();
-            console.log('📍 [Mount] GPS Ricevuto:', gps.lat, gps.lon);
+            console.log('📥 [Mount] GPS Ricevuto:', gps.lat, gps.lon);
           }
         }
       } catch(e) {}
     }
 
-    // B. Ricevi Connessione (Connetti / Scollega)
-    const connRaw = localStorage.getItem('v43_conn');
+    // B. Ricevi Connessione
+    const connRaw = localStorage.getItem('v44_conn');
     if (connRaw) {
       try {
         const conn = JSON.parse(connRaw);
@@ -1413,31 +1406,44 @@ window.addEventListener('load',()=>{
             MS.simulated = conn.simulated;
             if (conn.connected && !MS.connected && typeof toggleConnection === 'function') {
               toggleConnection();
-              console.log('🔗 [Mount] CONNESSO da Pianeta');
+              console.log('📥 [Mount] Connetti da Pianeta');
             } else if (!conn.connected && MS.connected && typeof disconnectMount === 'function') {
               disconnectMount(true);
-              console.log('🔌 [Mount] DISCONNESSO da Pianeta');
+              console.log('📥 [Mount] Scollega da Pianeta');
             }
           }
         }
       } catch(e) {}
     }
 
-    // C. Ricevi Comandi
-    const gotoRaw = localStorage.getItem('v43_goto');
-    if (gotoRaw) { try { const c = JSON.parse(gotoRaw); if (c.ts > lastGotoTs) { lastGotoTs = c.ts; activity = true; if (typeof _startGoto === 'function') _startGoto(c.ra, c.dec); } } catch(e) {} }
-    const parkRaw = localStorage.getItem('v43_park');
-    if (parkRaw) { try { const c = JSON.parse(parkRaw); if (c.ts > lastParkTs) { lastParkTs = c.ts; activity = true; if (typeof parkMount === 'function') parkMount(); } } catch(e) {} }
-    const unparkRaw = localStorage.getItem('v43_unpark');
-    if (unparkRaw) { try { const c = JSON.parse(unparkRaw); if (c.ts > lastUnparkTs) { lastUnparkTs = c.ts; activity = true; if (typeof unparkMount === 'function') unparkMount(); } } catch(e) {} }
+    // C. Ricevi Comandi Operativi
+    ['goto', 'park', 'unpark', 'stop', 'tracking'].forEach(cmd => {
+      const raw = localStorage.getItem('v44_cmd_' + cmd);
+      if (raw) {
+        try {
+          const d = JSON.parse(raw);
+          if (d.ts > lastCmdTs[cmd]) {
+            lastCmdTs[cmd] = d.ts; activity = true;
+            if (typeof MS !== 'undefined') {
+              if (cmd === 'goto' && typeof _startGoto === 'function') _startGoto(d.ra, d.dec);
+              if (cmd === 'park' && typeof parkMount === 'function') parkMount();
+              if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
+              if (cmd === 'stop' && typeof stopMotion === 'function') stopMotion();
+              if (cmd === 'tracking' && typeof toggleTrackingOn === 'function' && d.on !== (MS.tracking !== 'off')) toggleTrackingOn();
+              console.log('📥 [Mount] Eseguito comando:', cmd);
+            }
+          }
+        } catch(e) {}
+      }
+    });
 
-    // D. Invia Telemetria (solo se connesso)
+    // D. Invia Telemetria
     if (typeof MS !== 'undefined' && MS.connected) {
       try {
         const astro = getAstroCoords();
         const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat || 41.9, MS.gpsLon || 12.5, new Date());
         const st = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
-        localStorage.setItem('v43_telem', JSON.stringify({ data: st, ts: Date.now() }));
+        localStorage.setItem('v44_telem', JSON.stringify({ data: st, ts: Date.now() }));
         activity = true;
       } catch(e) {}
     }
@@ -1445,7 +1451,6 @@ window.addEventListener('load',()=>{
     if (activity) lastActivity = Date.now();
     setBadge(Date.now() - lastActivity < 3000);
   }, 500);
-
 })();
 </script>
 </body>
