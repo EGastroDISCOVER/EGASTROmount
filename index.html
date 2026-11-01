@@ -1023,12 +1023,12 @@ window.addEventListener('load',()=>{
 <div id="tunnel-btn" title="Apri Osservatorio">
   <button id="tunnel-btn-click">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 21h18"/>
-      <path d="M4 21v-8"/>
-      <path d="M20 21v-8"/>
-      <path d="M4 13a8 8 0 0 1 16 0"/>
-      <path d="M12 5v8"/>
-      <path d="M12 10l-3-2"/>
+      <path d="M3 21h18"></path>
+      <path d="M4 21v-8"></path>
+      <path d="M20 21v-8"></path>
+      <path d="M4 13a8 8 0 0 1 16 0"></path>
+      <path d="M12 5v8"></path>
+      <path d="M12 10l-3-2"></path>
     </svg>
     <span id="tunnel-label">DOME</span>
   </button>
@@ -1282,7 +1282,7 @@ window.addEventListener('load',()=>{
 
 
 
-</div>
+
 
 <style>
   @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1291,43 +1291,7 @@ window.addEventListener('load',()=>{
 
 
 
-</div>
-<style>
-  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
-  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
-</style>
 
-
-
-
-</div>
-<style>
-  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
-  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
-</style>
-
-
-
-
-</div>
-<style>
-  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
-  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
-</style>
-
-
-
-
-</div>
-<style>
-  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
-  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
-</style>
-
-
-
-
-</div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
   @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
@@ -1337,6 +1301,37 @@ window.addEventListener('load',()=>{
 
 
 
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
+
+
+
+
+
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
+
+
+
+
+
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
+
+
+
+
+
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
 
 
 
@@ -1347,111 +1342,57 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_v44">
-(function() {
-  console.log("🚀 [Mount] Motore Sync v44 attivo");
-  if (window.SyncBus) { window.SyncBus.stop(); }
 
-  const badge = document.getElementById('syncBadge');
-  const dot = document.getElementById('syncDot');
-  const text = document.getElementById('syncText');
-  let isOnline = false;
 
-  function setBadge(online) {
-    if (isOnline === online) return;
-    isOnline = online;
-    if (!text) return;
-    if (online) {
-      text.textContent = 'LINK ON'; text.style.color = '#4ade80';
-      if(dot) dot.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80';
-    } else {
-      text.textContent = 'WAIT MASTER...'; text.style.color = '#fbbf24';
-      if(dot) dot.style.color = '#fbbf24'; if(badge) badge.style.borderColor = '#fbbf24';
-    }
-  }
-  setBadge(false);
 
-  let lastGpsTs = 0, lastConnTs = 0, lastCmdTs = { goto:0, park:0, unpark:0, stop:0, tracking:0 };
-  let lastActivity = 0;
 
-  // 1. Motore di Sincronizzazione (Polling)
-  setInterval(() => {
-    let activity = false;
 
-    // A. Ricevi GPS
-    const gpsRaw = localStorage.getItem('v44_gps');
-    if (gpsRaw) {
-      try {
-        const gps = JSON.parse(gpsRaw);
-        if (gps.ts > lastGpsTs) {
-          lastGpsTs = gps.ts; activity = true;
-          if (typeof MS !== 'undefined') {
-            MS.gpsLat = gps.lat; MS.gpsLon = gps.lon; MS.gpsActive = true;
-            if (typeof updateTelemetry === 'function') updateTelemetry();
-            if (typeof applyMountTilt === 'function') applyMountTilt();
-            console.log('📥 [Mount] GPS Ricevuto:', gps.lat, gps.lon);
-          }
-        }
-      } catch(e) {}
-    }
 
-    // B. Ricevi Connessione
-    const connRaw = localStorage.getItem('v44_conn');
-    if (connRaw) {
-      try {
-        const conn = JSON.parse(connRaw);
-        if (conn.ts > lastConnTs) {
-          lastConnTs = conn.ts; activity = true;
-          if (typeof MS !== 'undefined') {
-            MS.simulated = conn.simulated;
-            if (conn.connected && !MS.connected && typeof toggleConnection === 'function') {
-              toggleConnection();
-              console.log('📥 [Mount] Connetti da Pianeta');
-            } else if (!conn.connected && MS.connected && typeof disconnectMount === 'function') {
-              disconnectMount(true);
-              console.log('📥 [Mount] Scollega da Pianeta');
-            }
-          }
-        }
-      } catch(e) {}
-    }
 
-    // C. Ricevi Comandi Operativi
-    ['goto', 'park', 'unpark', 'stop', 'tracking'].forEach(cmd => {
-      const raw = localStorage.getItem('v44_cmd_' + cmd);
-      if (raw) {
-        try {
-          const d = JSON.parse(raw);
-          if (d.ts > lastCmdTs[cmd]) {
-            lastCmdTs[cmd] = d.ts; activity = true;
-            if (typeof MS !== 'undefined') {
-              if (cmd === 'goto' && typeof _startGoto === 'function') _startGoto(d.ra, d.dec);
-              if (cmd === 'park' && typeof parkMount === 'function') parkMount();
-              if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
-              if (cmd === 'stop' && typeof stopMotion === 'function') stopMotion();
-              if (cmd === 'tracking' && typeof toggleTrackingOn === 'function' && d.on !== (MS.tracking !== 'off')) toggleTrackingOn();
-              console.log('📥 [Mount] Eseguito comando:', cmd);
-            }
-          }
-        } catch(e) {}
+
+<script id="__sync_mount_vfinal">
+    (function() {
+      if (window.SyncBus) { window.SyncBus.stop(); window.SyncBus = null; }
+      
+      // Blocca il vecchio codice che sfarfalla clonando gli elementi
+      const t = document.getElementById('syncText');
+      if (t) { const c = t.cloneNode(true); c.id = 'syncText_new'; t.parentNode.replaceChild(c, t); }
+      const d = document.getElementById('syncDot');
+      if (d) { const c = d.cloneNode(true); c.id = 'syncDot_new'; d.parentNode.replaceChild(c, d); }
+      
+      function showPopup(msg) {
+        let p = document.createElement('div');
+        p.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#4ade80;color:#000;padding:10px 20px;border-radius:8px;font-family:Orbitron;font-weight:bold;z-index:999999;box-shadow:0 5px 15px rgba(0,0,0,0.5);';
+        p.textContent = msg; document.body.appendChild(p); setTimeout(() => p.remove(), 3000);
       }
-    });
-
-    // D. Invia Telemetria
-    if (typeof MS !== 'undefined' && MS.connected) {
-      try {
-        const astro = getAstroCoords();
-        const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat || 41.9, MS.gpsLon || 12.5, new Date());
-        const st = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
-        localStorage.setItem('v44_telem', JSON.stringify({ data: st, ts: Date.now() }));
-        activity = true;
-      } catch(e) {}
-    }
-
-    if (activity) lastActivity = Date.now();
-    setBadge(Date.now() - lastActivity < 3000);
-  }, 500);
-})();
-</script>
-</body>
-</html>
+      
+      let lastGps = 0, lastConn = 0;
+      
+      setInterval(() => {
+        localStorage.setItem('vfinal_hb_m', Date.now());
+        const isAlive = localStorage.getItem('vfinal_hb_p') && (Date.now() - Number(localStorage.getItem('vfinal_hb_p')) < 2000);
+        
+        const t2 = document.getElementById('syncText_new');
+        const d2 = document.getElementById('syncDot_new');
+        const b = document.getElementById('syncBadge');
+        
+        if (t2) {
+          if (isAlive) {
+            t2.textContent = 'SYNC ON'; t2.style.color = '#4ade80';
+            if (d2) d2.style.color = '#4ade80';
+            if (b) { b.style.borderColor = '#4ade80'; b.style.background = 'rgba(74,222,128,0.1)'; }
+          } else {
+            t2.textContent = 'SYNC WAIT'; t2.style.color = '#fbbf24';
+            if (d2) d2.style.color = '#fbbf24';
+            if (b) { b.style.borderColor = '#fbbf24'; b.style.background = 'rgba(251,191,36,0.1)'; }
+          }
+        }
+        
+        const gpsRaw = localStorage.getItem('vfinal_gps');
+        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(g.ts > lastGps) { lastGps = g.ts; if(typeof MS !== 'undefined') { MS.gpsLat = g.lat; MS.gpsLon = g.lon; MS.gpsActive = true; if (typeof updateTelemetry === 'function') updateTelemetry(); if (typeof applyMountTilt === 'function') applyMountTilt(); showPopup('📍 GPS Aggiornato da Pianeta!'); } } }
+        
+        const connRaw = localStorage.getItem('vfinal_conn');
+        if(connRaw) { const c = JSON.parse(connRaw); if(c.ts > lastConn) { lastConn = c.ts; if(typeof MS !== 'undefined') { MS.simulated = c.sim; if(c.connected && !MS.connected && typeof toggleConnection === 'function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount === 'function') disconnectMount(true); } } }
+      }, 200);
+    })();
+  </script></body></html>
