@@ -1304,7 +1304,20 @@ window.addEventListener('load',()=>{
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
   @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
 </style>
-<script id="__permanent_sync_mount">
+
+
+
+<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <span>STATO MOUNT:</span>
+    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
+  </div>
+</div>
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
+<script id="__nuke_sync_mount">
 (function() {
   document.addEventListener('DOMContentLoaded', function() {
     const bc = new BroadcastChannel('egastro_direct_sync');
@@ -1332,7 +1345,7 @@ window.addEventListener('load',()=>{
           if (typeof saveFullState === 'function') saveFullState();
         }
         showSyncPopup(m.data.lat, m.data.lon);
-        console.log('📍 [Mount] GPS ricevuto e applicato:', m.data.lat, m.data.lon);
+        console.log('📍 [Mount] GPS applicato:', m.data.lat, m.data.lon);
       }
 
       if (m.type === 'sync_conn' && typeof MS !== 'undefined' && !MS.connected) {
@@ -1349,13 +1362,9 @@ window.addEventListener('load',()=>{
 
     setInterval(() => {
       if (gpsSynced) {
-        statusText.innerText = 'ONLINE ✓';
-        statusText.style.color = '#4ade80';
-        panel.style.borderColor = '#4ade80';
+        statusText.innerText = 'ONLINE ✓'; statusText.style.color = '#4ade80'; panel.style.borderColor = '#4ade80';
       } else {
-        statusText.innerText = 'WAIT GPS...';
-        statusText.style.color = '#fbbf24';
-        panel.style.borderColor = '#fbbf24';
+        statusText.innerText = 'WAIT GPS...'; statusText.style.color = '#fbbf24'; panel.style.borderColor = '#fbbf24';
       }
     }, 1000);
 
