@@ -1287,29 +1287,42 @@ window.addEventListener('load',()=>{
     <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
   </div>
 </div>
+
+<style>
+  @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUp { from { top: 20px; opacity: 1; } to { top: -50px; opacity: 0; } }
+</style>
+
+
+<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <span>STATO MOUNT:</span>
+    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
+  </div>
+</div>
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
 <script id="__permanent_sync_mount">
 (function() {
   document.addEventListener('DOMContentLoaded', function() {
     const bc = new BroadcastChannel('egastro_direct_sync');
     const statusText = document.getElementById('sync-status-text');
     const panel = document.getElementById('sync-status-panel');
-    let gpsSynced = false; // Flag: parte da false finché non arriva il GPS
+    let gpsSynced = false;
 
-    // Funzione Popup per confermare la sincronizzazione GPS
     function showSyncPopup(lat, lon) {
       const popup = document.createElement('div');
-      popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 25px;border-radius:10px;font-family:Orbitron,sans-serif;font-weight:900;font-size:14px;z-index:999999;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;animation:slideDown 0.4s ease-out;';
-      popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:11px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
+      popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;z-index:999999;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;animation:slideDownSync 0.4s ease-out;';
+      popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:12px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
       document.body.appendChild(popup);
-      // Rimuove il popup dopo 4 secondi
-      setTimeout(() => { popup.style.animation = 'slideUp 0.4s ease-in'; setTimeout(() => popup.remove(), 400); }, 4000);
+      setTimeout(() => { popup.style.animation = 'slideUpSync 0.4s ease-in forwards'; setTimeout(() => popup.remove(), 400); }, 4000);
     }
 
-    // Ascolta i messaggi da Pianeta
     bc.onmessage = (ev) => {
       const m = ev.data;
-
-      // SE ARRIVA IL GPS: attiva la sincronizzazione
+      
       if (m.type === 'sync_gps') {
         gpsSynced = true;
         if (typeof MS !== 'undefined') {
@@ -1319,23 +1332,21 @@ window.addEventListener('load',()=>{
           if (typeof saveFullState === 'function') saveFullState();
         }
         showSyncPopup(m.data.lat, m.data.lon);
-        console.log('📍 [Mount] GPS ricevuto. Sincronizzazione attiva.');
+        console.log('📍 [Mount] GPS ricevuto e applicato:', m.data.lat, m.data.lon);
       }
 
-      // Connessione
       if (m.type === 'sync_conn' && typeof MS !== 'undefined' && !MS.connected) {
         MS.simulated = m.data.simulated;
         if (typeof toggleConnection === 'function') toggleConnection();
+        console.log('🔗 [Mount] Connessione richiesta da Pianeta');
       }
 
-      // Comandi di movimento
       if (m.type === 'cmd_goto' && typeof _startGoto === 'function') _startGoto(m.data.ra, m.data.dec);
       if (m.type === 'cmd_park' && typeof parkMount === 'function') parkMount();
       if (m.type === 'cmd_unpark' && typeof unparkMount === 'function') unparkMount();
       if (m.type === 'cmd_stop' && typeof stopMotion === 'function') stopMotion();
     };
 
-    // Aggiorna il badge in base allo stato (gpsSynced)
     setInterval(() => {
       if (gpsSynced) {
         statusText.innerText = 'ONLINE ✓';
@@ -1348,7 +1359,6 @@ window.addEventListener('load',()=>{
       }
     }, 1000);
 
-    // Invia la telemetria a Pianeta solo se il GPS è sincronizzato
     setInterval(() => {
       if (gpsSynced && typeof MS !== 'undefined' && MS.connected) {
         try {
@@ -1361,10 +1371,6 @@ window.addEventListener('load',()=>{
   });
 })();
 </script>
-<style>
-  @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }
-  @keyframes slideUp { from { top: 20px; opacity: 1; } to { top: -50px; opacity: 0; } }
-</style>
 
 </body>
 </html>
