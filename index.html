@@ -1317,10 +1317,22 @@ window.addEventListener('load',()=>{
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
   @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
 </style>
-<script id="__nuke_sync_mount">
+
+
+
+<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <span>STATO MOUNT:</span>
+    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
+  </div>
+</div>
+<style>
+  @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+  @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+</style>
+<script id="__ls_sync_mount">
 (function() {
   document.addEventListener('DOMContentLoaded', function() {
-    const bc = new BroadcastChannel('egastro_direct_sync');
     const statusText = document.getElementById('sync-status-text');
     const panel = document.getElementById('sync-status-panel');
     let gpsSynced = false;
@@ -1333,33 +1345,38 @@ window.addEventListener('load',()=>{
       setTimeout(() => { popup.style.animation = 'slideUpSync 0.4s ease-in forwards'; setTimeout(() => popup.remove(), 400); }, 4000);
     }
 
-    bc.onmessage = (ev) => {
-      const m = ev.data;
-      
-      if (m.type === 'sync_gps') {
-        gpsSynced = true;
-        if (typeof MS !== 'undefined') {
-          MS.gpsLat = m.data.lat; MS.gpsLon = m.data.lon; MS.gpsActive = true;
-          if (typeof updateTelemetry === 'function') updateTelemetry();
-          if (typeof applyMountTilt === 'function') applyMountTilt();
-          if (typeof saveFullState === 'function') saveFullState();
-        }
-        showSyncPopup(m.data.lat, m.data.lon);
-        console.log('📍 [Mount] GPS applicato:', m.data.lat, m.data.lon);
+    // Ascolta i comandi da Pianeta tramite LocalStorage
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'egastro_sync_gps') {
+        try {
+          const d = JSON.parse(e.newValue);
+          if (d && d.data) {
+            gpsSynced = true;
+            if (typeof MS !== 'undefined') {
+              MS.gpsLat = d.data.lat; MS.gpsLon = d.data.lon; MS.gpsActive = true;
+              if (typeof updateTelemetry === 'function') updateTelemetry();
+              if (typeof applyMountTilt === 'function') applyMountTilt();
+              if (typeof saveFullState === 'function') saveFullState();
+            }
+            showSyncPopup(d.data.lat, d.data.lon);
+            console.log('📍 [Mount] GPS ricevuto:', d.data.lat, d.data.lon);
+          }
+        } catch(err) {}
       }
 
-      if (m.type === 'sync_conn' && typeof MS !== 'undefined' && !MS.connected) {
-        MS.simulated = m.data.simulated;
-        if (typeof toggleConnection === 'function') toggleConnection();
-        console.log('🔗 [Mount] Connessione richiesta da Pianeta');
+      if (e.key === 'egastro_sync_conn') {
+        try {
+          const d = JSON.parse(e.newValue);
+          if (d && d.data && typeof MS !== 'undefined' && !MS.connected) {
+            MS.simulated = d.data.simulated;
+            if (typeof toggleConnection === 'function') toggleConnection();
+            console.log('🔗 [Mount] Connessione richiesta da Pianeta');
+          }
+        } catch(err) {}
       }
+    });
 
-      if (m.type === 'cmd_goto' && typeof _startGoto === 'function') _startGoto(m.data.ra, m.data.dec);
-      if (m.type === 'cmd_park' && typeof parkMount === 'function') parkMount();
-      if (m.type === 'cmd_unpark' && typeof unparkMount === 'function') unparkMount();
-      if (m.type === 'cmd_stop' && typeof stopMotion === 'function') stopMotion();
-    };
-
+    // Aggiorna il badge
     setInterval(() => {
       if (gpsSynced) {
         statusText.innerText = 'ONLINE ✓'; statusText.style.color = '#4ade80'; panel.style.borderColor = '#4ade80';
@@ -1368,12 +1385,14 @@ window.addEventListener('load',()=>{
       }
     }, 1000);
 
+    // Invia telemetria a Pianeta tramite LocalStorage
     setInterval(() => {
       if (gpsSynced && typeof MS !== 'undefined' && MS.connected) {
         try {
           const astro = getAstroCoords();
           const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat, MS.gpsLon, new Date());
-          bc.postMessage({ type: 'mount_state', data: { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking } });
+          const state = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
+          localStorage.setItem('egastro_mount_state', JSON.stringify({ data: state, ts: Date.now() }));
         } catch(e) {}
       }
     }, 500);
