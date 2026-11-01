@@ -1204,5 +1204,66 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+
+<script id="__sync_bus_mount">
+(function(){
+  if (typeof SyncBus === 'undefined') return;
+  console.log('🔄 [Mount] SyncBus inizializzato');
+
+  // 1. Invia lo stato a Pianeta ogni 500ms (se connesso)
+  setInterval(() => {
+    if (typeof MS !== 'undefined' && MS.connected && SyncBus.isPeerAlive()) {
+      SyncBus.send('mount_state', {
+        ra: MS.ra,                    // Radianti
+        dec: MS.dec,                  // Radianti
+        isParked: MS.isParked,
+        tracking: MS.tracking,
+        slewMode: MS.slewMode,
+        simulated: MS.simulated,
+        wifiEnabled: MS.wifiEnabled,
+        btEnabled: MS.btEnabled
+      });
+    }
+  }, 500);
+
+  // 2. Ascolta i comandi da Pianeta
+  SyncBus.on('cmd_goto', d => { if (d.ra !== undefined && d.dec !== undefined) _startGoto(d.ra, d.dec); });
+  SyncBus.on('cmd_park', () => { if (typeof parkMount === 'function') parkMount(); });
+  SyncBus.on('cmd_unpark', () => { if (typeof unparkMount === 'function') unparkMount(); });
+  SyncBus.on('cmd_home', () => { if (typeof goHome === 'function') goHome(); });
+  SyncBus.on('cmd_stop', () => { if (typeof stopMotion === 'function') stopMotion(); });
+  SyncBus.on('cmd_tracking', d => { if (d.on !== (MS.tracking !== 'off')) toggleTrackingOn(); });
+  
+  // 3. Ascolta la richiesta di connessione da Pianeta
+  SyncBus.on('sync_connect', d => {
+    if (!MS.connected) {
+      console.log('🔗 [Mount] Ricevuta richiesta di connessione da Pianeta', d);
+      MS.simulated = d.simulated;
+      MS.wifiEnabled = d.wifiEnabled;
+      MS.btEnabled = d.btEnabled;
+      if (d.simulated) toggleSimulator(); // Assicura che il simulatore sia attivo
+      toggleConnection(); // Connetti
+    }
+  });
+
+  // 4. Quando Mount esegue comandi, invia una notifica a Pianeta (invia)
+  const origPark = window.parkMount;
+  window.parkMount = function() {
+    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_park', {});
+    if (origPark) origPark();
+  };
+  const origUnpark = window.unparkMount;
+  window.unparkMount = function() {
+    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_unpark', {});
+    if (origUnpark) origUnpark();
+  };
+  const origStop = window.stopMotion;
+  window.stopMotion = function() {
+    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_stop', {});
+    if (origStop) origStop();
+  };
+})();
+</script>
+
 </body>
 </html>
