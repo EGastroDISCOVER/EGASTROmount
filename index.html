@@ -211,6 +211,50 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
     eruda.init(); eruda.show(); console.log('[MOBILE] Eruda attiva');
   }
 </script>
+
+<style id="__adv_css_v24">
+  /* Bottone che si affianca alla freccia della dashboard */
+  #advToggleBtn {
+    position: absolute; left: 55px; bottom: 215px; height: 30px; padding: 0 12px;
+    background: rgba(13,18,28,0.85); border: 1px solid rgba(212,175,55,0.6); border-radius: 15px;
+    display: flex; justify-content: center; align-items: center; cursor: pointer; color: #d4af37; z-index: 50;
+    backdrop-filter: blur(10px); transition: bottom 0.4s cubic-bezier(0.4,0,0.2,1), background 0.3s, color 0.3s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-size: 11px; font-weight: 700; font-family: 'Orbitron', sans-serif;
+  }
+  #advToggleBtn:hover { background: #d4af37; color: #000; }
+
+  /* Pannello Impostazioni - Ancorato al fondo, sfondo solido */
+  #advanced-settings-panel {
+    position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+    background: #0d121c !important; backdrop-filter: blur(15px) !important;
+    border-top: 2px solid #d4af37 !important; z-index: 9999 !important;
+    display: none; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; font-family: 'Inter', sans-serif;
+  }
+  #advanced-settings-panel .panel-header {
+    padding: 15px 20px; border-bottom: 1px solid #1a2233;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; background: #0d121c !important; z-index: 10;
+  }
+  #advanced-settings-panel .panel-header h3 { color: #d4af37; font-family: 'Orbitron', sans-serif; margin: 0; font-size: 16px; }
+  
+  .settings-accordion { border: 1px solid #1a2233; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .accordion-btn {
+    background: rgba(0,0,0,0.3); color: #c9d1e3; border: none; width: 100%; padding: 14px;
+    text-align: left; cursor: pointer; font-weight: 700; font-family: 'Inter', sans-serif;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .accordion-btn:hover { background: rgba(212,175,55,0.1); }
+  .accordion-btn.active { color: #d4af37; }
+  .accordion-content { display: none; padding: 15px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a2233; }
+  .accordion-content.show { display: block; }
+  .accordion-content label { display: block; font-size: 11px; color: #8a9bb5; margin-bottom: 4px; margin-top: 8px; text-transform: uppercase; }
+  .accordion-content input, .accordion-content select {
+    width: 100%; padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #334155;
+    border-radius: 6px; color: #fff; margin-bottom: 10px; font-family: 'Inter';
+  }
+</style>
+
 </head>
 <body>
 <div id="canvas-container"></div>
@@ -460,7 +504,23 @@ function isAltInRange(alt){return alt>=MS.minAlt&&alt<=MS.maxAlt}
 function isHAInRange(ha){return ha>=MS.haMin&&ha<=MS.haMax}
 
 function startCamTween(px,py,pz,tx,ty,tz){camTween.startP.copy(camera.position);camTween.endP.set(px,py,pz);camTween.startT.copy(controls.target);camTween.endT.set(tx,ty,tz);camTween.t=0;camTween.active=true}
-function updateToggleBtnPosition(){const dash=document.getElementById('dashboard'),btn=document.getElementById('dashToggleBtn');if(!dash||!btn)return;if(dash.classList.contains('collapsed')){btn.style.bottom=(dash.offsetHeight+8)+'px';btn.classList.add('collapsed')}else{btn.style.bottom=Math.min(dash.offsetHeight+10,window.innerHeight-100)+'px';btn.classList.remove('collapsed')}}
+function updateToggleBtnPosition(){
+    const dash=document.getElementById('dashboard'), btn=document.getElementById('dashToggleBtn'), advBtn=document.getElementById('advToggleBtn');
+    if(!dash||!btn) return;
+    let b;
+    if(dash.classList.contains('collapsed')) {
+      b = dash.offsetHeight + 8;
+      btn.style.bottom = b + 'px';
+      btn.classList.add('collapsed');
+    } else {
+      b = Math.min(dash.offsetHeight + 10, window.innerHeight - 100);
+      btn.style.bottom = b + 'px';
+      btn.classList.remove('collapsed');
+    }
+    if(advBtn) {
+      advBtn.style.bottom = b + 'px';
+    }
+  }
 function zoomToPreset(targetY,newDist,immediate=false){const dir=new THREE.Vector3().subVectors(camera.position,controls.target);if(dir.length()<0.001)return;dir.normalize();const newTarget=new THREE.Vector3(0,targetY,0);const newPos=new THREE.Vector3().copy(newTarget).addScaledVector(dir,newDist);if(immediate){camera.position.copy(newPos);controls.target.copy(newTarget);controls.update()}else startCamTween(newPos.x,newPos.y,newPos.z,newTarget.x,newTarget.y,newTarget.z)}
 function toggleDashboard(){const dash=document.getElementById('dashboard');isDashboardOpen=!isDashboardOpen;if(isDashboardOpen){dash.classList.remove('collapsed');document.body.classList.remove('dash-collapsed')}else{dash.classList.add('collapsed');document.body.classList.add('dash-collapsed')}const isMobile=window.innerWidth<=768;if(isDashboardOpen){const ty=isMobile?-0.35:-0.4;const dist=isMobile?DIST_OPEN_MOBILE:DIST_OPEN_DESKTOP;zoomToPreset(ty,dist)}else{const ty=0.55;const dist=isMobile?DIST_CLOSED_MOBILE:DIST_CLOSED_DESKTOP;zoomToPreset(ty,dist)}setTimeout(()=>{updateToggleBtnPosition()},10)}
 function updateCameraView(openState,immediate=false){const isMobile=window.innerWidth<=768;let px,py,pz,tx,ty,tz;if(isMobile){if(openState){px=4.5;py=3.0;pz=6.0;tx=0;ty=-0.35;tz=0}else{px=2.8;py=1.8;pz=3.7;tx=0;ty=0.55;tz=0}}else{if(openState){px=5.0;py=3.3;pz=6.2;tx=0;ty=-0.4;tz=0}else{px=3.1;py=1.9;pz=3.6;tx=0;ty=0.55;tz=0}}if(immediate){camera.position.set(px,py,pz);controls.target.set(tx,ty,tz);controls.update()}else startCamTween(px,py,pz,tx,ty,tz)}
@@ -1026,6 +1086,121 @@ window.addEventListener('load',()=>{
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
+})();
+</script>
+
+
+<!-- AVANZATE_PANEL_START -->
+<div id="advToggleBtn" onclick="toggleAdvancedPanel()" title="Impostazioni Avanzate">⚙️ Avanzate</div>
+
+<div id="advanced-settings-panel">
+  <div class="panel-header">
+    <h3>⚙️ Impostazioni Avanzate</h3>
+    <button onclick="toggleAdvancedPanel()" style="background:#ef4444; color:#000; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:18px; font-weight:bold; display:flex; align-items:center; justify-content:center;">×</button>
+  </div>
+  <div style="padding: 20px;">
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">📐 Limiti di Movimento <span>▼</span></button>
+      <div class="accordion-content">
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Min Altitudine</label><input type="number" id="adv-min-alt" value="-5" step="1"></div>
+          <div style="flex:1;"><label>Max Altitudine</label><input type="number" id="adv-max-alt" value="90" step="1"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Min DEC (°)</label><input type="number" id="adv-dec-min" value="-180" step="1"></div>
+          <div style="flex:1;"><label>Max DEC (°)</label><input type="number" id="adv-dec-max" value="180" step="1"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">🔄 Meridian Flip <span>▼</span></button>
+      <div class="accordion-content">
+        <label>Flip Automatico</label>
+        <select id="adv-auto-flip"><option value="true">ON</option><option value="false">OFF</option></select>
+        <label>Offset Flip (°)</label>
+        <input type="number" id="adv-flip-offset" value="2" step="0.5">
+      </div>
+    </div>
+    <div class="settings-accordion">
+      <button class="accordion-btn" onclick="toggleAccordion(this)">⭐ Allineamento <span>▼</span></button>
+      <div class="accordion-content">
+        <p style="color:#8a9bb5; font-size:12px; margin-bottom:10px;">Sincronizza la montatura con le stelle di riferimento per correggere gli errori di puntamento.</p>
+        <button class="btn primary" onclick="startAlignment(1)" style="width:100%; margin-bottom:8px; padding:10px;">Allineamento 1 Stella</button>
+        <button class="btn highlight" onclick="startAlignment(3)" style="width:100%; padding:10px;">Allineamento 3 Stelle</button>
+      </div>
+    </div>
+    <button class="btn primary" onclick="saveAdvancedSettings()" style="width:100%; padding:12px; font-size:14px; margin-top:10px;">💾 Salva Impostazioni</button>
+  </div>
+</div>
+<!-- AVANZATE_PANEL_END -->
+
+
+<script id="__fix_advanced_panel_v24">
+(function(){
+  // FIX CRASH
+  if (typeof Protocols !== 'undefined') {
+    if (!Protocols.sim) {
+      Protocols.sim = {
+        connect: function(cfg, ok) { setTimeout(function() { if (ok) ok(); }, 300); },
+        sendGoto: function() {}, sync: function() {}, stop: function() {}, tracking: function() {}, park: function() {}, unpark: function() {}
+      };
+    }
+  }
+
+  window.toggleAdvancedPanel = function() {
+    var panel = document.getElementById('advanced-settings-panel');
+    if (!panel) return;
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    if (panel.style.display === 'block') {
+      var g = function(id){ return document.getElementById(id); };
+      if (g('adv-min-alt')) g('adv-min-alt').value = MS.minAlt;
+      if (g('adv-max-alt')) g('adv-max-alt').value = MS.maxAlt;
+      if (g('adv-dec-min')) g('adv-dec-min').value = (MS.decMin * 180 / Math.PI).toFixed(0);
+      if (g('adv-dec-max')) g('adv-dec-max').value = (MS.decMax * 180 / Math.PI).toFixed(0);
+      if (g('adv-auto-flip')) g('adv-auto-flip').value = MS.autoFlip.toString();
+      if (g('adv-flip-offset')) g('adv-flip-offset').value = MS.flipOffset;
+    }
+  };
+  
+  window.toggleAccordion = function(btn) {
+    var content = btn.nextElementSibling; if (content) content.classList.toggle('show');
+    btn.classList.toggle('active');
+  };
+  
+  window.saveAdvancedSettings = function() {
+    var g = function(id){ var el = document.getElementById(id); return el ? el.value : null; };
+    var minAlt = parseFloat(g('adv-min-alt')); var maxAlt = parseFloat(g('adv-max-alt'));
+    var decMin = parseFloat(g('adv-dec-min')); var decMax = parseFloat(g('adv-dec-max'));
+    var autoFlip = g('adv-auto-flip') === 'true'; var flipOffset = parseFloat(g('adv-flip-offset'));
+    if (isNaN(minAlt) || isNaN(maxAlt) || minAlt >= maxAlt) { showToast('Altitudine errata', true); return; }
+    if (isNaN(decMin) || isNaN(decMax) || decMin >= decMax) { showToast('DEC errata', true); return; }
+    MS.minAlt = minAlt; MS.maxAlt = maxAlt; MS.decMin = decMin * Math.PI / 180; MS.decMax = decMax * Math.PI / 180;
+    MS.autoFlip = autoFlip; if (!isNaN(flipOffset)) MS.flipOffset = flipOffset;
+    if (typeof saveFullState === 'function') saveFullState();
+    if (typeof updateTelemetry === 'function') updateTelemetry();
+    showToast('✅ Salvato'); toggleAdvancedPanel();
+  };
+
+  window.startAlignment = function(stars) {
+    if (!MS.connected) { showToast('Connetti prima il mount', true); return; }
+    if (MS.isParked) { showToast('Esegui UNPARK prima', true); return; }
+    
+    if (stars === 1) {
+      if (typeof syncMount === 'function') { syncMount(); } 
+      else {
+        MS.slewMode = 'idle';
+        showToast('✅ Allineamento 1 Stella completato', false);
+        if (typeof SyncBus !== 'undefined') SyncBus.send('sync_mount', { ra: MS.ra * RAD_TO_DEG, dec: MS.dec * RAD_TO_DEG });
+      }
+    } else if (stars === 3) {
+      showToast('🔭 Sequenza 3 stelle avviata. Punta la 1ª stella e premi SET HOME', false);
+      MS._align3StarStep = 1;
+    }
+    toggleAdvancedPanel();
+  };
+
+  // Assicura che il bottone sia posizionato subito dopo il caricamento
+  setTimeout(function(){ if (typeof updateToggleBtnPosition === 'function') updateToggleBtnPosition(); }, 500);
 })();
 </script>
 
