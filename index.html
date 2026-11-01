@@ -1281,11 +1281,7 @@ window.addEventListener('load',()=>{
 </script>
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 
 <style>
@@ -1294,11 +1290,7 @@ window.addEventListener('load',()=>{
 </style>
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1307,11 +1299,7 @@ window.addEventListener('load',()=>{
 
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1320,11 +1308,7 @@ window.addEventListener('load',()=>{
 
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1401,11 +1385,7 @@ window.addEventListener('load',()=>{
 </script>
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1414,11 +1394,7 @@ window.addEventListener('load',()=>{
 
 
 
-<div id="sync-status-panel" style="position:fixed;bottom:10px;right:10px;padding:10px;border-radius:10px;background:rgba(13,18,28,0.95);color:#fff;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-    <span>STATO MOUNT:</span>
-    <span id="sync-status-text" style="color:#fbbf24;font-weight:bold;">WAIT GPS...</span>
-  </div>
+
 </div>
 <style>
   @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
@@ -1481,6 +1457,67 @@ window.addEventListener('load',()=>{
         const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat, MS.gpsLon, new Date());
         const state = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
         localStorage.setItem('egastro_mount_state', JSON.stringify({ data: state, ts: Date.now() }));
+      } catch(e) {}
+    }
+  }, 500);
+})();
+</script>
+
+<script id="__sync_mount_v35">
+(function() {
+  const badge = document.getElementById('syncBadge');
+  const dot = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  let gpsSynced = false;
+  let lastGpsTs = 0;
+
+  function updateBadge(state, label) {
+    if (!badge) return;
+    if (state === 'online') { badge.style.borderColor = '#4ade80'; dot.style.color = '#4ade80'; text.textContent = label || 'ONLINE ✓'; }
+    else if (state === 'wait') { badge.style.borderColor = '#fbbf24'; dot.style.color = '#fbbf24'; text.textContent = label || 'WAIT GPS...'; }
+    else { badge.style.borderColor = '#6b778c'; dot.style.color = '#6b778c'; text.textContent = label || 'SYNC OFF'; }
+  }
+
+  updateBadge('wait', 'WAIT GPS...');
+
+  function showSyncPopup(lat, lon) {
+    const popup = document.createElement('div');
+    popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;z-index:999999;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;';
+    popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:12px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
+    document.body.appendChild(popup);
+    setTimeout(() => { popup.remove(); }, 4000);
+  }
+
+  // Polling GPS da Pianeta
+  setInterval(() => {
+    const raw = localStorage.getItem('egastro_sync_gps');
+    if (raw) {
+      try {
+        const d = JSON.parse(raw);
+        if (d && d.ts && d.ts > lastGpsTs) {
+          lastGpsTs = d.ts;
+          gpsSynced = true;
+          if (typeof MS !== 'undefined') {
+            MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
+            if (typeof updateTelemetry === 'function') updateTelemetry();
+            if (typeof applyMountTilt === 'function') applyMountTilt();
+            if (typeof saveFullState === 'function') saveFullState();
+          }
+          showSyncPopup(d.lat, d.lon);
+          updateBadge('online', 'ONLINE ✓');
+        }
+      } catch(e) {}
+    }
+  }, 500);
+
+  // Invio Telemetria a Pianeta
+  setInterval(() => {
+    if (gpsSynced && typeof MS !== 'undefined' && MS.connected) {
+      try {
+        const astro = getAstroCoords();
+        const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat, MS.gpsLon, new Date());
+        const st = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
+        localStorage.setItem('egastro_mount_state', JSON.stringify({ data: st, ts: Date.now() }));
       } catch(e) {}
     }
   }, 500);
