@@ -1205,63 +1205,78 @@ window.addEventListener('load',()=>{
 </script>
 
 
-<script id="__sync_bus_mount">
-(function(){
-  if (typeof SyncBus === 'undefined') return;
-  console.log('🔄 [Mount] SyncBus inizializzato');
 
-  // 1. Invia lo stato a Pianeta ogni 500ms (se connesso)
+  <div id="sync-status-badge" style="position:fixed; bottom:10px; right:10px; padding:6px 12px; border-radius:20px; background:rgba(0,0,0,0.8); color:#fff; font-family:'Orbitron',sans-serif; font-size:11px; z-index:99999; border:2px solid #6b778c; transition:all 0.3s;">
+    Sync: <span id="sync-status-text" style="color:#6b778c; font-weight:bold;">WAIT</span>
+  </div>
+<script id="__ultimate_sync_mount_v26">
+(function(){
+  if (typeof SyncBus === 'undefined') { console.error('SyncBus mancante'); return; }
+  
+  // Aggiorna il badge visivo
+  setInterval(() => {
+    const b = document.getElementById('sync-status-badge');
+    const t = document.getElementById('sync-status-text');
+    if (!b || !t) return;
+    if (SyncBus.isPeerAlive()) {
+      b.style.borderColor = '#4ade80'; t.textContent = 'ONLINE ✓'; t.style.color = '#4ade80';
+    } else {
+      b.style.borderColor = '#fbbf24'; t.textContent = 'WAIT'; t.style.color = '#fbbf24';
+    }
+  }, 1000);
+
+  // 1. Invia lo stato costantemente a Pianeta
   setInterval(() => {
     if (typeof MS !== 'undefined' && MS.connected && SyncBus.isPeerAlive()) {
+      const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+      const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+      const astro = getAstroCoords();
+      const altAz = Astro.altAz(astro.ra, astro.dec, lat, lon, new Date());
+      
       SyncBus.send('mount_state', {
-        ra: MS.ra,                    // Radianti
-        dec: MS.dec,                  // Radianti
-        isParked: MS.isParked,
-        tracking: MS.tracking,
-        slewMode: MS.slewMode,
-        simulated: MS.simulated,
-        wifiEnabled: MS.wifiEnabled,
-        btEnabled: MS.btEnabled
+        ra: MS.ra, dec: MS.dec, alt: altAz.alt, az: altAz.az,
+        isParked: MS.isParked, tracking: MS.tracking,
+        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive,
+        simulated: MS.simulated, connected: MS.connected
       });
     }
   }, 500);
 
-  // 2. Ascolta i comandi da Pianeta
-  SyncBus.on('cmd_goto', d => { if (d.ra !== undefined && d.dec !== undefined) _startGoto(d.ra, d.dec); });
+  // 2. Ricevi GPS da Pianeta
+  SyncBus.on('sync_gps', d => {
+    if (d.lat && d.lon) {
+      MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
+      if (typeof updateTelemetry === 'function') updateTelemetry();
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      console.log('📍 [Mount] GPS Sincronizzato:', d.lat, d.lon);
+    }
+  });
+
+  // 3. Ricevi richiesta di connessione da Pianeta
+  SyncBus.on('sync_connect', d => {
+    if (!MS.connected) {
+      MS.simulated = d.simulated || false;
+      if (MS.simulated) MS.wifiEnabled = false; MS.btEnabled = false;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+      toggleConnection();
+    }
+  });
+
+  // 4. Comandi da Pianeta
+  SyncBus.on('cmd_goto', d => { if (d.ra !== undefined) _startGoto(d.ra, d.dec); });
   SyncBus.on('cmd_park', () => { if (typeof parkMount === 'function') parkMount(); });
   SyncBus.on('cmd_unpark', () => { if (typeof unparkMount === 'function') unparkMount(); });
   SyncBus.on('cmd_home', () => { if (typeof goHome === 'function') goHome(); });
   SyncBus.on('cmd_stop', () => { if (typeof stopMotion === 'function') stopMotion(); });
   SyncBus.on('cmd_tracking', d => { if (d.on !== (MS.tracking !== 'off')) toggleTrackingOn(); });
-  
-  // 3. Ascolta la richiesta di connessione da Pianeta
-  SyncBus.on('sync_connect', d => {
-    if (!MS.connected) {
-      console.log('🔗 [Mount] Ricevuta richiesta di connessione da Pianeta', d);
-      MS.simulated = d.simulated;
-      MS.wifiEnabled = d.wifiEnabled;
-      MS.btEnabled = d.btEnabled;
-      if (d.simulated) toggleSimulator(); // Assicura che il simulatore sia attivo
-      toggleConnection(); // Connetti
-    }
-  });
 
-  // 4. Quando Mount esegue comandi, invia una notifica a Pianeta (invia)
+  // 5. Comunica a Pianeta quando usi i tasti su Mount
   const origPark = window.parkMount;
-  window.parkMount = function() {
-    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_park', {});
-    if (origPark) origPark();
-  };
+  window.parkMount = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_park'); if (origPark) origPark(); };
   const origUnpark = window.unparkMount;
-  window.unparkMount = function() {
-    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_unpark', {});
-    if (origUnpark) origUnpark();
-  };
+  window.unparkMount = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_unpark'); if (origUnpark) origUnpark(); };
   const origStop = window.stopMotion;
-  window.stopMotion = function() {
-    if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_stop', {});
-    if (origStop) origStop();
-  };
+  window.stopMotion = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_stop'); if (origStop) origStop(); };
 })();
 </script>
 
