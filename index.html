@@ -1405,86 +1405,115 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_v37">
+
+
+<script id="__sync_mount_v39">
 (function() {
-  // Uccide il vecchio SyncBus
+  // 1. Spegne il vecchio SyncBus
   if (window.SyncBus) { window.SyncBus.stop(); }
 
   const badge = document.getElementById('syncBadge');
   const dot = document.getElementById('syncDot');
   const text = document.getElementById('syncText');
-  let currentState = 'WAIT_GPS';
-  let gpsSynced = false;
-  let lastProcessedId = null;
+  
+  let lastGpsTs = 0, lastConnTs = 0, lastGotoTs = 0, lastParkTs = 0, lastUnparkTs = 0, lastStopTs = 0;
+  let isOnline = false;
 
-  function setBadge(state, label) {
-    if (currentState === state) return;
-    currentState = state;
+  function setBadge(online) {
+    if (isOnline === online) return;
+    isOnline = online;
     if (!text) return;
-    
-    text.textContent = label;
-    if (state === 'online') { dot.style.color = '#4ade80'; badge.style.borderColor = '#4ade80'; }
-    else if (state === 'wait') { dot.style.color = '#fbbf24'; badge.style.borderColor = '#fbbf24'; }
-    else { dot.style.color = '#6b778c'; badge.style.borderColor = '#6b778c'; }
-  }
-
-  setBadge('wait', 'WAIT GPS...');
-
-  function showSyncPopup(title, lat, lon) {
-    const popup = document.createElement('div');
-    popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;z-index:999999;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;';
-    let htmlContent = '<div>' + title + '</div>';
-    if(lat !== undefined && lon !== undefined) {
-      htmlContent += '<div style="font-size:12px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
+    if (online) {
+      text.textContent = 'SYNC ONLINE ✓';
+      dot.style.color = '#4ade80';
+      badge.style.borderColor = '#4ade80';
+    } else {
+      text.textContent = 'WAIT MASTER...';
+      dot.style.color = '#fbbf24';
+      badge.style.borderColor = '#fbbf24';
     }
-    popup.innerHTML = htmlContent;
-    document.body.appendChild(popup);
-    setTimeout(() => { popup.remove(); }, 4000);
   }
 
-  // Polling Comandi
-  setInterval(() => {
-    const raw = localStorage.getItem('egastro_cmd_mount');
-    if (raw) {
-      try {
-        const cmd = JSON.parse(raw);
-        if (cmd && cmd.id && cmd.id !== lastProcessedId) {
-          lastProcessedId = cmd.id;
-          console.log('📥 [Mount] Comando ricevuto:', cmd);
+  setBadge(false);
 
-          if (cmd.gps && typeof MS !== 'undefined') {
-            gpsSynced = true;
-            MS.gpsLat = cmd.gps.lat; MS.gpsLon = cmd.gps.lon; MS.gpsActive = true;
+  // 2. Motore di Sincronizzazione
+  setInterval(() => {
+    let activity = false;
+
+    // A. Ricevi GPS
+    const gpsRaw = localStorage.getItem('egastro_cmd_gps');
+    if (gpsRaw) {
+      try {
+        const d = JSON.parse(gpsRaw);
+        if (d.ts > lastGpsTs) {
+          lastGpsTs = d.ts; activity = true;
+          if (typeof MS !== 'undefined') {
+            MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
             if (typeof updateTelemetry === 'function') updateTelemetry();
             if (typeof applyMountTilt === 'function') applyMountTilt();
             if (typeof saveFullState === 'function') saveFullState();
-            showSyncPopup('📡 GPS Ricevuto!', cmd.gps.lat, cmd.gps.lon);
-            setBadge('online', 'ONLINE ✓');
+            console.log('📍 [Mount] GPS aggiornato da Pianeta:', d.lat, d.lon);
           }
+        }
+      } catch(e) {}
+    }
 
-          if (cmd.conn && typeof MS !== 'undefined') {
-            if (cmd.conn.simulated) MS.simulated = true;
-            if (cmd.conn.connected && !MS.connected) {
+    // B. Ricevi Connessione
+    const connRaw = localStorage.getItem('egastro_cmd_conn');
+    if (connRaw) {
+      try {
+        const d = JSON.parse(connRaw);
+        if (d.ts > lastConnTs) {
+          lastConnTs = d.ts; activity = true;
+          if (typeof MS !== 'undefined') {
+            MS.simulated = d.simulated;
+            if (d.connected && !MS.connected) {
               if (typeof toggleConnection === 'function') toggleConnection();
-              showSyncPopup('🔗 Connessione Ricevuta!');
+              console.log('🔗 [Mount] Connessione specchio attivata');
+            } else if (!d.connected && MS.connected) {
+              if (typeof disconnectMount === 'function') disconnectMount(true);
             }
           }
         }
       } catch(e) {}
     }
-  }, 500);
 
-  // Invio Telemetria a Pianeta
-  setInterval(() => {
-    if (gpsSynced && typeof MS !== 'undefined') {
+    // C. Ricevi Comandi
+    const gotoRaw = localStorage.getItem('egastro_cmd_goto');
+    if (gotoRaw) {
+      try { const d = JSON.parse(gotoRaw); if (d.ts > lastGotoTs) { lastGotoTs = d.ts; activity = true; if (typeof _startGoto === 'function') _startGoto(d.ra, d.dec); } } catch(e) {}
+    }
+    
+    const parkRaw = localStorage.getItem('egastro_cmd_park');
+    if (parkRaw) {
+      try { const d = JSON.parse(parkRaw); if (d.ts > lastParkTs) { lastParkTs = d.ts; activity = true; if (typeof parkMount === 'function') parkMount(); } } catch(e) {}
+    }
+    
+    const unparkRaw = localStorage.getItem('egastro_cmd_unpark');
+    if (unparkRaw) {
+      try { const d = JSON.parse(unparkRaw); if (d.ts > lastUnparkTs) { lastUnparkTs = d.ts; activity = true; if (typeof unparkMount === 'function') unparkMount(); } } catch(e) {}
+    }
+
+    const stopRaw = localStorage.getItem('egastro_cmd_stop');
+    if (stopRaw) {
+      try { const d = JSON.parse(stopRaw); if (d.ts > lastStopTs) { lastStopTs = d.ts; activity = true; if (typeof stopMotion === 'function') stopMotion(); } } catch(e) {}
+    }
+
+    // D. Invia Telemetria a Pianeta
+    if (typeof MS !== 'undefined' && MS.connected) {
       try {
         const astro = getAstroCoords();
         const altAz = Astro.altAz(astro.ra, astro.dec, MS.gpsLat || 41.9, MS.gpsLon || 12.5, new Date());
-        const st = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking, connected: MS.connected };
+        const st = { alt: altAz.alt, az: altAz.az, isParked: MS.isParked, tracking: MS.tracking };
         localStorage.setItem('egastro_mount_state', JSON.stringify({ data: st, ts: Date.now() }));
+        activity = true; 
       } catch(e) {}
     }
-  }, 1000);
+
+    // Aggiorna badge
+    setBadge(activity || (Date.now() - lastGpsTs < 3000));
+    
+  }, 500);
 })();
 </script>
 </body>
