@@ -1353,5 +1353,118 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+
+<div id="unified-badge" style="position:fixed;bottom:10px;right:10px;padding:6px 12px;border-radius:20px;background:rgba(0,0,0,0.85);color:#fbbf24;font-family:Orbitron,sans-serif;font-size:11px;z-index:99999;border:2px solid #fbbf24;font-weight:700;cursor:pointer;" title="Click per forzare GPS">SYNC: WAIT</div>
+<script id="__unified_mount">
+(function(){
+  if (window.__unifiedMountActive) return;
+  window.__unifiedMountActive = true;
+
+  const CHANNEL = 'egastro_unified_v3';
+  let bc;
+  try { bc = new BroadcastChannel(CHANNEL); } catch(e) { console.error('BroadcastChannel non supportato'); return; }
+  let lastRx = 0;
+  const isAlive = () => Date.now() - lastRx < 5000;
+
+  // Logger
+  function log(direction, type, data) {
+    console.log('[MOUNT ' + direction + ']', type, data || '');
+    const b = document.getElementById('unified-badge');
+    if (b) b.title = (direction === 'RX' ? 'Ultimo ricevuto: ' : 'Ultimo inviato: ') + type;
+  }
+
+  // Invia
+  function send(type, data) {
+    try { bc.postMessage({ from: 'mount', type, data, ts: Date.now() }); log('TX', type, data); } catch(e) { console.warn(e); }
+  }
+
+  // Ricevi
+  bc.onmessage = (ev) => {
+    const m = ev.data;
+    if (!m || m.from === 'mount') return;
+    lastRx = Date.now();
+    log('RX', m.type, m.data);
+
+    if (m.type === 'sync_gps' && m.data) {
+      if (typeof MS !== 'undefined') {
+        MS.gpsLat = m.data.lat; MS.gpsLon = m.data.lon; MS.gpsActive = true;
+        if (typeof updateTelemetry === 'function') updateTelemetry();
+        if (typeof updateLinkButtons === 'function') updateLinkButtons();
+        if (typeof saveFullState === 'function') saveFullState();
+        if (typeof applyMountTilt === 'function') applyMountTilt();
+        console.log('📍 [MOUNT] GPS ricevuto da Pianeta:', m.data.lat, m.data.lon);
+      }
+    }
+
+    if (m.type === 'sync_connect') {
+      if (typeof MS !== 'undefined' && !MS.connected) {
+        MS.simulated = m.data.simulated || false;
+        if (MS.simulated) { MS.wifiEnabled = false; MS.btEnabled = false; }
+        if (typeof updateLinkButtons === 'function') updateLinkButtons();
+        if (typeof toggleConnection === 'function') toggleConnection();
+        console.log('🔗 [MOUNT] Connessione richiesta da Pianeta. Sim:', MS.simulated);
+      }
+    }
+
+    if (m.type === 'cmd_goto' && m.data && typeof _startGoto === 'function') _startGoto(m.data.ra, m.data.dec);
+    if (m.type === 'cmd_park' && typeof parkMount === 'function') parkMount();
+    if (m.type === 'cmd_unpark' && typeof unparkMount === 'function') unparkMount();
+    if (m.type === 'cmd_home' && typeof goHome === 'function') goHome();
+    if (m.type === 'cmd_stop' && typeof stopMotion === 'function') stopMotion();
+    if (m.type === 'cmd_tracking' && m.data && typeof toggleTrackingOn === 'function') toggleTrackingOn();
+  };
+
+  // Invia stato ogni 500ms
+  setInterval(() => {
+    if (typeof MS === 'undefined') return;
+    try {
+      const astro = typeof getAstroCoords === 'function' ? getAstroCoords() : { ra: MS.ra, dec: MS.dec };
+      const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
+      const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
+      let alt = 0, az = 0;
+      if (typeof Astro !== 'undefined' && Astro.altAz) {
+        const p = Astro.altAz(astro.ra, astro.dec, lat, lon, new Date());
+        alt = p.alt; az = p.az;
+      }
+      send('mount_state', {
+        connected: MS.connected, ra: MS.ra, dec: MS.dec, alt, az,
+        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive,
+        isParked: MS.isParked, tracking: MS.tracking, simulated: MS.simulated
+      });
+    } catch(e) {}
+  }, 500);
+
+  // Aggiorna badge
+  setInterval(() => {
+    const b = document.getElementById('unified-badge');
+    if (!b) return;
+    const alive = isAlive();
+    b.textContent = 'SYNC: ' + (alive ? 'ONLINE ✓' : 'WAIT');
+    b.style.color = alive ? '#4ade80' : '#fbbf24';
+    b.style.borderColor = alive ? '#4ade80' : '#fbbf24';
+  }, 500);
+
+  // Click badge = forza GPS reale e invia
+  document.getElementById('unified-badge').onclick = () => {
+    if (!navigator.geolocation) { alert('GPS non supportato dal browser'); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (typeof MS !== 'undefined') {
+          MS.gpsLat = pos.coords.latitude; MS.gpsLon = pos.coords.longitude; MS.gpsActive = true;
+          if (typeof updateTelemetry === 'function') updateTelemetry();
+          if (typeof applyMountTilt === 'function') applyMountTilt();
+        }
+        send('sync_gps', { lat: pos.coords.latitude, lon: pos.coords.longitude });
+        alert('GPS Mount: ' + pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4));
+      },
+      (err) => { alert('Errore GPS Mount: ' + err.message); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  console.log('✅ [MOUNT] Canale UnifiedSync attivo');
+})();
+</script>
+
 </body>
 </html>
