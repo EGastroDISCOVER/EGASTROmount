@@ -306,7 +306,7 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 </div>
 <div class="dash-section tracking-section">
 <h3>Inseguimento / Velocità</h3>
-<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">1x</option><option value="0.02" selected="">8x</option><option value="0.06">32x</option><option value="0.2">128x</option></select></div>
+<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.5">0.50x</option><option value="0.75">0.75x</option><option value="1" selected="">1.00x</option></select></div>
 <div class="control-row"><button class="btn primary" id="trackingOnBtn" onclick="toggleTrackingOn()">TRACKING ON</button></div>
 <div class="control-row"><button class="btn" id="invNSBtn" onclick="toggleInvertNS()">INV N/S</button><button class="btn" id="invEWBtn" onclick="toggleInvertEW()">INV E/O</button></div>
 </div>
@@ -946,36 +946,7 @@ window.addEventListener('load',()=>{
 </script>
 
 <!-- ============ SYNC GPS MOUNT ============ -->
-<script id="__syncGPSMount">
-(function(){
-  "use strict";
-  if (window.__syncGPSMount) return;
-  window.__syncGPSMount = true;
-  var KEY = "egastro_sync_obs";
-  var lastLat = null, lastLon = null;
-  function consume(){
-    try {
-      var raw = localStorage.getItem(KEY);
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      if (!s || !s.ts || Date.now() - s.ts > 15000) return;
-      if (!s.coords || !Number.isFinite(s.coords.lat) || !Number.isFinite(s.coords.lon)) return;
-      if (lastLat === s.coords.lat && lastLon === s.coords.lon) return;
-      lastLat = s.coords.lat;
-      lastLon = s.coords.lon;
-      if (typeof MS !== "undefined" && MS) {
-        MS.gpsLat = s.coords.lat;
-        MS.gpsLon = s.coords.lon;
-        MS.gpsActive = true;
-        if (typeof updateTelemetry === "function") updateTelemetry();
-        if (typeof updateLinkButtons === "function") updateLinkButtons();
-      }
-    } catch(e) {}
-  }
-  setInterval(consume, 1000);
-  consume();
-})();
-</script>
+
 
 <!-- ============ PULSANTE DOME ============ -->
 <style>
@@ -1135,150 +1106,14 @@ window.addEventListener('load',()=>{
 <!-- AVANZATE_PANEL_END -->
 
 
-<script id="__fix_advanced_panel_v24">
-(function(){
-  // FIX CRASH
-  if (typeof Protocols !== 'undefined') {
-    if (!Protocols.sim) {
-      Protocols.sim = {
-        connect: function(cfg, ok) { setTimeout(function() { if (ok) ok(); }, 300); },
-        sendGoto: function() {}, sync: function() {}, stop: function() {}, tracking: function() {}, park: function() {}, unpark: function() {}
-      };
-    }
-  }
 
-  window.toggleAdvancedPanel = function() {
-    var panel = document.getElementById('advanced-settings-panel');
-    if (!panel) return;
-    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-    if (panel.style.display === 'block') {
-      var g = function(id){ return document.getElementById(id); };
-      if (g('adv-min-alt')) g('adv-min-alt').value = MS.minAlt;
-      if (g('adv-max-alt')) g('adv-max-alt').value = MS.maxAlt;
-      if (g('adv-dec-min')) g('adv-dec-min').value = (MS.decMin * 180 / Math.PI).toFixed(0);
-      if (g('adv-dec-max')) g('adv-dec-max').value = (MS.decMax * 180 / Math.PI).toFixed(0);
-      if (g('adv-auto-flip')) g('adv-auto-flip').value = MS.autoFlip.toString();
-      if (g('adv-flip-offset')) g('adv-flip-offset').value = MS.flipOffset;
-    }
-  };
-  
-  window.toggleAccordion = function(btn) {
-    var content = btn.nextElementSibling; if (content) content.classList.toggle('show');
-    btn.classList.toggle('active');
-  };
-  
-  window.saveAdvancedSettings = function() {
-    var g = function(id){ var el = document.getElementById(id); return el ? el.value : null; };
-    var minAlt = parseFloat(g('adv-min-alt')); var maxAlt = parseFloat(g('adv-max-alt'));
-    var decMin = parseFloat(g('adv-dec-min')); var decMax = parseFloat(g('adv-dec-max'));
-    var autoFlip = g('adv-auto-flip') === 'true'; var flipOffset = parseFloat(g('adv-flip-offset'));
-    if (isNaN(minAlt) || isNaN(maxAlt) || minAlt >= maxAlt) { showToast('Altitudine errata', true); return; }
-    if (isNaN(decMin) || isNaN(decMax) || decMin >= decMax) { showToast('DEC errata', true); return; }
-    MS.minAlt = minAlt; MS.maxAlt = maxAlt; MS.decMin = decMin * Math.PI / 180; MS.decMax = decMax * Math.PI / 180;
-    MS.autoFlip = autoFlip; if (!isNaN(flipOffset)) MS.flipOffset = flipOffset;
-    if (typeof saveFullState === 'function') saveFullState();
-    if (typeof updateTelemetry === 'function') updateTelemetry();
-    showToast('✅ Salvato'); toggleAdvancedPanel();
-  };
-
-  window.startAlignment = function(stars) {
-    if (!MS.connected) { showToast('Connetti prima il mount', true); return; }
-    if (MS.isParked) { showToast('Esegui UNPARK prima', true); return; }
-    
-    if (stars === 1) {
-      if (typeof syncMount === 'function') { syncMount(); } 
-      else {
-        MS.slewMode = 'idle';
-        showToast('✅ Allineamento 1 Stella completato', false);
-        if (typeof SyncBus !== 'undefined') SyncBus.send('sync_mount', { ra: MS.ra * RAD_TO_DEG, dec: MS.dec * RAD_TO_DEG });
-      }
-    } else if (stars === 3) {
-      showToast('🔭 Sequenza 3 stelle avviata. Punta la 1ª stella e premi SET HOME', false);
-      MS._align3StarStep = 1;
-    }
-    toggleAdvancedPanel();
-  };
-
-  // Assicura che il bottone sia posizionato subito dopo il caricamento
-  setTimeout(function(){ if (typeof updateToggleBtnPosition === 'function') updateToggleBtnPosition(); }, 500);
-})();
-</script>
 
 
 
   <div id="sync-status-badge" style="position:fixed; bottom:10px; right:10px; padding:6px 12px; border-radius:20px; background:rgba(0,0,0,0.8); color:#fff; font-family:'Orbitron',sans-serif; font-size:11px; z-index:99999; border:2px solid #6b778c; transition:all 0.3s;">
     Sync: <span id="sync-status-text" style="color:#6b778c; font-weight:bold;">WAIT</span>
   </div>
-<script id="__ultimate_sync_mount_v26">
-(function(){
-  if (typeof SyncBus === 'undefined') { console.error('SyncBus mancante'); return; }
-  
-  // Aggiorna il badge visivo
-  setInterval(() => {
-    const b = document.getElementById('sync-status-badge');
-    const t = document.getElementById('sync-status-text');
-    if (!b || !t) return;
-    if (SyncBus.isPeerAlive()) {
-      b.style.borderColor = '#4ade80'; t.textContent = 'ONLINE ✓'; t.style.color = '#4ade80';
-    } else {
-      b.style.borderColor = '#fbbf24'; t.textContent = 'WAIT'; t.style.color = '#fbbf24';
-    }
-  }, 1000);
 
-  // 1. Invia lo stato costantemente a Pianeta
-  setInterval(() => {
-    if (typeof MS !== 'undefined' && MS.connected && SyncBus.isPeerAlive()) {
-      const lat = Number.isFinite(MS.gpsLat) ? MS.gpsLat : 41.9;
-      const lon = Number.isFinite(MS.gpsLon) ? MS.gpsLon : 12.5;
-      const astro = getAstroCoords();
-      const altAz = Astro.altAz(astro.ra, astro.dec, lat, lon, new Date());
-      
-      SyncBus.send('mount_state', {
-        ra: MS.ra, dec: MS.dec, alt: altAz.alt, az: altAz.az,
-        isParked: MS.isParked, tracking: MS.tracking,
-        gpsLat: MS.gpsLat, gpsLon: MS.gpsLon, gpsActive: MS.gpsActive,
-        simulated: MS.simulated, connected: MS.connected
-      });
-    }
-  }, 500);
-
-  // 2. Ricevi GPS da Pianeta
-  SyncBus.on('sync_gps', d => {
-    if (d.lat && d.lon) {
-      MS.gpsLat = d.lat; MS.gpsLon = d.lon; MS.gpsActive = true;
-      if (typeof updateTelemetry === 'function') updateTelemetry();
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
-      console.log('📍 [Mount] GPS Sincronizzato:', d.lat, d.lon);
-    }
-  });
-
-  // 3. Ricevi richiesta di connessione da Pianeta
-  SyncBus.on('sync_connect', d => {
-    if (!MS.connected) {
-      MS.simulated = d.simulated || false;
-      if (MS.simulated) MS.wifiEnabled = false; MS.btEnabled = false;
-      if (typeof updateLinkButtons === 'function') updateLinkButtons();
-      toggleConnection();
-    }
-  });
-
-  // 4. Comandi da Pianeta
-  SyncBus.on('cmd_goto', d => { if (d.ra !== undefined) _startGoto(d.ra, d.dec); });
-  SyncBus.on('cmd_park', () => { if (typeof parkMount === 'function') parkMount(); });
-  SyncBus.on('cmd_unpark', () => { if (typeof unparkMount === 'function') unparkMount(); });
-  SyncBus.on('cmd_home', () => { if (typeof goHome === 'function') goHome(); });
-  SyncBus.on('cmd_stop', () => { if (typeof stopMotion === 'function') stopMotion(); });
-  SyncBus.on('cmd_tracking', d => { if (d.on !== (MS.tracking !== 'off')) toggleTrackingOn(); });
-
-  // 5. Comunica a Pianeta quando usi i tasti su Mount
-  const origPark = window.parkMount;
-  window.parkMount = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_park'); if (origPark) origPark(); };
-  const origUnpark = window.unparkMount;
-  window.unparkMount = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_unpark'); if (origUnpark) origUnpark(); };
-  const origStop = window.stopMotion;
-  window.stopMotion = function() { if (SyncBus.isPeerAlive()) SyncBus.send('sync_ui_stop'); if (origStop) origStop(); };
-})();
-</script>
 
 
 
@@ -1350,49 +1185,132 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_vfinal">
+<script id="__sync_mount_final_v92">
     (function() {
-      if (window.SyncBus) { window.SyncBus.stop(); window.SyncBus = null; }
-      
-      // Blocca il vecchio codice che sfarfalla clonando gli elementi
-      const t = document.getElementById('syncText');
-      if (t) { const c = t.cloneNode(true); c.id = 'syncText_new'; t.parentNode.replaceChild(c, t); }
-      const d = document.getElementById('syncDot');
-      if (d) { const c = d.cloneNode(true); c.id = 'syncDot_new'; d.parentNode.replaceChild(c, d); }
-      
-      function showPopup(msg) {
-        let p = document.createElement('div');
-        p.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#4ade80;color:#000;padding:10px 20px;border-radius:8px;font-family:Orbitron;font-weight:bold;z-index:999999;box-shadow:0 5px 15px rgba(0,0,0,0.5);';
-        p.textContent = msg; document.body.appendChild(p); setTimeout(() => p.remove(), 3000);
+      // 1. Fix Crash
+      window.SyncBus = { isPeerAlive: () => false, requestLeader: () => false, isLeader: () => false, stop: () => {} };
+
+      // 2. Elimina badge volanti
+      function nukeBottomRightBadge() {
+        document.querySelectorAll('div').forEach(el => {
+          try {
+            const style = window.getComputedStyle(el);
+            const isBottomRight = (style.position === 'fixed' || style.position === 'absolute') && 
+                                  (style.bottom !== 'auto' && parseInt(style.bottom) < 100) && 
+                                  (style.right !== 'auto' && parseInt(style.right) < 100);
+            if ((isBottomRight || el.innerText.includes('Sync WAIT')) && el.innerText && el.innerText.includes('Sync')) {
+              if (el.id !== 'syncBadge' && el.id !== 'dashSyncBadge' && !el.closest('.connect-block') && !el.closest('#dashboard')) {
+                el.remove();
+              }
+            }
+          } catch(e) {}
+        });
       }
-      
-      let lastGps = 0, lastConn = 0;
-      
+      nukeBottomRightBadge();
+      setInterval(nukeBottomRightBadge, 500);
+
+      // 3. Badge sotto Connetti (Leader/Slave/Readonly)
+      let badge = document.getElementById('syncBadge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'syncBadge';
+        badge.innerHTML = '<span id="syncDot" style="font-size:10px;line-height:1;">●</span><span id="syncText">SLAVE</span>';
+        const cb = document.querySelector('.connect-block');
+        if (cb) cb.appendChild(badge);
+      }
+      badge.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:"Orbitron",sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px;position:relative;bottom:auto;right:auto;';
+
+      // 4. Badge sulla Dashboard (Solid Sync)
+      let dashBadge = document.getElementById('dashSyncBadge');
+      if (!dashBadge) {
+        dashBadge = document.createElement('div');
+        dashBadge.id = 'dashSyncBadge';
+        const dash = document.getElementById('dashboard');
+        if (dash) dash.appendChild(dashBadge);
+      }
+      dashBadge.style.cssText = 'position:absolute; top:-16px; right:20px; display:flex; align-items:center; justify-content:center; gap:6px; padding:4px 12px; border-radius:20px; border:1.5px solid #fbbf24; background:#0a1220; font-family:"Orbitron",sans-serif; font-size:11px; font-weight:700; color:#fbbf24; z-index:9999; box-shadow:0 4px 10px rgba(0,0,0,0.8); white-space:nowrap;';
+      dashBadge.innerHTML = '<span id="dashDot" style="font-size:14px; line-height:1;">●</span><span id="dashText">SYNC WAIT</span>';
+
+      // 5. Loop Comandi e Aggiornamento
+      let lastCmd = { goto:0, park:0, unpark:0, stop:0, home:0, sethome:0, setpark:0, tracking:0 };
+
       setInterval(() => {
-        localStorage.setItem('vfinal_hb_m', Date.now());
-        const isAlive = localStorage.getItem('vfinal_hb_p') && (Date.now() - Number(localStorage.getItem('vfinal_hb_p')) < 2000);
-        
-        const t2 = document.getElementById('syncText_new');
-        const d2 = document.getElementById('syncDot_new');
-        const b = document.getElementById('syncBadge');
-        
-        if (t2) {
-          if (isAlive) {
-            t2.textContent = 'SYNC ON'; t2.style.color = '#4ade80';
-            if (d2) d2.style.color = '#4ade80';
-            if (b) { b.style.borderColor = '#4ade80'; b.style.background = 'rgba(74,222,128,0.1)'; }
+        localStorage.setItem('final_hb_m', Date.now());
+        const isAlive = localStorage.getItem('final_hb_p') && (Date.now() - Number(localStorage.getItem('final_hb_p')) < 2000);
+
+        // Aggiorna Badge Leader
+        const t = document.getElementById('syncText');
+        const d = document.getElementById('syncDot');
+        if (t) {
+          if (window.__READONLY__) {
+            if (t.textContent !== 'READONLY') t.textContent = 'READONLY';
+            t.style.color = '#fbbf24'; if(d) d.style.color = '#fbbf24'; if(badge) badge.style.borderColor = '#fbbf24';
+          } else if (isAlive) {
+            if (t.textContent !== 'LEADER ✓ MASTER') t.textContent = 'LEADER ✓ MASTER';
+            t.style.color = '#4ade80'; if(d) d.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80';
           } else {
-            t2.textContent = 'SYNC WAIT'; t2.style.color = '#fbbf24';
-            if (d2) d2.style.color = '#fbbf24';
-            if (b) { b.style.borderColor = '#fbbf24'; b.style.background = 'rgba(251,191,36,0.1)'; }
+            if (t.textContent !== 'SLAVE') t.textContent = 'SLAVE';
+            t.style.color = '#6b778c'; if(d) d.style.color = '#6b778c'; if(badge) badge.style.borderColor = '#6b778c';
           }
         }
-        
-        const gpsRaw = localStorage.getItem('vfinal_gps');
-        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(g.ts > lastGps) { lastGps = g.ts; if(typeof MS !== 'undefined') { MS.gpsLat = g.lat; MS.gpsLon = g.lon; MS.gpsActive = true; if (typeof updateTelemetry === 'function') updateTelemetry(); if (typeof applyMountTilt === 'function') applyMountTilt(); showPopup('📍 GPS Aggiornato da Pianeta!'); } } }
-        
-        const connRaw = localStorage.getItem('vfinal_conn');
-        if(connRaw) { const c = JSON.parse(connRaw); if(c.ts > lastConn) { lastConn = c.ts; if(typeof MS !== 'undefined') { MS.simulated = c.sim; if(c.connected && !MS.connected && typeof toggleConnection === 'function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount === 'function') disconnectMount(true); } } }
-      }, 200);
+
+        // Aggiorna Badge Sync Dashboard
+        const dt = document.getElementById('dashText');
+        const dd = document.getElementById('dashDot');
+        if (dt && dd && dashBadge) {
+          if (isAlive) {
+            dt.textContent = 'SYNC ON'; dt.style.color = '#4ade80'; dd.style.color = '#4ade80'; dashBadge.style.borderColor = '#4ade80';
+          } else {
+            dt.textContent = 'SYNC WAIT'; dt.style.color = '#fbbf24'; dd.style.color = '#fbbf24'; dashBadge.style.borderColor = '#fbbf24';
+          }
+        }
+
+        // Esegui Comandi (Forzando il GOTO)
+        ['goto', 'park', 'unpark', 'stop', 'home', 'sethome', 'setpark', 'tracking'].forEach(cmd => {
+          const raw = localStorage.getItem('final_cmd_' + cmd);
+          if (raw) {
+            const c = JSON.parse(raw);
+            if (c.ts > lastCmd[cmd]) {
+              lastCmd[cmd] = c.ts;
+              if (typeof MS !== 'undefined') {
+                if (cmd === 'goto' && typeof _startGoto === 'function') {
+                  MS.slewMode = 'goto'; // Forza il movimento
+                  _startGoto(c.ra, c.dec);
+                }
+                if (cmd === 'park' && typeof parkMount === 'function') parkMount();
+                if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
+                if (cmd === 'stop' && typeof stopMotion === 'function') stopMotion();
+                if (cmd === 'home' && typeof goHome === 'function') goHome();
+                if (cmd === 'sethome' && typeof setHome === 'function') setHome();
+                if (cmd === 'setpark' && typeof setPark === 'function') setPark();
+                if (cmd === 'tracking' && typeof toggleTrackingOn === 'function' && c.on !== (MS.tracking !== 'off')) toggleTrackingOn();
+              }
+            }
+          }
+        });
+
+        // Sync Telescopio (Solo se idle)
+        if (typeof MS !== 'undefined' && MS.slewMode === 'idle') {
+            const mapPos = localStorage.getItem('final_map_pos');
+            if (mapPos) {
+              const m = JSON.parse(mapPos);
+              if (typeof altAzToRaDec === 'function') {
+                const rd = altAzToRaDec(m.alt, m.az);
+                MS.ra = rd.ra * Math.PI / 180; MS.dec = rd.dec * Math.PI / 180;
+                MS.tRA = MS.ra; MS.tDEC = MS.dec;
+                if (typeof updateTelemetry === 'function') updateTelemetry();
+              }
+            }
+        }
+
+        // GPS & Connection
+        const gpsRaw = localStorage.getItem('final_gps');
+        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(typeof MS !== 'undefined' && g.ts > (window._lGps||0)) { window._lGps=g.ts; MS.gpsLat=g.lat; MS.gpsLon=g.lon; MS.gpsActive=true; if(typeof updateTelemetry==='function') updateTelemetry(); if(typeof applyMountTilt==='function') applyMountTilt(); } }
+        const connRaw = localStorage.getItem('final_conn');
+        if(connRaw) { const c = JSON.parse(connRaw); if(typeof MS !== 'undefined' && c.ts > (window._lConn||0)) { window._lConn=c.ts; MS.simulated=c.sim; if(c.connected && !MS.connected && typeof toggleConnection==='function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount==='function') disconnectMount(true); } }
+      }, 100);
+
+      // Funzione Velocità
+      window.changeSlewSpeed = function(val) { if(typeof MS !== 'undefined') { MS.speedPerStep = 0.02 * parseFloat(val); MS.speedLabel = val + 'x'; if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); } };
     })();
   </script></body></html>
