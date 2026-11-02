@@ -1191,10 +1191,8 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_v103">
+<script id="__sync_mount_v105">
     (function() {
-      console.log("🚀 Mount v103 - Motore Sync finale");
-      
       // --- 1. UCCIDI IL VECCHIO SISTEMA ---
       try {
         window.__READONLY__ = false;
@@ -1204,66 +1202,96 @@ window.addEventListener('load',()=>{
         }
       } catch(e) { console.error(e); }
 
-      // --- 2. PULIZIA BADGE ---
-      // Rimuove qualsiasi badge volante che non sia il nostro
-      const removeBadges = () => {
+      // --- 2. CACCIATORE DI BADGE (Distrugge qualsiasi badge volante) ---
+      setInterval(() => {
+        const killIds = ['bottom-sync-badge', 'official-sync-badge', 'unified-badge', 'sync-status-panel', 'test-sync-badge', 'final-sync-badge', 'master-sync-badge', 'clean-sync-badge'];
+        killIds.forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+        
         document.querySelectorAll('div').forEach(el => {
-          const txt = el.innerText || '';
-          if ((txt.includes('Sync WAIT') || txt.includes('SYNC WAIT')) && el.id !== 'dashSyncBadge' && el.id !== 'syncBadge' && !el.closest('.connect-block')) {
-            el.remove();
-          }
+          try {
+            const txt = el.innerText || '';
+            const style = window.getComputedStyle(el);
+            const isBottomRight = (style.position === 'fixed' || style.position === 'absolute') && 
+                                  (style.bottom !== 'auto' && parseInt(style.bottom) < 100) && 
+                                  (style.right !== 'auto' && parseInt(style.right) < 100);
+            
+            if ((isBottomRight || txt.includes('Sync WAIT')) && txt.includes('Sync')) {
+              if (el.id !== 'syncBadge' && !el.closest('.connect-block') && !el.closest('#dashboard')) {
+                el.remove();
+              }
+            }
+          } catch(e) {}
         });
-      };
-      removeBadges();
+      }, 100);
 
-      // --- 3. CREA I NOSTRI BADGE (Sovrascrivendo i vecchi) ---
-      // Badge Sotto Connetti
-      let badge = document.getElementById('syncBadge');
-      if (!badge) {
-        badge = document.createElement('div');
-        badge.id = 'syncBadge';
-        const cb = document.querySelector('.connect-block');
-        if(cb) cb.appendChild(badge);
+      // --- 3. BLOCCA LO SFARFALLIO SOTTO CONNETTI (Clona gli elementi) ---
+      const oldText = document.getElementById('syncText');
+      if (oldText && !document.getElementById('syncText_v2')) {
+        const newText = oldText.cloneNode(true);
+        newText.id = 'syncText_v2';
+        oldText.parentNode.replaceChild(newText, oldText);
       }
-      badge.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:"Orbitron",sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px;position:relative;bottom:auto;right:auto;z-index:10;';
-      badge.innerHTML = '<span id="syncDot" style="font-size:10px;line-height:1;">●</span><span id="syncText">SLAVE</span>';
-
-      // Badge Dashboard (Assoluto su Body)
-      let dashBadge = document.getElementById('dashSyncBadge');
-      if (!dashBadge) {
-        dashBadge = document.createElement('div');
-        dashBadge.id = 'dashSyncBadge';
-        document.body.appendChild(dashBadge);
+      const oldDot = document.getElementById('syncDot');
+      if (oldDot && !document.getElementById('syncDot_v2')) {
+        const newDot = oldDot.cloneNode(true);
+        newDot.id = 'syncDot_v2';
+        oldDot.parentNode.replaceChild(newDot, oldDot);
       }
-      dashBadge.style.cssText = 'position:fixed; right:20px; display:flex; align-items:center; justify-content:center; gap:6px; padding:4px 12px; border-radius:20px; border:1.5px solid #fbbf24; background:#0a1220; font-family:"Orbitron",sans-serif; font-size:11px; font-weight:700; color:#fbbf24; z-index:2147483647; box-shadow:0 4px 10px rgba(0,0,0,0.8); white-space:nowrap; transition: bottom 0.4s cubic-bezier(0.4,0,0.2,1); pointer-events:none;';
-      dashBadge.innerHTML = '<span id="dashDot" style="font-size:14px; line-height:1;">●</span><span id="dashText">SYNC WAIT</span>';
 
-      function aggiornaPosizioneBadge() {
-        const dash = document.getElementById('dashboard');
-        if (dash && dashBadge) {
-          const rect = dash.getBoundingClientRect();
-          dashBadge.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+      // --- 4. RIPRISTINO PANNELLO AVANZATE ---
+      window.toggleAdvancedPanel = function() {
+        var panel = document.getElementById('advanced-settings-panel');
+        if (!panel) return;
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        if (panel.style.display === 'block') {
+          var g = function(id){ return document.getElementById(id); };
+          if (g('set-min-alt')) g('set-min-alt').value = MS.minAlt;
+          if (g('set-max-alt')) g('set-max-alt').value = MS.maxAlt;
+          if (g('set-dec-min')) g('set-dec-min').value = (MS.decMin * 180 / Math.PI).toFixed(0);
+          if (g('set-dec-max')) g('set-dec-max').value = (MS.decMax * 180 / Math.PI).toFixed(0);
         }
-      }
-      setInterval(aggiornaPosizioneBadge, 50);
+      };
+      window.toggleAccordion = function(btn) {
+        var content = btn.nextElementSibling; if (content) content.classList.toggle('show');
+        btn.classList.toggle('active');
+      };
+      window.saveAdvancedSettings = function() {
+        var g = function(id){ var el = document.getElementById(id); return el ? el.value : null; };
+        var minAlt = parseFloat(g('set-min-alt')); var maxAlt = parseFloat(g('set-max-alt'));
+        if (isNaN(minAlt) || isNaN(maxAlt) || minAlt >= maxAlt) { showToast('Altitudine errata', true); return; }
+        MS.minAlt = minAlt; MS.maxAlt = maxAlt;
+        if (typeof saveFullState === 'function') saveFullState();
+        if (typeof updateTelemetry === 'function') updateTelemetry();
+        showToast('✅ Salvato'); toggleAdvancedPanel();
+      };
 
-      // --- 4. FUNZIONE POPUP GPS ---
-      function showSyncPopup(lat, lon) {
-        const popup = document.createElement('div');
-        popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:"Orbitron",sans-serif;font-weight:900;font-size:15px;z-index:2147483647;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;animation:slideDownSync 0.4s ease-out;';
-        popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:12px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
-        document.body.appendChild(popup);
-        setTimeout(() => { popup.style.animation = 'slideUpSync 0.4s ease-in forwards'; setTimeout(() => popup.remove(), 400); }, 4000);
+      // --- 5. CREA L'ICONA DI SYNC (Sotto la Mappa Polare) ---
+      function createSyncIcon() {
+        if (document.getElementById('syncIndicatorBtn')) return;
+        const container = document.querySelector('.top-right-buttons');
+        if (!container) return;
+        
+        const btn = document.createElement('div');
+        btn.id = 'syncIndicatorBtn';
+        btn.className = 'circle-btn';
+        btn.title = 'Stato Sincronizzazione';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>';
+        btn.style.cssText = 'border-color: #6b778c; color: #6b778c; transition: all 0.3s;';
+        container.appendChild(btn);
       }
+      
+      // Tenta di crearlo subito, e se la mappa polare arriva dopo, lo mettiamo in coda
+      setTimeout(createSyncIcon, 500);
+      setTimeout(createSyncIcon, 1500);
 
-      // --- 5. LOOP DI SINCRONIZZAZIONE ---
+      // --- 6. LOOP DI SINCRONIZZAZIONE ---
       const channel = new BroadcastChannel('egastro_sync_channel');
       let lastPing = 0;
       channel.onmessage = (e) => { if (e.data.type === 'ping_p') lastPing = Date.now(); };
 
       let lastCmd = { goto:0, park:0, unpark:0, stop:0, home:0, sethome:0, setpark:0, tracking:0 };
       let lastGps = 0, lastConn = 0;
-      let isExecutingGoto = false; // Flag per impedire allo specchio di sovrascrivere il GOTO
+      let isExecutingGoto = false;
 
       setInterval(() => {
         channel.postMessage({ type: 'ping_m' });
@@ -1271,21 +1299,28 @@ window.addEventListener('load',()=>{
         
         const isAlive = (Date.now() - lastPing < 2000) || (localStorage.getItem('final_hb_p') && (Date.now() - Number(localStorage.getItem('final_hb_p')) < 2000));
 
-        // Aggiorna badge Leader
-        const t = document.getElementById('syncText'); const d = document.getElementById('syncDot');
+        // Aggiorna badge Leader (usando i cloni per non far sfarfallare)
+        const t = document.getElementById('syncText_v2'); const d = document.getElementById('syncDot_v2'); const b = document.getElementById('syncBadge');
         if (t) {
-          if (isAlive) { t.textContent = 'LEADER ✓ MASTER'; t.style.color = '#4ade80'; if(d) d.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80'; }
-          else { t.textContent = 'SLAVE'; t.style.color = '#6b778c'; if(d) d.style.color = '#6b778c'; if(badge) badge.style.borderColor = '#6b778c'; }
+          if (isAlive) { t.textContent = 'LEADER ✓ MASTER'; t.style.color = '#4ade80'; if(d) d.style.color = '#4ade80'; if(b) b.style.borderColor = '#4ade80'; }
+          else { t.textContent = 'SLAVE'; t.style.color = '#6b778c'; if(d) d.style.color = '#6b778c'; if(b) b.style.borderColor = '#6b778c'; }
         }
 
-        // Aggiorna badge Dashboard
-        const dt = document.getElementById('dashText'); const dd = document.getElementById('dashDot');
-        if (dt && dd && dashBadge) {
-          if (isAlive) { dt.textContent = 'SYNC ON'; dt.style.color = '#4ade80'; dd.style.color = '#4ade80'; dashBadge.style.borderColor = '#4ade80'; }
-          else { dt.textContent = 'SYNC WAIT'; dt.style.color = '#fbbf24'; dd.style.color = '#fbbf24'; dashBadge.style.borderColor = '#fbbf24'; }
+        // Aggiorna l'Icona Sync
+        const syncBtn = document.getElementById('syncIndicatorBtn');
+        if (syncBtn) {
+            if (isAlive) {
+                syncBtn.style.borderColor = '#4ade80';
+                syncBtn.style.color = '#4ade80';
+                syncBtn.style.boxShadow = '0 0 15px rgba(74,222,128,0.6)';
+            } else {
+                syncBtn.style.borderColor = '#6b778c';
+                syncBtn.style.color = '#6b778c';
+                syncBtn.style.boxShadow = 'none';
+            }
         }
 
-        // Gestione GPS
+        // Gestione GPS e Popup
         const gpsRaw = localStorage.getItem('final_gps');
         if(gpsRaw) { 
             const g = JSON.parse(gpsRaw); 
@@ -1294,7 +1329,15 @@ window.addEventListener('load',()=>{
                 MS.gpsLat=g.lat; MS.gpsLon=g.lon; MS.gpsActive=true; 
                 if(typeof updateTelemetry==='function') updateTelemetry(); 
                 if(typeof applyMountTilt==='function') applyMountTilt(); 
-                showSyncPopup(g.lat, g.lon);
+                
+                if (!window._syncedPopupShown || Date.now() - window._syncedPopupShown > 3000) {
+                    window._syncedPopupShown = Date.now();
+                    const popup = document.createElement('div');
+                    popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:"Orbitron",sans-serif;font-weight:900;font-size:15px;z-index:2147483647;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;';
+                    popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:12px;font-weight:normal;">LAT: ' + g.lat.toFixed(4) + ' | LON: ' + g.lon.toFixed(4) + '</div>';
+                    document.body.appendChild(popup);
+                    setTimeout(() => { popup.remove(); }, 4000);
+                }
             } 
         }
 
@@ -1308,9 +1351,18 @@ window.addEventListener('load',()=>{
               if (typeof MS !== 'undefined') {
                 try {
                   if (cmd === 'goto' && typeof _startGoto === 'function') { 
-                      isExecutingGoto = true;
-                      MS.slewMode = 'goto'; 
-                      _startGoto(c.ra, c.dec); 
+                      if (!MS.connected && typeof toggleConnection === 'function') {
+                          toggleConnection();
+                          setTimeout(() => {
+                              isExecutingGoto = true;
+                              MS.slewMode = 'goto'; 
+                              _startGoto(c.ra, c.dec);
+                          }, 500);
+                      } else {
+                          isExecutingGoto = true;
+                          MS.slewMode = 'goto'; 
+                          _startGoto(c.ra, c.dec); 
+                      }
                   }
                   if (cmd === 'park' && typeof parkMount === 'function') parkMount();
                   if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
@@ -1325,7 +1377,7 @@ window.addEventListener('load',()=>{
           }
         });
 
-        // Specchio Telescopio (Solo se NON stiamo eseguendo un GOTO)
+        // Specchio Telescopio
         if (typeof MS !== 'undefined' && MS.slewMode === 'idle' && !isExecutingGoto) {
             const mapPos = localStorage.getItem('final_map_pos');
             if (mapPos) {
@@ -1338,7 +1390,7 @@ window.addEventListener('load',()=>{
               }
             }
         } else if (typeof MS !== 'undefined' && MS.slewMode !== 'goto') {
-            isExecutingGoto = false; // Reset del flag se il GOTO è finito o annullato
+            isExecutingGoto = false;
         }
 
         // Connessione
