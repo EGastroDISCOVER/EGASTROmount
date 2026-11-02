@@ -312,7 +312,7 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
 </div>
 <div class="dash-section tracking-section">
 <h3>Inseguimento / Velocità</h3>
-<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="tracking-rate" onchange="changeTrackingRate(this.value)"><option value="0.50">Rate: 0.50x</option><option value="0.75">Rate: 0.75x</option><option value="1.00" selected>Rate: 1.00x</option><option value="2.00">Rate: 2.00x</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">Slew: Lento</option><option value="0.02" selected>Slew: Default</option><option value="0.06">Slew: Veloce</option><option value="0.2">Slew: Veloce Max</option></select></div>
+<div class="control-row"><select id="tracking-mode" onchange="changeTrackingMode(this.value)"><option value="sidereal">Siderale</option><option value="solar">Solare</option><option value="lunar">Lunare</option><option value="off">Spento</option></select><select id="tracking-rate" onchange="changeTrackingRate(this.value)"><option value="0.50">Rate: 0.50x</option><option value="0.75">Rate: 0.75x</option><option value="1.00" selected>Rate: 1.00x</option><option value="2.00">Rate: 2.00x</option></select><select id="tracking-rate" onchange="changeTrackingRate(this.value)"><option value="0.50">Rate: 0.50x</option><option value="0.75">Rate: 0.75x</option><option value="1.00" selected>Rate: 1.00x</option><option value="2.00">Rate: 2.00x</option></select><select id="slew-speed" onchange="changeSlewSpeed(this.value)"><option value="0.005">Slew: Lento</option><option value="0.02" selected>Slew: Default</option><option value="0.06">Slew: Veloce</option><option value="0.2">Slew: Veloce Max</option></select></div>
 <div class="control-row"><button class="btn primary" id="trackingOnBtn" onclick="toggleTrackingOn()">TRACKING ON</button></div>
 <div class="control-row"><button class="btn" id="invNSBtn" onclick="toggleInvertNS()">INV N/S</button><button class="btn" id="invEWBtn" onclick="toggleInvertEW()">INV E/O</button></div>
 </div>
@@ -1321,8 +1321,8 @@ window.addEventListener('load',()=>{
           }
         });
 
-        // Specchio Telescopio
-        if (false && typeof MS !== 'undefined' && MS.slewMode === 'idle' && !isExecutingGoto) {
+    // Specchio Telescopio (DISABILITATO per evitare reset della posizione)
+        if (false) {
             const mapPos = localStorage.getItem('final_map_pos');
             if (mapPos) {
               const m = JSON.parse(mapPos);
