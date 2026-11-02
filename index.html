@@ -1185,87 +1185,77 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_final_v92">
+<script id="__sync_mount_v101">
     (function() {
-      // 1. Fix Crash
-      window.SyncBus = { isPeerAlive: () => false, requestLeader: () => false, isLeader: () => false, stop: () => {} };
+      try {
+        window.__READONLY__ = false;
+        if (window.SyncBus) { 
+          window.SyncBus.isLeader = () => true; 
+          window.SyncBus.requestLeader = () => true; 
+        }
+      } catch(e) { console.error(e); }
+      
+      const channel = new BroadcastChannel('egastro_sync_channel');
+      let lastPing = 0;
 
-      // 2. Elimina badge volanti
-      function nukeBottomRightBadge() {
-        document.querySelectorAll('div').forEach(el => {
-          try {
-            const style = window.getComputedStyle(el);
-            const isBottomRight = (style.position === 'fixed' || style.position === 'absolute') && 
-                                  (style.bottom !== 'auto' && parseInt(style.bottom) < 100) && 
-                                  (style.right !== 'auto' && parseInt(style.right) < 100);
-            if ((isBottomRight || el.innerText.includes('Sync WAIT')) && el.innerText && el.innerText.includes('Sync')) {
-              if (el.id !== 'syncBadge' && el.id !== 'dashSyncBadge' && !el.closest('.connect-block') && !el.closest('#dashboard')) {
-                el.remove();
-              }
-            }
-          } catch(e) {}
-        });
-      }
-      nukeBottomRightBadge();
-      setInterval(nukeBottomRightBadge, 500);
+      // Ascolta il battito di Pianeta
+      channel.onmessage = (e) => {
+        if (e.data.type === 'ping_p') lastPing = Date.now();
+      };
 
-      // 3. Badge sotto Connetti (Leader/Slave/Readonly)
+      // 1. Badge Sotto Connetti
       let badge = document.getElementById('syncBadge');
       if (!badge) {
         badge = document.createElement('div');
         badge.id = 'syncBadge';
-        badge.innerHTML = '<span id="syncDot" style="font-size:10px;line-height:1;">●</span><span id="syncText">SLAVE</span>';
         const cb = document.querySelector('.connect-block');
-        if (cb) cb.appendChild(badge);
+        if(cb) cb.appendChild(badge);
       }
-      badge.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:"Orbitron",sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px;position:relative;bottom:auto;right:auto;';
+      badge.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:"Orbitron",sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px;position:relative;bottom:auto;right:auto;z-index:10;';
+      badge.innerHTML = '<span id="syncDot" style="font-size:10px;line-height:1;">●</span><span id="syncText">SLAVE</span>';
 
-      // 4. Badge sulla Dashboard (Solid Sync)
+      // 2. Badge Dashboard (Assoluto su Body)
       let dashBadge = document.getElementById('dashSyncBadge');
       if (!dashBadge) {
         dashBadge = document.createElement('div');
         dashBadge.id = 'dashSyncBadge';
-        const dash = document.getElementById('dashboard');
-        if (dash) dash.appendChild(dashBadge);
+        document.body.appendChild(dashBadge);
       }
-      dashBadge.style.cssText = 'position:absolute; top:-16px; right:20px; display:flex; align-items:center; justify-content:center; gap:6px; padding:4px 12px; border-radius:20px; border:1.5px solid #fbbf24; background:#0a1220; font-family:"Orbitron",sans-serif; font-size:11px; font-weight:700; color:#fbbf24; z-index:9999; box-shadow:0 4px 10px rgba(0,0,0,0.8); white-space:nowrap;';
+      dashBadge.style.cssText = 'position:fixed; right:20px; display:flex; align-items:center; justify-content:center; gap:6px; padding:4px 12px; border-radius:20px; border:1.5px solid #fbbf24; background:#0a1220; font-family:"Orbitron",sans-serif; font-size:11px; font-weight:700; color:#fbbf24; z-index:2147483647; box-shadow:0 4px 10px rgba(0,0,0,0.8); white-space:nowrap; transition: bottom 0.4s cubic-bezier(0.4,0,0.2,1); pointer-events:none;';
       dashBadge.innerHTML = '<span id="dashDot" style="font-size:14px; line-height:1;">●</span><span id="dashText">SYNC WAIT</span>';
 
-      // 5. Loop Comandi e Aggiornamento
+      function aggiornaPosizioneBadge() {
+        const dash = document.getElementById('dashboard');
+        if (dash && dashBadge) {
+          const rect = dash.getBoundingClientRect();
+          dashBadge.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+        }
+      }
+      setInterval(aggiornaPosizioneBadge, 50);
+
+      // 3. Ricezione Comandi e Sync
       let lastCmd = { goto:0, park:0, unpark:0, stop:0, home:0, sethome:0, setpark:0, tracking:0 };
+      let lastGps = 0, lastConn = 0;
 
       setInterval(() => {
+        channel.postMessage({ type: 'ping_m' });
         localStorage.setItem('final_hb_m', Date.now());
-        const isAlive = localStorage.getItem('final_hb_p') && (Date.now() - Number(localStorage.getItem('final_hb_p')) < 2000);
+        
+        // Controlla se Pianeta è vivo
+        const isAlive = (Date.now() - lastPing < 2000) || (localStorage.getItem('final_hb_p') && (Date.now() - Number(localStorage.getItem('final_hb_p')) < 2000));
 
-        // Aggiorna Badge Leader
-        const t = document.getElementById('syncText');
-        const d = document.getElementById('syncDot');
+        const t = document.getElementById('syncText'); const d = document.getElementById('syncDot');
         if (t) {
-          if (window.__READONLY__) {
-            if (t.textContent !== 'READONLY') t.textContent = 'READONLY';
-            t.style.color = '#fbbf24'; if(d) d.style.color = '#fbbf24'; if(badge) badge.style.borderColor = '#fbbf24';
-          } else if (isAlive) {
-            if (t.textContent !== 'LEADER ✓ MASTER') t.textContent = 'LEADER ✓ MASTER';
-            t.style.color = '#4ade80'; if(d) d.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80';
-          } else {
-            if (t.textContent !== 'SLAVE') t.textContent = 'SLAVE';
-            t.style.color = '#6b778c'; if(d) d.style.color = '#6b778c'; if(badge) badge.style.borderColor = '#6b778c';
-          }
+          if (isAlive) { t.textContent = 'LEADER ✓ MASTER'; t.style.color = '#4ade80'; if(d) d.style.color = '#4ade80'; if(badge) badge.style.borderColor = '#4ade80'; }
+          else { t.textContent = 'SLAVE'; t.style.color = '#6b778c'; if(d) d.style.color = '#6b778c'; if(badge) badge.style.borderColor = '#6b778c'; }
         }
 
-        // Aggiorna Badge Sync Dashboard
-        const dt = document.getElementById('dashText');
-        const dd = document.getElementById('dashDot');
+        const dt = document.getElementById('dashText'); const dd = document.getElementById('dashDot');
         if (dt && dd && dashBadge) {
-          if (isAlive) {
-            dt.textContent = 'SYNC ON'; dt.style.color = '#4ade80'; dd.style.color = '#4ade80'; dashBadge.style.borderColor = '#4ade80';
-          } else {
-            dt.textContent = 'SYNC WAIT'; dt.style.color = '#fbbf24'; dd.style.color = '#fbbf24'; dashBadge.style.borderColor = '#fbbf24';
-          }
+          if (isAlive) { dt.textContent = 'SYNC ON'; dt.style.color = '#4ade80'; dd.style.color = '#4ade80'; dashBadge.style.borderColor = '#4ade80'; }
+          else { dt.textContent = 'SYNC WAIT'; dt.style.color = '#fbbf24'; dd.style.color = '#fbbf24'; dashBadge.style.borderColor = '#fbbf24'; }
         }
 
-        // Esegui Comandi (Forzando il GOTO)
         ['goto', 'park', 'unpark', 'stop', 'home', 'sethome', 'setpark', 'tracking'].forEach(cmd => {
           const raw = localStorage.getItem('final_cmd_' + cmd);
           if (raw) {
@@ -1273,23 +1263,21 @@ window.addEventListener('load',()=>{
             if (c.ts > lastCmd[cmd]) {
               lastCmd[cmd] = c.ts;
               if (typeof MS !== 'undefined') {
-                if (cmd === 'goto' && typeof _startGoto === 'function') {
-                  MS.slewMode = 'goto'; // Forza il movimento
-                  _startGoto(c.ra, c.dec);
-                }
-                if (cmd === 'park' && typeof parkMount === 'function') parkMount();
-                if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
-                if (cmd === 'stop' && typeof stopMotion === 'function') stopMotion();
-                if (cmd === 'home' && typeof goHome === 'function') goHome();
-                if (cmd === 'sethome' && typeof setHome === 'function') setHome();
-                if (cmd === 'setpark' && typeof setPark === 'function') setPark();
-                if (cmd === 'tracking' && typeof toggleTrackingOn === 'function' && c.on !== (MS.tracking !== 'off')) toggleTrackingOn();
+                try {
+                  if (cmd === 'goto' && typeof _startGoto === 'function') { MS.slewMode = 'goto'; _startGoto(c.ra, c.dec); }
+                  if (cmd === 'park' && typeof parkMount === 'function') parkMount();
+                  if (cmd === 'unpark' && typeof unparkMount === 'function') unparkMount();
+                  if (cmd === 'stop' && typeof stopMotion === 'function') stopMotion();
+                  if (cmd === 'home' && typeof goHome === 'function') goHome();
+                  if (cmd === 'sethome' && typeof setHome === 'function') setHome();
+                  if (cmd === 'setpark' && typeof setPark === 'function') setPark();
+                  if (cmd === 'tracking' && typeof toggleTrackingOn === 'function' && c.on !== (MS.tracking !== 'off')) toggleTrackingOn();
+                } catch(e) { console.error("Cmd error", e); }
               }
             }
           }
         });
 
-        // Sync Telescopio (Solo se idle)
         if (typeof MS !== 'undefined' && MS.slewMode === 'idle') {
             const mapPos = localStorage.getItem('final_map_pos');
             if (mapPos) {
@@ -1303,14 +1291,12 @@ window.addEventListener('load',()=>{
             }
         }
 
-        // GPS & Connection
         const gpsRaw = localStorage.getItem('final_gps');
-        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(typeof MS !== 'undefined' && g.ts > (window._lGps||0)) { window._lGps=g.ts; MS.gpsLat=g.lat; MS.gpsLon=g.lon; MS.gpsActive=true; if(typeof updateTelemetry==='function') updateTelemetry(); if(typeof applyMountTilt==='function') applyMountTilt(); } }
+        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(typeof MS !== 'undefined' && g.ts > lastGps) { lastGps=g.ts; MS.gpsLat=g.lat; MS.gpsLon=g.lon; MS.gpsActive=true; if(typeof updateTelemetry==='function') updateTelemetry(); if(typeof applyMountTilt==='function') applyMountTilt(); } }
         const connRaw = localStorage.getItem('final_conn');
-        if(connRaw) { const c = JSON.parse(connRaw); if(typeof MS !== 'undefined' && c.ts > (window._lConn||0)) { window._lConn=c.ts; MS.simulated=c.sim; if(c.connected && !MS.connected && typeof toggleConnection==='function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount==='function') disconnectMount(true); } }
+        if(connRaw) { const c = JSON.parse(connRaw); if(typeof MS !== 'undefined' && c.ts > lastConn) { lastConn=c.ts; MS.simulated=c.sim; if(c.connected && !MS.connected && typeof toggleConnection==='function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount==='function') disconnectMount(true); } }
       }, 100);
 
-      // Funzione Velocità
       window.changeSlewSpeed = function(val) { if(typeof MS !== 'undefined') { MS.speedPerStep = 0.02 * parseFloat(val); MS.speedLabel = val + 'x'; if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); } };
     })();
   </script></body></html>
