@@ -255,7 +255,10 @@ if(document.readyState==='complete'||document.readyState==='interactive')setTime
   }
 </style>
 
-</head>
+<style>
+    @keyframes slideDownSync { from { top: -80px; opacity: 0; } to { top: 20px; opacity: 1; } }
+    @keyframes slideUpSync { from { top: 20px; opacity: 1; } to { top: -80px; opacity: 0; } }
+  </style></head>
 <body>
 <div id="canvas-container"></div>
 <div class="top-bar">
@@ -1185,7 +1188,7 @@ window.addEventListener('load',()=>{
 
 
 
-<script id="__sync_mount_v101">
+<script id="__sync_mount_v102">
     (function() {
       try {
         window.__READONLY__ = false;
@@ -1198,12 +1201,19 @@ window.addEventListener('load',()=>{
       const channel = new BroadcastChannel('egastro_sync_channel');
       let lastPing = 0;
 
-      // Ascolta il battito di Pianeta
       channel.onmessage = (e) => {
         if (e.data.type === 'ping_p') lastPing = Date.now();
       };
 
-      // 1. Badge Sotto Connetti
+      // FUNZIONE POPUP
+      function showSyncPopup(lat, lon) {
+        const popup = document.createElement('div');
+        popup.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(74,222,128,0.95);color:#000;padding:15px 30px;border-radius:12px;font-family:"Orbitron",sans-serif;font-weight:900;font-size:15px;z-index:2147483647;box-shadow:0 10px 30px rgba(74,222,128,0.6);display:flex;flex-direction:column;align-items:center;gap:5px;animation:slideDownSync 0.4s ease-out;';
+        popup.innerHTML = '<div>📡 GPS Sincronizzato da Pianeta!</div><div style="font-size:12px;font-weight:normal;">LAT: ' + lat.toFixed(4) + ' | LON: ' + lon.toFixed(4) + '</div>';
+        document.body.appendChild(popup);
+        setTimeout(() => { popup.style.animation = 'slideUpSync 0.4s ease-in forwards'; setTimeout(() => popup.remove(), 400); }, 4000);
+      }
+
       let badge = document.getElementById('syncBadge');
       if (!badge) {
         badge = document.createElement('div');
@@ -1214,7 +1224,6 @@ window.addEventListener('load',()=>{
       badge.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border-radius:12px;border:1px solid #6b778c;background:rgba(107,119,140,0.15);font-family:"Orbitron",sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;width:90px;max-width:90px;overflow:hidden;transform:scale(0.9);transform-origin:left center;margin-top:2px;position:relative;bottom:auto;right:auto;z-index:10;';
       badge.innerHTML = '<span id="syncDot" style="font-size:10px;line-height:1;">●</span><span id="syncText">SLAVE</span>';
 
-      // 2. Badge Dashboard (Assoluto su Body)
       let dashBadge = document.getElementById('dashSyncBadge');
       if (!dashBadge) {
         dashBadge = document.createElement('div');
@@ -1233,7 +1242,6 @@ window.addEventListener('load',()=>{
       }
       setInterval(aggiornaPosizioneBadge, 50);
 
-      // 3. Ricezione Comandi e Sync
       let lastCmd = { goto:0, park:0, unpark:0, stop:0, home:0, sethome:0, setpark:0, tracking:0 };
       let lastGps = 0, lastConn = 0;
 
@@ -1241,7 +1249,6 @@ window.addEventListener('load',()=>{
         channel.postMessage({ type: 'ping_m' });
         localStorage.setItem('final_hb_m', Date.now());
         
-        // Controlla se Pianeta è vivo
         const isAlive = (Date.now() - lastPing < 2000) || (localStorage.getItem('final_hb_p') && (Date.now() - Number(localStorage.getItem('final_hb_p')) < 2000));
 
         const t = document.getElementById('syncText'); const d = document.getElementById('syncDot');
@@ -1254,6 +1261,22 @@ window.addEventListener('load',()=>{
         if (dt && dd && dashBadge) {
           if (isAlive) { dt.textContent = 'SYNC ON'; dt.style.color = '#4ade80'; dd.style.color = '#4ade80'; dashBadge.style.borderColor = '#4ade80'; }
           else { dt.textContent = 'SYNC WAIT'; dt.style.color = '#fbbf24'; dd.style.color = '#fbbf24'; dashBadge.style.borderColor = '#fbbf24'; }
+        }
+
+        // GESTIONE GPS E POPUP
+        const gpsRaw = localStorage.getItem('final_gps');
+        if(gpsRaw) { 
+            const g = JSON.parse(gpsRaw); 
+            if(typeof MS !== 'undefined' && g.ts > lastGps) { 
+                lastGps=g.ts; 
+                MS.gpsLat=g.lat; 
+                MS.gpsLon=g.lon; 
+                MS.gpsActive=true; 
+                if(typeof updateTelemetry==='function') updateTelemetry(); 
+                if(typeof applyMountTilt==='function') applyMountTilt(); 
+                
+                showSyncPopup(g.lat, g.lon);
+            } 
         }
 
         ['goto', 'park', 'unpark', 'stop', 'home', 'sethome', 'setpark', 'tracking'].forEach(cmd => {
@@ -1291,8 +1314,6 @@ window.addEventListener('load',()=>{
             }
         }
 
-        const gpsRaw = localStorage.getItem('final_gps');
-        if(gpsRaw) { const g = JSON.parse(gpsRaw); if(typeof MS !== 'undefined' && g.ts > lastGps) { lastGps=g.ts; MS.gpsLat=g.lat; MS.gpsLon=g.lon; MS.gpsActive=true; if(typeof updateTelemetry==='function') updateTelemetry(); if(typeof applyMountTilt==='function') applyMountTilt(); } }
         const connRaw = localStorage.getItem('final_conn');
         if(connRaw) { const c = JSON.parse(connRaw); if(typeof MS !== 'undefined' && c.ts > lastConn) { lastConn=c.ts; MS.simulated=c.sim; if(c.connected && !MS.connected && typeof toggleConnection==='function') toggleConnection(); else if(!c.connected && MS.connected && typeof disconnectMount==='function') disconnectMount(true); } }
       }, 100);
