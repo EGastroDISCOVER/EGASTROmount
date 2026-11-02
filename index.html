@@ -1400,4 +1400,20 @@ window.addEventListener('load',()=>{
 
       window.changeSlewSpeed = function(val) { if(typeof MS !== 'undefined') { MS.speedPerStep = 0.02 * parseFloat(val); MS.speedLabel = val + 'x'; if (typeof updateSpeedDisplay === 'function') updateSpeedDisplay(); } };
     })();
-  </script></body></html>
+  </script>
+  <!-- REGISTRAZIONE PWA -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+        .then((registration) => {
+          console.log('✅ Service Worker registrato con successo. La PWA è attiva.');
+        })
+        .catch((error) => {
+          console.log('❌ Errore nella registrazione del Service Worker:', error);
+        });
+    });
+  }
+</script>
+</body>
+</html>
