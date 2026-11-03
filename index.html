@@ -959,40 +959,31 @@ window.addEventListener('load',()=>{
   <iframe id="tunnel-frame" style="width:100%; height:100%; border:none;" allow="geolocation; camera; microphone; fullscreen"></iframe>
 </div>
 
-<script id="__tunnel-observer">
+<script id="__tunnel-satellite">
 (function(){
   function init(){
     var btn = document.getElementById('my-tunnel-btn');
     if (!btn) return;
-    
     var isPianeta = document.querySelector('meta[name="app-id"]')?.content === 'observatory';
     var targetUrl = isPianeta ? 'https://egastrodiscover.github.io/EGASTROmount/' : 'https://egastrodiscover.github.io/EGASTRO/';
-    
     var ICON_SCOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"></path><path d="M7 16l-2 6"></path><path d="M3 22h8"></path><path d="M10 6l10-3 2 4-10 3-2-4z"></path></svg>';
     var ICON_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;"><path d="M3 21h18"></path><path d="M4 21v-8"></path><path d="M20 21v-8"></path><path d="M4 13a8 8 0 0 1 16 0"></path><path d="M12 5v8"></path><path d="M12 10l-3-2"></path></svg>';
-    
     var myIcon = isPianeta ? ICON_SCOPE : ICON_DOME;
     var myLabel = isPianeta ? 'SCOPE' : 'DOME';
     var otherIcon = isPianeta ? ICON_DOME : ICON_SCOPE;
     var otherLabel = isPianeta ? 'DOME' : 'SCOPE';
-    
     btn.style.cssText = 'position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:2147483647;width:54px;height:54px;border-radius:0 14px 14px 0;background:rgba(10,18,32,0.95);border:2px solid #d4af37;border-left:none;box-shadow:0 0 20px rgba(212,175,55,0.5);color:#d4af37;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.25s;';
-    
     function setBtn(icon, label, color) {
       btn.innerHTML = icon + '<span style="font-family:Orbitron,sans-serif;font-size:8px;letter-spacing:1px;font-weight:bold;margin-top:2px;">' + label + '</span>';
       btn.style.borderColor = color;
       btn.style.color = color;
       btn.style.boxShadow = '0 0 20px ' + color + '99';
     }
-    
     setBtn(myIcon, myLabel, '#d4af37');
-    
     var open = false;
-    
     btn.onclick = function(e) {
       e.preventDefault();
       e.stopPropagation();
-      
       if (open) {
         var w = document.getElementById('mount-iframe-fixed');
         if (w) w.style.display = 'none';
@@ -1000,7 +991,6 @@ window.addEventListener('load',()=>{
         open = false;
         return;
       }
-      
       var w = document.getElementById('mount-iframe-fixed');
       if (!w) {
         w = document.createElement('div');
@@ -1022,7 +1012,6 @@ window.addEventListener('load',()=>{
   else init();
 })();
 </script>
-
 <!-- AVANZATE_PANEL_START -->
 <div id="advToggleBtn" onclick="toggleAdvancedPanel()" title="Impostazioni Avanzate">⚙️ Avanzate</div>
 
