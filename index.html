@@ -1449,6 +1449,7 @@ window.addEventListener('load',()=>{
 (function(){
   console.log('🔗 [Satellite] Sync attivo');
   var lastConn = 0, lastGps = 0, lastCmd = {};
+  var inTunnel = window.self !== window.top;
   setInterval(function() {
     var connRaw = localStorage.getItem('final_conn');
     if (connRaw) {
@@ -1457,7 +1458,8 @@ window.addEventListener('load',()=>{
         if (c.ts > lastConn) {
           lastConn = c.ts;
           if (c.sim && typeof MS !== 'undefined' && !MS.simulated) { MS.simulated = true; if (typeof updateLinkButtons === 'function') updateLinkButtons(); }
-         if (c.connected && typeof MS !== 'undefined' && !MS.connected) { MS.simulated = true; MS.connected = true; if (typeof updateLinkButtons === 'function') updateLinkButtons(); if (typeof updateTelemetry === 'function') updateTelemetry(); }
+          if (c.connected && typeof MS !== 'undefined' && !MS.connected && inTunnel) { MS.simulated = true; MS.connected = true; if (typeof updateLinkButtons === 'function') updateLinkButtons(); if (typeof updateTelemetry === 'function') updateTelemetry(); }
+        }
       } catch(e) {}
     }
     var gpsRaw = localStorage.getItem('final_gps');
