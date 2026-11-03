@@ -1567,5 +1567,31 @@ else init();
   }
 })();
 </script>
+  <script id="__mount-auto-connect">
+(function(){
+  if (window.self === window.top) return;
+
+  function autoConnect() {
+    if (typeof MS === 'undefined' || typeof toggleConnection !== 'function') {
+      setTimeout(autoConnect, 400);
+      return;
+    }
+    if (MS.connected) return;
+
+    if (!MS.simulated) {
+      MS.simulated = true;
+      if (typeof updateLinkButtons === 'function') updateLinkButtons();
+    }
+
+    setTimeout(() => {
+      if (!MS.connected && typeof toggleConnection === 'function') {
+        try { toggleConnection(); } catch(e) { console.warn('auto-connect', e); }
+      }
+    }, 250);
+  }
+
+  window.addEventListener('load', () => setTimeout(autoConnect, 1200));
+})();
+</script>
 </body>
 </html>
