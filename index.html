@@ -1488,5 +1488,84 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 else init();
 })();
 </script>
+  <script id="__tunnel-unified-v3">
+(function(){
+  'use strict';
+  if (window.self !== window.top) return;
+  const isMount = (document.querySelector('meta[name="app-id"]')?.content || '').toLowerCase() === 'mount';
+  const OTHER_URL = isMount
+    ? 'https://egastrodiscover.github.io/EGASTRO/'
+    : 'https://egastrodiscover.github.io/EGASTROmount/';
+  const MY_LABEL    = isMount ? 'DOME'  : 'SCOPE';
+  const OTHER_LABEL = isMount ? 'SCOPE' : 'DOME';
+  const GOLD = '#d4af37', BLUE = '#8bd3ff';
+  const SVG_SCOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;display:block;"><path d="M10 6L7 16l-4-1.5L6 4.5 10 6z"/><path d="M7 16l-2 6"/><path d="M3 22h8"/><path d="M10 6l10-3 2 4-10 3-2-4z"/></svg>';
+  const SVG_DOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;display:block;"><path d="M3 21h18"/><path d="M4 21v-8"/><path d="M20 21v-8"/><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8"/><path d="M12 10l-3-2"/></svg>';
+  const MY_ICON    = isMount ? SVG_DOME  : SVG_SCOPE;
+  const OTHER_ICON = isMount ? SVG_SCOPE : SVG_DOME;
+
+  function boot() {
+    ['__oneBtn','__oneFrame','tunnel-btn','tunnel-frame-wrap',
+     'my-tunnel-btn','mount-iframe-fixed','mount-iframe',
+     'app-switcher-container','app-switcher-menu','planet-menu-ultimate',
+     'app-frame-container','app-frame','tunnel-menu','tunnel-panel',
+     'tunnel-toggle','tunnel-frame-container','btn-goto-dome','btn-goto-telescope',
+     'tunnel-frame','tunnel-btn-click','my-tunnel-btn-click','my-tunnel-label'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+
+    let open = false;
+    const btn = document.createElement('button');
+    btn.id = 'tunnel-btn';
+    btn.title = isMount ? 'Apri Pianeta (Osservatorio)' : 'Apri Telescopio (Mount)';
+    btn.style.cssText = `position:fixed!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:2147483647!important;width:54px!important;height:54px!important;border-radius:0 14px 14px 0!important;background:rgba(10,18,32,0.95)!important;border:2px solid ${GOLD}!important;border-left:none!important;box-shadow:0 0 20px ${GOLD}80!important;color:${GOLD}!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;transition:all .25s!important;padding:0!important;font-family:Orbitron,sans-serif!important;`;
+    function paint(icon, label, color, bg) {
+      btn.innerHTML = icon + `<span style="font-size:8px;letter-spacing:1px;font-weight:bold;margin-top:2px;line-height:1;">${label}</span>`;
+      btn.style.color = color;
+      btn.style.borderColor = color;
+      btn.style.boxShadow = `0 0 20px ${color}80`;
+      if (bg) btn.style.background = bg;
+    }
+    paint(MY_ICON, MY_LABEL, GOLD, 'rgba(10,18,32,0.95)');
+    document.body.appendChild(btn);
+
+    const wrap = document.createElement('div');
+    wrap.id = 'tunnel-frame-wrap';
+    wrap.style.cssText = 'display:none;position:fixed;inset:0;z-index:2147483645;background:#05070a;';
+    const iframe = document.createElement('iframe');
+    iframe.id = 'tunnel-frame';
+    iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+    iframe.setAttribute('allow', 'geolocation; camera; microphone; fullscreen; accelerometer; gyroscope; magnetometer');
+    wrap.appendChild(iframe);
+    document.body.appendChild(wrap);
+
+    btn.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (!open) {
+        iframe.src = OTHER_URL + (OTHER_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+        wrap.style.display = 'block';
+        paint(OTHER_ICON, OTHER_LABEL, '#000', BLUE);
+        open = true;
+      } else {
+        wrap.style.display = 'none';
+        iframe.src = 'about:blank';
+        paint(MY_ICON, MY_LABEL, GOLD, 'rgba(10,18,32,0.95)');
+        open = false;
+      }
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && open) btn.click();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 400));
+  } else {
+    setTimeout(boot, 400);
+  }
+})();
+</script>
 </body>
 </html>
